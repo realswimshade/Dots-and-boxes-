@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>2B - Dots & Boxes</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #1e293b;
+      --text: #f8fafc;
+      --sub: #94a3b8;
+      --p1: #38bdf8;
+      --p1-fill: rgba(56, 189, 248, 0.28);
+      --p2: #f43f5e;
+      --p2-fill: rgba(244, 63, 94, 0.28);
+      --accent: #6366f1;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      padding: 16px;
+    }
+    h1 { font-size: 1.25rem; margin-bottom: 12px; letter-spacing: 0.5px; }
+    .card {
+      background: var(--panel);
+      border-radius: 12px;
+      padding: 16px;
+      width: 100%;
+      max-width: 360px;
+      margin-bottom: 12px;
+      text-align: center;
+    }
+    .btn {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      width: 100%;
+      cursor: pointer;
+      margin-top: 8px;
+      transition: opacity 0.15s;
+    }
+    .btn:active { opacity: 0.8; }
+    .btn-secondary { background: #334155; }
+    .input-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    input {
+      flex: 1;
+      background: #0f172a;
+      border: 1px solid #334155;
+      color: var(--text);
+      border-radius: 8px;
+      padding: 10px;
+      text-align: center;
+      font-size: 1rem;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+    .room-code {
+      font-size: 1.8rem;
+      font-weight: 800;
+      letter-spacing: 4px;
+      color: var(--p1);
+      margin: 8px 0;
+    }
+    .scoreboard {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      width: 100%;
+      max-width: 360px;
+      margin-bottom: 12px;
+    }
+    .player-box {
+      flex: 1;
+      background: var(--panel);
+      border-radius: 10px;
+      padding: 10px;
+      border: 2px solid transparent;
+      text-align: center;
+    }
+    .player-box.active-p1 { border-color: var(--p1); }
+    .player-box.active-p2 { border-color: var(--p2); }
+    .p-name { font-size: 0.85rem; color: var(--sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .p-score { font-size: 1.5rem; font-weight: 700; margin-top: 2px; }
+    .status-text {
+      font-size: 0.95rem;
+      margin-bottom: 10px;
+      color: var(--sub);
+      font-weight: 500;
+    }
+    canvas {
+      background: var(--panel);
+      border-radius: 14px;
+      width: 100%;
+      max-width: 350px;
+      aspect-ratio: 1 / 1;
+      touch-action: none;
+    }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+
+  <h1>2B • DOTS & BOXES</h1>
+
+  <!-- MENU VIEW -->
+  <div id="menuView" class="card">
+    <p style="color: var(--sub); font-size: 0.9rem; margin-bottom: 8px;">Select Game Mode</p>
+    <button class="btn" onclick="createOnlineRoom()">Create Online Room</button>
+    <div class="input-row">
+      <input id="joinInput" type="text" maxlength="4" placeholder="CODE" />
+      <button class="btn" style="width: auto; margin-top: 0;" onclick="joinOnlineRoom()">Join</button>
+    </div>
+    <hr style="border: 0; border-top: 1px solid #334155; margin: 14px 0;" />
+    <button class="btn btn-secondary" onclick="startLocalGame()">Pass & Play (1 Device)</button>
+  </div>
+
+  <!-- LOBBY VIEW -->
+  <div id="lobbyView" class="card hidden">
+    <p style="color: var(--sub); font-size: 0.85rem;">Room Code</p>
+    <div id="roomCodeDisplay" class="room-code">----</div>
+    <p id="lobbyStatus" style="color: var(--sub); font-size: 0.85rem; margin-bottom: 8px;">Waiting for opponent...</p>
+    <button class="btn" onclick="copyRoomCode()">Copy Room Code</button>
+    <button class="btn btn-secondary" onclick="shareTelegramInvite()">Share Invite to Telegram</button>
+  </div>
+
+  <!-- GAME VIEW -->
+  <div id="gameView" class="hidden" style="width: 100%; display: flex; flex-direction: column; align-items: center;">
+    <div class="scoreboard">
+      <div id="p1Card" class="player-box active-p1">
+        <div id="p1Name" class="p-name">Player 1</div>
+        <div id="p1Score" class="p-score" style="color: var(--p1);">0</div>
+      </div>
+      <div id="p2Card" class="player-box">
+        <div id="p2Name" class="p-name">Player 2</div>
+        <div id="p2Score" class="p-score" style="color: var(--p2);">0</div>
+      </div>
+    </div>
+    <div id="turnStatus" class="status-text">Your Turn</div>
+    <canvas id="board" width="350" height="350"></canvas>
+    <button id="rematchBtn" class="btn hidden" style="max-width: 350px; margin-top: 12px;" onclick="requestRematch()">Play Again</button>
+  </div>
+
+  <script>
+    const tg = window.Telegram?.WebApp;
+    if (tg) {
+      tg.ready();
+      tg.expand();
+    }
+
+    const myName = tg?.initDataUnsafe?.user?.first_name || "Player";
+    const DOTS = 5; // 5x5 dots = 4x4 boxes (16 total)
+    const BOXES = DOTS - 1;
+    const PADDING = 35;
+    const SIZE = 350;
+    const SPACING = (SIZE - PADDING * 2) / BOXES;
+
+    let mode = "local"; // 'local' | 'online'
+    let myPlayerNum = 1;
+    let currentPlayer = 1;
+    let scores = { 1: 0, 2: 0 };
+    let names = { 1: "Player 1", 2: "Player 2" };
+    let hLines = [];
+    let vLines = [];
+    let boxes = [];
+    let lastMove = null;
+    let gameOver = false;
+
+    let peer = null;
+    let conn = null;
+    let currentRoomCode = "";
+
+    const canvas = document.getElementById("board");
+    const ctx = canvas.getContext("2d");
+
+    // Auto-join if opened with ?startapp=CODE or ?room=CODE
+    window.addEventListener("DOMContentLoaded", () => {
+      const startParam = tg?.initDataUnsafe?.start_param || new URLSearchParams(window.location.search).get("room");
+      if (startParam && startParam.length === 4) {
+        document.getElementById("joinInput").value = startParam.toUpperCase();
+        joinOnlineRoom();
+      }
+    });
+
+    function generateCode() {
+      const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+      let code = "";
+      for (let i = 0; i < 4; i++) code += chars[Math.floor(Math.random() * chars.length)];
+      return code;
+    }
+
+    function createOnlineRoom() {
+      mode = "online";
+      myPlayerNum = 1;
+      names[1] = myName;
+      currentRoomCode = generateCode();
+
+      document.getElementById("menuView").classList.add("hidden");
+      document.getElementById("lobbyView").classList.remove("hidden");
+      document.getElementById("roomCodeDisplay").innerText = currentRoomCode;
+
+      peer = new Peer("2b-dots-" + currentRoomCode);
+      peer.on("connection", (connection) => {
+        conn = connection;
+        setupConnection();
+      });
+      peer.on("error", (err) => {
+        alert("Connection error: " + err.type);
+      });
+    }
+
+    function joinOnlineRoom() {
+      const code = document.getElementById("joinInput").value.trim().toUpperCase();
+      if (code.length !== 4) return alert("Enter a valid 4-character room code.");
+
+      mode = "online";
+      myPlayerNum = 2;
+      names[2] = myName;
+      currentRoomCode = code;
+
+      document.getElementById("menuView").classList.add("hidden");
+      document.getElementById("lobbyView").classList.remove("hidden");
+      document.getElementById("roomCodeDisplay").innerText = code;
+      document.getElementById("lobbyStatus").innerText = "Connecting to room...";
+
+      peer = new Peer();
+      peer.on("open", () => {
+        conn = peer.connect("2b-dots-" + code);
+        setupConnection();
+      });
+      peer.on("error", () => {
+        alert("Could not find room " + code);
+        location.reload();
+      });
+    }
+
+    function setupConnection() {
+      conn.on("open", () => {
+        conn.send({ type: "HELLO", name: myName });
+        document.getElementById("lobbyView").classList.add("hidden");
+        document.getElementById("gameView").classList.remove("hidden");
+        initBoard();
+      });
+      conn.on("data", (data) => {
+        if (data.type === "HELLO") {
+          const otherNum = myPlayerNum === 1 ? 2 : 1;
+          names[otherNum] = data.name;
+          updateUI();
+        } else if (data.type === "MOVE") {
+          applyMove(data.orientation, data.r, data.c);
+        } else if (data.type === "REMATCH") {
+          initBoard();
+        }
+      });
+      conn.on("close", () => {
+        alert("Opponent disconnected.");
+        location.reload();
+      });
+    }
+
+    function startLocalGame() {
+      mode = "local";
+      names = { 1: "Player 1", 2: "Player 2" };
+      document.getElementById("menuView").classList.add("hidden");
+      document.getElementById("gameView").classList.remove("hidden");
+      initBoard();
+    }
+
+    function initBoard() {
+      currentPlayer = 1;
+      scores = { 1: 0, 2: 0 };
+      gameOver = false;
+      lastMove = null;
+      document.getElementById("rematchBtn").classList.add("hidden");
+
+      hLines = Array.from({ length: DOTS }, () => Array(BOXES).fill(0));
+      vLines = Array.from({ length: BOXES }, () => Array(DOTS).fill(0));
+      boxes = Array.from({ length: BOXES }, () => Array(BOXES).fill(0));
+
+      updateUI();
+      drawBoard();
+    }
+
+    function updateUI() {
+      document.getElementById("p1Name").innerText = names[1];
+      document.getElementById("p2Name").innerText = names[2];
+      document.getElementById("p1Score").innerText = scores[1];
+      document.getElementById("p2Score").innerText = scores[2];
+
+      const p1Card = document.getElementById("p1Card");
+      const p2Card = document.getElementById("p2Card");
+      p1Card.className = "player-box" + (currentPlayer === 1 ? " active-p1" : "");
+      p2Card.className = "player-box" + (currentPlayer === 2 ? " active-p2" : "");
+
+      const status = document.getElementById("turnStatus");
+      if (gameOver) {
+        if (scores[1] > scores[2]) status.innerText = `${names[1]} Wins!`;
+        else if (scores[2] > scores[1]) status.innerText = `${names[2]} Wins!`;
+        else status.innerText = "Draw Game!";
+        document.getElementById("rematchBtn").classList.remove("hidden");
+      } else if (mode === "online") {
+        status.innerText = currentPlayer === myPlayerNum ? "Your Turn" : `Waiting for ${names[currentPlayer]}...`;
+      } else {
+        status.innerText = `${names[currentPlayer]}'s Turn`;
+      }
+    }
+
+    function drawBoard() {
+      ctx.clearRect(0, 0, SIZE, SIZE);
+
+      // Draw claimed boxes
+      for (let r = 0; r < BOXES; r++) {
+        for (let c = 0; c < BOXES; c++) {
+          if (boxes[r][c] !== 0) {
+            ctx.fillStyle = boxes[r][c] === 1 ? "rgba(56, 189, 248, 0.28)" : "rgba(244, 63, 94, 0.28)";
+            ctx.fillRect(PADDING + c * SPACING, PADDING + r * SPACING, SPACING, SPACING);
+          }
+        }
+      }
+
+      // Draw horizontal lines
+      for (let r = 0; r < DOTS; r++) {
+        for (let c = 0; c < BOXES; c++) {
+          const x1 = PADDING + c * SPACING;
+          const y1 = PADDING + r * SPACING;
+          ctx.beginPath();
+          ctx.moveTo(x1, y1);
+          ctx.lineTo(x1 + SPACING, y1);
+          if (hLines[r][c] === 0) {
+            ctx.strokeStyle = "rgba(148, 163, 184, 0.15)";
+            ctx.lineWidth = 4;
+          } else {
+            ctx.strokeStyle = hLines[r][c] === 1 ? "#38bdf8" : "#f43f5e";
+            ctx.lineWidth = (lastMove && lastMove.o === "H" && lastMove.r === r && lastMove.c === c) ? 8 : 6;
+          }
+          ctx.stroke();
+        }
+      }
+
+      // Draw vertical lines
+      for (let r = 0; r < BOXES; r++) {
+        for (let c = 0; c < DOTS; c++) {
+          const x1 = PADDING + c * SPACING;
+          const y1 = PADDING + r * SPACING;
+          ctx.beginPath();
+          ctx.moveTo(x1, y1);
+          ctx.lineTo(x1, y1 + SPACING);
+          if (vLines[r][c] === 0) {
+            ctx.strokeStyle = "rgba(148, 163, 184, 0.15)";
+            ctx.lineWidth = 4;
+          } else {
+            ctx.strokeStyle = vLines[r][c] === 1 ? "#38bdf8" : "#f43f5e";
+            ctx.lineWidth = (lastMove && lastMove.o === "V" && lastMove.r === r && lastMove.c === c) ? 8 : 6;
+          }
+          ctx.stroke();
+        }
+      }
+
+      // Draw dots
+      for (let r = 0; r < DOTS; r++) {
+        for (let c = 0; c < DOTS; c++) {
+          ctx.beginPath();
+          ctx.arc(PADDING + c * SPACING, PADDING + r * SPACING, 6, 0, Math.PI * 2);
+          ctx.fillStyle = "#f8fafc";
+          ctx.fill();
+        }
+      }
+    }
+
+    canvas.addEventListener("pointerdown", (e) => {
+      if (gameOver) return;
+      if (mode === "online" && currentPlayer !== myPlayerNum) return;
+
+      const rect = canvas.getBoundingClientRect();
+      const x = (e.clientX - rect.left) * (SIZE / rect.width);
+      const y = (e.clientY - rect.top) * (SIZE / rect.height);
+
+      let best = null;
+      let minDist = 28;
+
+      for (let r = 0; r < DOTS; r++) {
+        for (let c = 0; c < BOXES; c++) {
+          if (hLines[r][c] !== 0) continue;
+          const mx = PADDING + (c + 0.5) * SPACING;
+          const my = PADDING + r * SPACING;
+          const d = Math.hypot(x - mx, y - my);
+          if (d < minDist) {
+            minDist = d;
+            best = { o: "H", r, c };
+          }
+        }
+      }
+
+      for (let r = 0; r < BOXES; r++) {
+        for (let c = 0; c < DOTS; c++) {
+          if (vLines[r][c] !== 0) continue;
+          const mx = PADDING + c * SPACING;
+          const my = PADDING + (r + 0.5) * SPACING;
+          const d = Math.hypot(x - mx, y - my);
+          if (d < minDist) {
+            minDist = d;
+            best = { o: "V", r, c };
+          }
+        }
+      }
+
+      if (best) {
+        applyMove(best.o, best.r, best.c);
+        if (mode === "online" && conn) {
+          conn.send({ type: "MOVE", orientation: best.o, r: best.r, c: best.c });
+        }
+      }
+    });
+
+    function applyMove(o, r, c) {
+      if (o === "H") hLines[r][c] = currentPlayer;
+      else vLines[r][c] = currentPlayer;
+
+      lastMove = { o, r, c };
+      let madeBox = false;
+
+      for (let br = 0; br < BOXES; br++) {
+        for (let bc = 0; bc < BOXES; bc++) {
+          if (boxes[br][bc] === 0 &&
+              hLines[br][bc] && hLines[br + 1][bc] &&
+              vLines[br][bc] && vLines[br][bc + 1]) {
+            boxes[br][bc] = currentPlayer;
+            scores[currentPlayer]++;
+            madeBox = true;
+          }
+        }
+      }
+
+      if (tg?.HapticFeedback) {
+        madeBox ? tg.HapticFeedback.notificationOccurred("success") : tg.HapticFeedback.impactOccurred("light");
+      }
+
+      if (scores[1] + scores[2] === BOXES * BOXES) {
+        gameOver = true;
+      } else if (!madeBox) {
+        currentPlayer = currentPlayer === 1 ? 2 : 1;
+      }
+
+      updateUI();
+      drawBoard();
+    }
+
+    function requestRematch() {
+      initBoard();
+      if (mode === "online" && conn) {
+        conn.send({ type: "REMATCH" });
+      }
+    }
+
+    function copyRoomCode() {
+      navigator.clipboard.writeText(currentRoomCode);
+      alert("Room code copied: " + currentRoomCode);
+    }
+
+    function shareTelegramInvite() {
+      const text = encodeURIComponent(`Join my Dots & Boxes room! Code: ${currentRoomCode}`);
+      const url = encodeURIComponent(window.location.origin + window.location.pathname + `?room=${currentRoomCode}`);
+      if (tg) {
+        tg.openTelegramLink(`https://t.me/share/url?url=${url}&text=${text}`);
+      } else {
+        copyRoomCode();
+      }
+    }
+  </script>
+</body>
+</html>
