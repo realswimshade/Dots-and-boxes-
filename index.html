@@ -12,11 +12,11 @@
       --panel: #1e293b;
       --text: #f8fafc;
       --sub: #94a3b8;
-      --p1: #38bdf8;
-      --p1-fill: rgba(56, 189, 248, 0.28);
-      --p2: #f43f5e;
-      --p2-fill: rgba(244, 63, 94, 0.28);
       --accent: #6366f1;
+      --p1: #38bdf8;
+      --p2: #f43f5e;
+      --p3: #10b981;
+      --p4: #f59e0b;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
     body {
@@ -27,25 +27,59 @@
       flex-direction: column;
       align-items: center;
       min-height: 100vh;
-      padding: 16px;
+      padding: 12px;
     }
-    h1 { font-size: 1.25rem; margin-bottom: 12px; letter-spacing: 0.5px; }
+    h1 { font-size: 1.15rem; margin-bottom: 10px; letter-spacing: 0.5px; }
     .card {
       background: var(--panel);
       border-radius: 12px;
-      padding: 16px;
+      padding: 14px;
       width: 100%;
       max-width: 360px;
-      margin-bottom: 12px;
+      margin-bottom: 10px;
       text-align: center;
+    }
+    .section-label {
+      color: var(--sub);
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin: 10px 0 6px 0;
+      text-align: left;
+    }
+    .selector-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+      margin-bottom: 6px;
+    }
+    .selector-grid.boxes-grid {
+      grid-template-columns: repeat(4, 1fr);
+    }
+    .opt-btn {
+      background: #0f172a;
+      color: var(--sub);
+      border: 1.5px solid #334155;
+      border-radius: 8px;
+      padding: 8px 4px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .opt-btn.selected {
+      background: rgba(99, 102, 241, 0.2);
+      color: #fff;
+      border-color: var(--accent);
     }
     .btn {
       background: var(--accent);
       color: #fff;
       border: none;
       border-radius: 8px;
-      padding: 12px 16px;
-      font-size: 0.95rem;
+      padding: 11px 14px;
+      font-size: 0.92rem;
       font-weight: 600;
       width: 100%;
       cursor: pointer;
@@ -72,45 +106,80 @@
       letter-spacing: 2px;
     }
     .room-code {
-      font-size: 1.8rem;
+      font-size: 1.75rem;
       font-weight: 800;
       letter-spacing: 4px;
       color: var(--p1);
-      margin: 8px 0;
+      margin: 6px 0;
     }
-    .scoreboard {
+    .lobby-slots {
+      background: #0f172a;
+      border-radius: 8px;
+      padding: 8px 12px;
+      margin: 10px 0;
+      text-align: left;
+      font-size: 0.85rem;
+    }
+    .slot-row {
       display: flex;
       justify-content: space-between;
-      gap: 10px;
+      padding: 4px 0;
+      border-bottom: 1px solid #1e293b;
+    }
+    .slot-row:last-child { border-bottom: none; }
+    .team-banner {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
       width: 100%;
       max-width: 360px;
-      margin-bottom: 12px;
+      margin-bottom: 8px;
     }
-    .player-box {
+    .team-card {
       flex: 1;
       background: var(--panel);
       border-radius: 10px;
-      padding: 10px;
+      padding: 8px;
+      text-align: center;
+      border: 2px solid transparent;
+    }
+    .scoreboard {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+      width: 100%;
+      max-width: 360px;
+      margin-bottom: 8px;
+    }
+    .scoreboard.cols-3 { grid-template-columns: repeat(3, 1fr); }
+    .scoreboard.cols-4 { grid-template-columns: repeat(4, 1fr); }
+    .player-box {
+      background: var(--panel);
+      border-radius: 9px;
+      padding: 7px 4px;
       border: 2px solid transparent;
       text-align: center;
+      transition: border-color 0.15s;
     }
-    .player-box.active-p1 { border-color: var(--p1); }
-    .player-box.active-p2 { border-color: var(--p2); }
-    .p-name { font-size: 0.85rem; color: var(--sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .p-score { font-size: 1.5rem; font-weight: 700; margin-top: 2px; }
-    .status-text {
-      font-size: 0.95rem;
-      margin-bottom: 10px;
+    .p-name {
+      font-size: 0.75rem;
       color: var(--sub);
-      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .p-score { font-size: 1.2rem; font-weight: 700; margin-top: 2px; }
+    .status-text {
+      font-size: 0.9rem;
+      margin-bottom: 8px;
+      color: var(--sub);
+      font-weight: 600;
     }
     canvas {
       background: var(--panel);
       border-radius: 14px;
-      width: 100%;
-      max-width: 350px;
-      aspect-ratio: 1 / 1;
       touch-action: none;
+      max-width: 100%;
     }
     .hidden { display: none !important; }
   </style>
@@ -121,37 +190,63 @@
 
   <!-- MENU VIEW -->
   <div id="menuView" class="card">
-    <p style="color: var(--sub); font-size: 0.9rem; margin-bottom: 8px;">Select Game Mode</p>
-    <button class="btn" onclick="createOnlineRoom()">Create Online Room</button>
+    <div class="section-label" style="margin-top: 0;">1. Mode</div>
+    <div class="selector-grid">
+      <button class="opt-btn selected" onclick="selectMode('1v1', this)">1v1</button>
+      <button class="opt-btn" onclick="selectMode('1v1v1', this)">1v1v1</button>
+      <button class="opt-btn" onclick="selectMode('1v1v1v1', this)">1v1v1v1</button>
+      <button class="opt-btn" onclick="selectMode('2v2', this)">2v2</button>
+    </div>
+
+    <div class="section-label">2. Number of Boxes</div>
+    <div class="selector-grid boxes-grid">
+      <button class="opt-btn" onclick="selectGrid('9', this)">9 (3×3)</button>
+      <button class="opt-btn selected" onclick="selectGrid('16', this)">16 (4×4)</button>
+      <button class="opt-btn" onclick="selectGrid('25', this)">25 (5×5)</button>
+      <button class="opt-btn" onclick="selectGrid('32', this)">32 (4×8)</button>
+      <button class="opt-btn" onclick="selectGrid('36', this)">36 (6×6)</button>
+      <button class="opt-btn" onclick="selectGrid('49', this)">49 (7×7)</button>
+      <button class="opt-btn" onclick="selectGrid('64', this)">64 (8×8)</button>
+    </div>
+
+    <button class="btn" style="margin-top: 12px;" onclick="createOnlineRoom()">Create Online Room</button>
+    <button class="btn btn-secondary" onclick="startLocalGame()">Pass & Play (1 Device)</button>
+
+    <hr style="border: 0; border-top: 1px solid #334155; margin: 14px 0;" />
+    <p style="color: var(--sub); font-size: 0.8rem;">Have a friend's room code?</p>
     <div class="input-row">
       <input id="joinInput" type="text" maxlength="4" placeholder="CODE" />
       <button class="btn" style="width: auto; margin-top: 0;" onclick="joinOnlineRoom()">Join</button>
     </div>
-    <hr style="border: 0; border-top: 1px solid #334155; margin: 14px 0;" />
-    <button class="btn btn-secondary" onclick="startLocalGame()">Pass & Play (1 Device)</button>
   </div>
 
   <!-- LOBBY VIEW -->
   <div id="lobbyView" class="card hidden">
-    <p style="color: var(--sub); font-size: 0.85rem;">Room Code</p>
+    <p id="lobbyConfigText" style="color: var(--sub); font-size: 0.8rem; font-weight: 600;"></p>
     <div id="roomCodeDisplay" class="room-code">----</div>
-    <p id="lobbyStatus" style="color: var(--sub); font-size: 0.85rem; margin-bottom: 8px;">Connecting to server...</p>
+    <p id="lobbyStatus" style="color: var(--sub); font-size: 0.85rem;">Connecting to server...</p>
+    <div id="lobbySlots" class="lobby-slots"></div>
     <button class="btn" onclick="copyRoomCode()">Copy Room Code</button>
     <button class="btn btn-secondary" onclick="shareTelegramInvite()">Share Invite to Telegram</button>
   </div>
 
   <!-- GAME VIEW -->
   <div id="gameView" class="hidden" style="width: 100%; display: flex; flex-direction: column; align-items: center;">
-    <div class="scoreboard">
-      <div id="p1Card" class="player-box active-p1">
-        <div id="p1Name" class="p-name">Player 1</div>
-        <div id="p1Score" class="p-score" style="color: var(--p1);">0</div>
+    <!-- 2v2 TEAM TOTALS BANNER -->
+    <div id="teamBanner" class="team-banner hidden">
+      <div id="t1Banner" class="team-card" style="border-color: var(--p1);">
+        <div class="p-name" style="color: var(--p1); font-weight: 700;">TEAM 1 (P1 + P2)</div>
+        <div id="t1Score" class="p-score" style="color: var(--p1);">0</div>
       </div>
-      <div id="p2Card" class="player-box">
-        <div id="p2Name" class="p-name">Player 2</div>
-        <div id="p2Score" class="p-score" style="color: var(--p2);">0</div>
+      <div id="t2Banner" class="team-card">
+        <div class="p-name" style="color: var(--p2); font-weight: 700;">TEAM 2 (P1 + P2)</div>
+        <div id="t2Score" class="p-score" style="color: var(--p2);">0</div>
       </div>
     </div>
+
+    <!-- INDIVIDUAL PLAYER CARDS -->
+    <div id="scoreboard" class="scoreboard"></div>
+
     <div id="turnStatus" class="status-text">Your Turn</div>
     <canvas id="board" width="350" height="350"></canvas>
     <button id="rematchBtn" class="btn hidden" style="max-width: 350px; margin-top: 12px;" onclick="requestRematch()">Play Again</button>
@@ -167,17 +262,44 @@
     const myName = tg?.initDataUnsafe?.user?.first_name || "Player";
     const clientId = "p_" + Math.random().toString(36).substring(2, 10);
 
-    const DOTS = 5;
-    const BOXES = DOTS - 1;
-    const PADDING = 35;
-    const SIZE = 350;
-    const SPACING = (SIZE - PADDING * 2) / BOXES;
+    const GRIDS = {
+      "9":  { cols: 3, rows: 3, label: "9 Boxes (3×3)" },
+      "16": { cols: 4, rows: 4, label: "16 Boxes (4×4)" },
+      "25": { cols: 5, rows: 5, label: "25 Boxes (5×5)" },
+      "32": { cols: 4, rows: 8, label: "32 Boxes (4×8)" },
+      "36": { cols: 6, rows: 6, label: "36 Boxes (6×6)" },
+      "49": { cols: 7, rows: 7, label: "49 Boxes (7×7)" },
+      "64": { cols: 8, rows: 8, label: "64 Boxes (8×8)" }
+    };
 
-    let mode = "local";
-    let myPlayerNum = 1;
+    const PLAYER_COLORS = {
+      1: { stroke: "#38bdf8", fill: "rgba(56, 189, 248, 0.28)" },
+      2: { stroke: "#f43f5e", fill: "rgba(244, 63, 94, 0.28)" },
+      3: { stroke: "#10b981", fill: "rgba(16, 185, 129, 0.28)" },
+      4: { stroke: "#f59e0b", fill: "rgba(245, 158, 11, 0.28)" }
+    };
+
+    let selectedMode = "1v1"; // '1v1', '1v1v1', '1v1v1v1', '2v2'
+    let selectedGrid = "16";
+    let maxPlayers = 2;
+
+    let BOX_COLS = 4;
+    let BOX_ROWS = 4;
+    let DOT_COLS = 5;
+    let DOT_ROWS = 5;
+    let PADDING = 26;
+    let SPACING = 70;
+    let CANVAS_W = 350;
+    let CANVAS_H = 350;
+
+    let netMode = "local"; // 'local' | 'online'
+    let isHost = false;
+    let mySeat = 1;
     let currentPlayer = 1;
-    let scores = { 1: 0, 2: 0 };
-    let names = { 1: "Player 1", 2: "Player 2" };
+    let scores = { 1: 0, 2: 0, 3: 0, 4: 0 };
+    let names = { 1: "P1", 2: "P2", 3: "P3", 4: "P4" };
+    let slots = []; // [{ id, name, seat }]
+
     let hLines = [];
     let vLines = [];
     let boxes = [];
@@ -201,6 +323,37 @@
       }
     });
 
+    function selectMode(m, btn) {
+      selectedMode = m;
+      maxPlayers = m === "1v1" ? 2 : (m === "1v1v1" ? 3 : 4);
+      btn.parentElement.querySelectorAll(".opt-btn").forEach(b => b.classList.remove("selected"));
+      btn.classList.add("selected");
+    }
+
+    function selectGrid(g, btn) {
+      selectedGrid = g;
+      btn.parentElement.querySelectorAll(".opt-btn").forEach(b => b.classList.remove("selected"));
+      btn.classList.add("selected");
+    }
+
+    function getSeatLabel(seat) {
+      if (selectedMode === "2v2") {
+        const labels = { 1: "P1 (Team 1)", 2: "P1 (Team 2)", 3: "P2 (Team 1)", 4: "P2 (Team 2)" };
+        return labels[seat];
+      }
+      return `Player ${seat}`;
+    }
+
+    function getPlayerColor(seat) {
+      if (selectedMode === "2v2") {
+        if (seat === 1) return { stroke: "#38bdf8", fill: "rgba(56, 189, 248, 0.28)" };
+        if (seat === 3) return { stroke: "#60a5fa", fill: "rgba(96, 165, 250, 0.28)" };
+        if (seat === 2) return { stroke: "#f43f5e", fill: "rgba(244, 63, 94, 0.28)" };
+        if (seat === 4) return { stroke: "#fb7185", fill: "rgba(251, 113, 133, 0.28)" };
+      }
+      return PLAYER_COLORS[seat];
+    }
+
     function generateCode() {
       const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
       let code = "";
@@ -209,26 +362,26 @@
     }
 
     function createOnlineRoom() {
-      mode = "online";
-      myPlayerNum = 1;
-      names[1] = myName;
+      netMode = "online";
+      isHost = true;
+      mySeat = 1;
       currentRoomCode = generateCode();
+      slots = [{ id: clientId, name: myName, seat: 1 }];
 
       document.getElementById("menuView").classList.add("hidden");
       document.getElementById("lobbyView").classList.remove("hidden");
       document.getElementById("roomCodeDisplay").innerText = currentRoomCode;
-      document.getElementById("lobbyStatus").innerText = "Connecting to server...";
+      updateLobbyUI();
 
-      connectMqtt(currentRoomCode, true);
+      connectMqtt(currentRoomCode);
     }
 
     function joinOnlineRoom() {
       const code = document.getElementById("joinInput").value.trim().toUpperCase();
       if (code.length !== 4) return alert("Enter a valid 4-character room code.");
 
-      mode = "online";
-      myPlayerNum = 2;
-      names[2] = myName;
+      netMode = "online";
+      isHost = false;
       currentRoomCode = code;
 
       document.getElementById("menuView").classList.add("hidden");
@@ -236,11 +389,31 @@
       document.getElementById("roomCodeDisplay").innerText = code;
       document.getElementById("lobbyStatus").innerText = "Joining room " + code + "...";
 
-      connectMqtt(code, false);
+      connectMqtt(code);
     }
 
-    function connectMqtt(code, isHost) {
-      roomTopic = "2b-dots-room/" + code;
+    function updateLobbyUI() {
+      const gridInfo = GRIDS[selectedGrid] || GRIDS["16"];
+      document.getElementById("lobbyConfigText").innerText = `${selectedMode.toUpperCase()} • ${gridInfo.label}`;
+      document.getElementById("lobbyStatus").innerText = `Waiting for players (${slots.length}/${maxPlayers})...`;
+
+      const container = document.getElementById("lobbySlots");
+      container.innerHTML = "";
+      for (let s = 1; s <= maxPlayers; s++) {
+        const found = slots.find(p => p.seat === s);
+        const row = document.createElement("div");
+        row.className = "slot-row";
+        const color = getPlayerColor(s).stroke;
+        row.innerHTML = `
+          <span style="color:${color}; font-weight:600;">${getSeatLabel(s)}</span>
+          <span style="color:${found ? '#f8fafc' : '#64748b'};">${found ? found.name : 'Waiting...'}</span>
+        `;
+        container.appendChild(row);
+      }
+    }
+
+    function connectMqtt(code) {
+      roomTopic = "2b-dots-v2/" + code;
       mqttClient = mqtt.connect("wss://broker.emqx.io:8084/mqtt", {
         clientId: clientId,
         clean: true,
@@ -249,20 +422,22 @@
 
       mqttClient.on("connect", () => {
         mqttClient.subscribe(roomTopic, () => {
-          document.getElementById("lobbyStatus").innerText = isHost
-            ? "Room ready! Waiting for opponent..."
-            : "Searching for host...";
-
           if (lobbyInterval) clearInterval(lobbyInterval);
           lobbyInterval = setInterval(() => {
             if (!matchStarted) {
               if (isHost) {
-                publishMsg({ type: "HOST_PING", name: myName });
+                publishMsg({
+                  type: "LOBBY_STATE",
+                  mode: selectedMode,
+                  grid: selectedGrid,
+                  maxPlayers: maxPlayers,
+                  slots: slots
+                });
               } else {
                 publishMsg({ type: "GUEST_JOIN", name: myName });
               }
             }
-          }, 1200);
+          }, 1100);
         });
       });
 
@@ -276,29 +451,75 @@
         if (data.sender === clientId) return;
 
         if (isHost && data.type === "GUEST_JOIN") {
-          names[2] = data.name || "Player 2";
-          publishMsg({ type: "START_MATCH", hostName: names[1], guestName: names[2] });
-          if (!matchStarted) {
-            matchStarted = true;
-            clearInterval(lobbyInterval);
-            startGameView();
+          let existing = slots.find(p => p.id === data.sender);
+          if (!existing && slots.length < maxPlayers) {
+            const nextSeat = slots.length + 1;
+            slots.push({ id: data.sender, name: data.name || `P${nextSeat}`, seat: nextSeat });
+            updateLobbyUI();
           }
-        } else if (!isHost && data.type === "HOST_PING" && !matchStarted) {
-          publishMsg({ type: "GUEST_JOIN", name: myName });
+
+          if (slots.length === maxPlayers) {
+            publishStartMatch();
+            if (!matchStarted) {
+              matchStarted = true;
+              clearInterval(lobbyInterval);
+              applyMatchConfig(selectedMode, selectedGrid, slots);
+              startGameView();
+            }
+          } else {
+            publishMsg({
+              type: "LOBBY_STATE",
+              mode: selectedMode,
+              grid: selectedGrid,
+              maxPlayers: maxPlayers,
+              slots: slots
+            });
+          }
+        } else if (!isHost && data.type === "LOBBY_STATE" && !matchStarted) {
+          selectedMode = data.mode;
+          selectedGrid = data.grid;
+          maxPlayers = data.maxPlayers;
+          slots = data.slots;
+          const me = slots.find(p => p.id === clientId);
+          if (me) mySeat = me.seat;
+          updateLobbyUI();
         } else if (!isHost && data.type === "START_MATCH") {
-          names[1] = data.hostName || "Player 1";
-          names[2] = data.guestName || myName;
           if (!matchStarted) {
             matchStarted = true;
             clearInterval(lobbyInterval);
+            applyMatchConfig(data.mode, data.grid, data.slots);
             startGameView();
           }
         } else if (data.type === "MOVE") {
-          const isFree = data.o === "H" ? hLines[data.r][data.c] === 0 : vLines[data.r][data.c] === 0;
+          const isFree = data.o === "H" ? hLines[data.r]?.[data.c] === 0 : vLines[data.r]?.[data.c] === 0;
           if (isFree) applyMove(data.o, data.r, data.c);
         } else if (data.type === "REMATCH") {
           initBoard();
         }
+      });
+    }
+
+    function publishStartMatch() {
+      const payload = {
+        type: "START_MATCH",
+        mode: selectedMode,
+        grid: selectedGrid,
+        slots: slots
+      };
+      publishMsg(payload);
+      setTimeout(() => publishMsg(payload), 800);
+      setTimeout(() => publishMsg(payload), 2000);
+    }
+
+    function applyMatchConfig(modeStr, gridStr, slotList) {
+      selectedMode = modeStr;
+      selectedGrid = gridStr;
+      maxPlayers = modeStr === "1v1" ? 2 : (modeStr === "1v1v1" ? 3 : 4);
+      slots = slotList;
+
+      slots.forEach(s => {
+        if (s.id === clientId) mySeat = s.seat;
+        names[s.seat] = s.name;
       });
     }
 
@@ -309,107 +530,208 @@
       }
     }
 
-    function startGameView() {
-      document.getElementById("lobbyView").classList.add("hidden");
-      document.getElementById("gameView").classList.remove("hidden");
-      initBoard();
-    }
-
     function startLocalGame() {
-      mode = "local";
-      names = { 1: "Player 1", 2: "Player 2" };
+      netMode = "local";
+      maxPlayers = selectedMode === "1v1" ? 2 : (selectedMode === "1v1v1" ? 3 : 4);
+      for (let s = 1; s <= maxPlayers; s++) {
+        names[s] = selectedMode === "2v2"
+          ? (s === 1 ? "P1-T1" : s === 2 ? "P1-T2" : s === 3 ? "P2-T1" : "P2-T2")
+          : `Player ${s}`;
+      }
       startGameView();
     }
 
+    function startGameView() {
+      document.getElementById("menuView").classList.add("hidden");
+      document.getElementById("lobbyView").classList.add("hidden");
+      document.getElementById("gameView").classList.remove("hidden");
+      buildScoreboardDOM();
+      initBoard();
+    }
+
+    function buildScoreboardDOM() {
+      const sb = document.getElementById("scoreboard");
+      sb.innerHTML = "";
+      sb.className = "scoreboard" + (maxPlayers === 3 ? " cols-3" : maxPlayers === 4 ? " cols-4" : "");
+
+      const teamBanner = document.getElementById("teamBanner");
+      if (selectedMode === "2v2") {
+        teamBanner.classList.remove("hidden");
+      } else {
+        teamBanner.classList.add("hidden");
+      }
+
+      for (let s = 1; s <= maxPlayers; s++) {
+        const card = document.createElement("div");
+        card.id = `pCard${s}`;
+        card.className = "player-box";
+        const col = getPlayerColor(s).stroke;
+        const subTag = selectedMode === "2v2" ? (s % 2 === 1 ? " [T1]" : " [T2]") : "";
+        card.innerHTML = `
+          <div id="pName${s}" class="p-name">${names[s]}${subTag}</div>
+          <div id="pScore${s}" class="p-score" style="color: ${col};">0</div>
+        `;
+        sb.appendChild(card);
+      }
+    }
+
     function initBoard() {
+      const g = GRIDS[selectedGrid] || GRIDS["16"];
+      BOX_COLS = g.cols;
+      BOX_ROWS = g.rows;
+      DOT_COLS = BOX_COLS + 1;
+      DOT_ROWS = BOX_ROWS + 1;
+
+      const maxW = 350;
+      const maxH = 430;
+      PADDING = Math.max(20, Math.min(30, Math.floor(200 / Math.max(BOX_COLS, BOX_ROWS))));
+      SPACING = Math.min((maxW - PADDING * 2) / BOX_COLS, (maxH - PADDING * 2) / BOX_ROWS);
+      CANVAS_W = Math.round(PADDING * 2 + BOX_COLS * SPACING);
+      CANVAS_H = Math.round(PADDING * 2 + BOX_ROWS * SPACING);
+
+      canvas.width = CANVAS_W;
+      canvas.height = CANVAS_H;
+
       currentPlayer = 1;
-      scores = { 1: 0, 2: 0 };
+      scores = { 1: 0, 2: 0, 3: 0, 4: 0 };
       gameOver = false;
       lastMove = null;
       document.getElementById("rematchBtn").classList.add("hidden");
 
-      hLines = Array.from({ length: DOTS }, () => Array(BOXES).fill(0));
-      vLines = Array.from({ length: BOXES }, () => Array(DOTS).fill(0));
-      boxes = Array.from({ length: BOXES }, () => Array(BOXES).fill(0));
+      hLines = Array.from({ length: DOT_ROWS }, () => Array(BOX_COLS).fill(0));
+      vLines = Array.from({ length: BOX_ROWS }, () => Array(DOT_COLS).fill(0));
+      boxes = Array.from({ length: BOX_ROWS }, () => Array(BOX_COLS).fill(0));
 
       updateUI();
       drawBoard();
     }
 
     function updateUI() {
-      document.getElementById("p1Name").innerText = names[1];
-      document.getElementById("p2Name").innerText = names[2];
-      document.getElementById("p1Score").innerText = scores[1];
-      document.getElementById("p2Score").innerText = scores[2];
+      for (let s = 1; s <= maxPlayers; s++) {
+        const scoreEl = document.getElementById(`pScore${s}`);
+        const cardEl = document.getElementById(`pCard${s}`);
+        if (scoreEl) scoreEl.innerText = scores[s];
+        if (cardEl) {
+          cardEl.style.borderColor = currentPlayer === s ? getPlayerColor(s).stroke : "transparent";
+        }
+      }
 
-      document.getElementById("p1Card").className = "player-box" + (currentPlayer === 1 ? " active-p1" : "");
-      document.getElementById("p2Card").className = "player-box" + (currentPlayer === 2 ? " active-p2" : "");
+      if (selectedMode === "2v2") {
+        const t1 = scores[1] + scores[3];
+        const t2 = scores[2] + scores[4];
+        document.getElementById("t1Score").innerText = t1;
+        document.getElementById("t2Score").innerText = t2;
+        document.getElementById("t1Banner").style.borderColor = (currentPlayer === 1 || currentPlayer === 3) ? "var(--p1)" : "transparent";
+        document.getElementById("t2Banner").style.borderColor = (currentPlayer === 2 || currentPlayer === 4) ? "var(--p2)" : "transparent";
+      }
 
       const status = document.getElementById("turnStatus");
       if (gameOver) {
-        if (scores[1] > scores[2]) status.innerText = `${names[1]} Wins!`;
-        else if (scores[2] > scores[1]) status.innerText = `${names[2]} Wins!`;
-        else status.innerText = "Draw Game!";
+        status.innerText = getWinnerText();
         document.getElementById("rematchBtn").classList.remove("hidden");
-      } else if (mode === "online") {
-        status.innerText = currentPlayer === myPlayerNum ? "Your Turn" : `Waiting for ${names[currentPlayer]}...`;
+      } else if (netMode === "online") {
+        const tag = selectedMode === "2v2" ? ` (${currentPlayer % 2 === 1 ? "Team 1" : "Team 2"})` : "";
+        status.innerText = currentPlayer === mySeat
+          ? `Your Turn!${tag}`
+          : `Waiting for ${names[currentPlayer]}${tag}...`;
       } else {
-        status.innerText = `${names[currentPlayer]}'s Turn`;
+        const tag = selectedMode === "2v2" ? ` (${currentPlayer % 2 === 1 ? "Team 1" : "Team 2"})` : "";
+        status.innerText = `${names[currentPlayer]}'s Turn${tag}`;
       }
     }
 
-    function drawBoard() {
-      ctx.clearRect(0, 0, SIZE, SIZE);
+    function getWinnerText() {
+      if (selectedMode === "2v2") {
+        const t1 = scores[1] + scores[3];
+        const t2 = scores[2] + scores[4];
+        if (t1 > t2) return `Team 1 (${names[1]} & ${names[3]}) Wins!`;
+        if (t2 > t1) return `Team 2 (${names[2]} & ${names[4]}) Wins!`;
+        return "Draw Match!";
+      }
 
-      for (let r = 0; r < BOXES; r++) {
-        for (let c = 0; c < BOXES; c++) {
-          if (boxes[r][c] !== 0) {
-            ctx.fillStyle = boxes[r][c] === 1 ? "rgba(56, 189, 248, 0.28)" : "rgba(244, 63, 94, 0.28)";
-            ctx.fillRect(PADDING + c * SPACING, PADDING + r * SPACING, SPACING, SPACING);
+      let maxScore = -1;
+      let winners = [];
+      for (let s = 1; s <= maxPlayers; s++) {
+        if (scores[s] > maxScore) {
+          maxScore = scores[s];
+          winners = [names[s]];
+        } else if (scores[s] === maxScore) {
+          winners.push(names[s]);
+        }
+      }
+      return winners.length === 1 ? `${winners[0]} Wins!` : `Draw (${winners.join(" & ")})!`;
+    }
+
+    function drawBoard() {
+      ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
+
+      // Draw claimed boxes
+      for (let r = 0; r < BOX_ROWS; r++) {
+        for (let c = 0; c < BOX_COLS; c++) {
+          const owner = boxes[r][c];
+          if (owner !== 0) {
+            const pCol = getPlayerColor(owner);
+            const x = PADDING + c * SPACING;
+            const y = PADDING + r * SPACING;
+            ctx.fillStyle = pCol.fill;
+            ctx.fillRect(x, y, SPACING, SPACING);
+
+            ctx.fillStyle = pCol.stroke;
+            ctx.font = `bold ${Math.max(11, Math.floor(SPACING * 0.34))}px sans-serif`;
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            const label = selectedMode === "2v2" ? (owner % 2 === 1 ? "T1" : "T2") : `P${owner}`;
+            ctx.fillText(label, x + SPACING / 2, y + SPACING / 2);
           }
         }
       }
 
-      for (let r = 0; r < DOTS; r++) {
-        for (let c = 0; c < BOXES; c++) {
+      // Draw horizontal lines
+      for (let r = 0; r < DOT_ROWS; r++) {
+        for (let c = 0; c < BOX_COLS; c++) {
           const x1 = PADDING + c * SPACING;
           const y1 = PADDING + r * SPACING;
           ctx.beginPath();
           ctx.moveTo(x1, y1);
           ctx.lineTo(x1 + SPACING, y1);
-          if (hLines[r][c] === 0) {
-            ctx.strokeStyle = "rgba(148, 163, 184, 0.15)";
-            ctx.lineWidth = 4;
+          const owner = hLines[r][c];
+          if (owner === 0) {
+            ctx.strokeStyle = "rgba(148, 163, 184, 0.16)";
+            ctx.lineWidth = 3;
           } else {
-            ctx.strokeStyle = hLines[r][c] === 1 ? "#38bdf8" : "#f43f5e";
-            ctx.lineWidth = (lastMove && lastMove.o === "H" && lastMove.r === r && lastMove.c === c) ? 8 : 6;
+            ctx.strokeStyle = getPlayerColor(owner).stroke;
+            ctx.lineWidth = (lastMove && lastMove.o === "H" && lastMove.r === r && lastMove.c === c) ? 7 : 5;
           }
           ctx.stroke();
         }
       }
 
-      for (let r = 0; r < BOXES; r++) {
-        for (let c = 0; c < DOTS; c++) {
+      // Draw vertical lines
+      for (let r = 0; r < BOX_ROWS; r++) {
+        for (let c = 0; c < DOT_COLS; c++) {
           const x1 = PADDING + c * SPACING;
           const y1 = PADDING + r * SPACING;
           ctx.beginPath();
           ctx.moveTo(x1, y1);
           ctx.lineTo(x1, y1 + SPACING);
-          if (vLines[r][c] === 0) {
-            ctx.strokeStyle = "rgba(148, 163, 184, 0.15)";
-            ctx.lineWidth = 4;
+          const owner = vLines[r][c];
+          if (owner === 0) {
+            ctx.strokeStyle = "rgba(148, 163, 184, 0.16)";
+            ctx.lineWidth = 3;
           } else {
-            ctx.strokeStyle = vLines[r][c] === 1 ? "#38bdf8" : "#f43f5e";
-            ctx.lineWidth = (lastMove && lastMove.o === "V" && lastMove.r === r && lastMove.c === c) ? 8 : 6;
+            ctx.strokeStyle = getPlayerColor(owner).stroke;
+            ctx.lineWidth = (lastMove && lastMove.o === "V" && lastMove.r === r && lastMove.c === c) ? 7 : 5;
           }
           ctx.stroke();
         }
       }
 
-      for (let r = 0; r < DOTS; r++) {
-        for (let c = 0; c < DOTS; c++) {
+      // Draw dots
+      const dotRadius = Math.max(4, Math.min(6, SPACING * 0.1));
+      for (let r = 0; r < DOT_ROWS; r++) {
+        for (let c = 0; c < DOT_COLS; c++) {
           ctx.beginPath();
-          ctx.arc(PADDING + c * SPACING, PADDING + r * SPACING, 6, 0, Math.PI * 2);
+          ctx.arc(PADDING + c * SPACING, PADDING + r * SPACING, dotRadius, 0, Math.PI * 2);
           ctx.fillStyle = "#f8fafc";
           ctx.fill();
         }
@@ -418,17 +740,17 @@
 
     canvas.addEventListener("pointerdown", (e) => {
       if (gameOver) return;
-      if (mode === "online" && currentPlayer !== myPlayerNum) return;
+      if (netMode === "online" && currentPlayer !== mySeat) return;
 
       const rect = canvas.getBoundingClientRect();
-      const x = (e.clientX - rect.left) * (SIZE / rect.width);
-      const y = (e.clientY - rect.top) * (SIZE / rect.height);
+      const x = (e.clientX - rect.left) * (CANVAS_W / rect.width);
+      const y = (e.clientY - rect.top) * (CANVAS_H / rect.height);
 
       let best = null;
-      let minDist = 28;
+      let minDist = Math.max(18, SPACING * 0.44);
 
-      for (let r = 0; r < DOTS; r++) {
-        for (let c = 0; c < BOXES; c++) {
+      for (let r = 0; r < DOT_ROWS; r++) {
+        for (let c = 0; c < BOX_COLS; c++) {
           if (hLines[r][c] !== 0) continue;
           const mx = PADDING + (c + 0.5) * SPACING;
           const my = PADDING + r * SPACING;
@@ -440,8 +762,8 @@
         }
       }
 
-      for (let r = 0; r < BOXES; r++) {
-        for (let c = 0; c < DOTS; c++) {
+      for (let r = 0; r < BOX_ROWS; r++) {
+        for (let c = 0; c < DOT_COLS; c++) {
           if (vLines[r][c] !== 0) continue;
           const mx = PADDING + c * SPACING;
           const my = PADDING + (r + 0.5) * SPACING;
@@ -455,7 +777,7 @@
 
       if (best) {
         applyMove(best.o, best.r, best.c);
-        if (mode === "online") {
+        if (netMode === "online") {
           publishMsg({ type: "MOVE", o: best.o, r: best.r, c: best.c });
         }
       }
@@ -468,8 +790,8 @@
       lastMove = { o, r, c };
       let madeBox = false;
 
-      for (let br = 0; br < BOXES; br++) {
-        for (let bc = 0; bc < BOXES; bc++) {
+      for (let br = 0; br < BOX_ROWS; br++) {
+        for (let bc = 0; bc < BOX_COLS; bc++) {
           if (boxes[br][bc] === 0 &&
               hLines[br][bc] && hLines[br + 1][bc] &&
               vLines[br][bc] && vLines[br][bc + 1]) {
@@ -484,10 +806,12 @@
         madeBox ? tg.HapticFeedback.notificationOccurred("success") : tg.HapticFeedback.impactOccurred("light");
       }
 
-      if (scores[1] + scores[2] === BOXES * BOXES) {
+      const totalClaimed = scores[1] + scores[2] + scores[3] + scores[4];
+      if (totalClaimed === BOX_COLS * BOX_ROWS) {
         gameOver = true;
       } else if (!madeBox) {
-        currentPlayer = currentPlayer === 1 ? 2 : 1;
+        // Cycles 1 -> 2 -> 3 -> 4 -> 1 (In 2v2: P1T1 -> P1T2 -> P2T1 -> P2T2)
+        currentPlayer = (currentPlayer % maxPlayers) + 1;
       }
 
       updateUI();
@@ -496,7 +820,7 @@
 
     function requestRematch() {
       initBoard();
-      if (mode === "online") {
+      if (netMode === "online") {
         publishMsg({ type: "REMATCH" });
       }
     }
@@ -507,7 +831,7 @@
     }
 
     function shareTelegramInvite() {
-      const text = encodeURIComponent(`Join my Dots & Boxes room! Code: ${currentRoomCode}`);
+      const text = encodeURIComponent(`Join my ${selectedMode.toUpperCase()} Dots & Boxes match! Code: ${currentRoomCode}`);
       const url = encodeURIComponent(window.location.origin + window.location.pathname + `?room=${currentRoomCode}`);
       if (tg) {
         tg.openTelegramLink(`https://t.me/share/url?url=${url}&text=${text}`);
