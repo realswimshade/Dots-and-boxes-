@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>2B - Dots & Boxes</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mqtt@5.10.3/dist/mqtt.min.js"></script>
   <style>
     :root {
       --bg: #0f172a;
@@ -135,7 +135,7 @@
   <div id="lobbyView" class="card hidden">
     <p style="color: var(--sub); font-size: 0.85rem;">Room Code</p>
     <div id="roomCodeDisplay" class="room-code">----</div>
-    <p id="lobbyStatus" style="color: var(--sub); font-size: 0.85rem; margin-bottom: 8px;">Waiting for opponent...</p>
+    <p id="lobbyStatus" style="color: var(--sub); font-size: 0.85rem; margin-bottom: 8px;">Connecting to server...</p>
     <button class="btn" onclick="copyRoomCode()">Copy Room Code</button>
     <button class="btn btn-secondary" onclick="shareTelegramInvite()">Share Invite to Telegram</button>
   </div>
@@ -165,13 +165,15 @@
     }
 
     const myName = tg?.initDataUnsafe?.user?.first_name || "Player";
-    const DOTS = 5; // 5x5 dots = 4x4 boxes (16 total)
+    const clientId = "p_" + Math.random().toString(36).substring(2, 10);
+
+    const DOTS = 5;
     const BOXES = DOTS - 1;
     const PADDING = 35;
     const SIZE = 350;
     const SPACING = (SIZE - PADDING * 2) / BOXES;
 
-    let mode = "local"; // 'local' | 'online'
+    let mode = "local";
     let myPlayerNum = 1;
     let currentPlayer = 1;
     let scores = { 1: 0, 2: 0 };
@@ -182,14 +184,15 @@
     let lastMove = null;
     let gameOver = false;
 
-    let peer = null;
-    let conn = null;
+    let mqttClient = null;
+    let roomTopic = "";
     let currentRoomCode = "";
+    let matchStarted = false;
+    let lobbyInterval = null;
 
     const canvas = document.getElementById("board");
     const ctx = canvas.getContext("2d");
 
-    // Auto-join if opened with ?startapp=CODE or ?room=CODE
     window.addEventListener("DOMContentLoaded", () => {
       const startParam = tg?.initDataUnsafe?.start_param || new URLSearchParams(window.location.search).get("room");
       if (startParam && startParam.length === 4) {
@@ -214,15 +217,9 @@
       document.getElementById("menuView").classList.add("hidden");
       document.getElementById("lobbyView").classList.remove("hidden");
       document.getElementById("roomCodeDisplay").innerText = currentRoomCode;
+      document.getElementById("lobbyStatus").innerText = "Connecting to server...";
 
-      peer = new Peer("2b-dots-" + currentRoomCode);
-      peer.on("connection", (connection) => {
-        conn = connection;
-        setupConnection();
-      });
-      peer.on("error", (err) => {
-        alert("Connection error: " + err.type);
-      });
+      connectMqtt(currentRoomCode, true);
     }
 
     function joinOnlineRoom() {
@@ -237,49 +234,91 @@
       document.getElementById("menuView").classList.add("hidden");
       document.getElementById("lobbyView").classList.remove("hidden");
       document.getElementById("roomCodeDisplay").innerText = code;
-      document.getElementById("lobbyStatus").innerText = "Connecting to room...";
+      document.getElementById("lobbyStatus").innerText = "Joining room " + code + "...";
 
-      peer = new Peer();
-      peer.on("open", () => {
-        conn = peer.connect("2b-dots-" + code);
-        setupConnection();
-      });
-      peer.on("error", () => {
-        alert("Could not find room " + code);
-        location.reload();
-      });
+      connectMqtt(code, false);
     }
 
-    function setupConnection() {
-      conn.on("open", () => {
-        conn.send({ type: "HELLO", name: myName });
-        document.getElementById("lobbyView").classList.add("hidden");
-        document.getElementById("gameView").classList.remove("hidden");
-        initBoard();
+    function connectMqtt(code, isHost) {
+      roomTopic = "2b-dots-room/" + code;
+      mqttClient = mqtt.connect("wss://broker.emqx.io:8084/mqtt", {
+        clientId: clientId,
+        clean: true,
+        reconnectPeriod: 1000
       });
-      conn.on("data", (data) => {
-        if (data.type === "HELLO") {
-          const otherNum = myPlayerNum === 1 ? 2 : 1;
-          names[otherNum] = data.name;
-          updateUI();
+
+      mqttClient.on("connect", () => {
+        mqttClient.subscribe(roomTopic, () => {
+          document.getElementById("lobbyStatus").innerText = isHost
+            ? "Room ready! Waiting for opponent..."
+            : "Searching for host...";
+
+          if (lobbyInterval) clearInterval(lobbyInterval);
+          lobbyInterval = setInterval(() => {
+            if (!matchStarted) {
+              if (isHost) {
+                publishMsg({ type: "HOST_PING", name: myName });
+              } else {
+                publishMsg({ type: "GUEST_JOIN", name: myName });
+              }
+            }
+          }, 1200);
+        });
+      });
+
+      mqttClient.on("message", (topic, message) => {
+        let data;
+        try {
+          data = JSON.parse(message.toString());
+        } catch (e) {
+          return;
+        }
+        if (data.sender === clientId) return;
+
+        if (isHost && data.type === "GUEST_JOIN") {
+          names[2] = data.name || "Player 2";
+          publishMsg({ type: "START_MATCH", hostName: names[1], guestName: names[2] });
+          if (!matchStarted) {
+            matchStarted = true;
+            clearInterval(lobbyInterval);
+            startGameView();
+          }
+        } else if (!isHost && data.type === "HOST_PING" && !matchStarted) {
+          publishMsg({ type: "GUEST_JOIN", name: myName });
+        } else if (!isHost && data.type === "START_MATCH") {
+          names[1] = data.hostName || "Player 1";
+          names[2] = data.guestName || myName;
+          if (!matchStarted) {
+            matchStarted = true;
+            clearInterval(lobbyInterval);
+            startGameView();
+          }
         } else if (data.type === "MOVE") {
-          applyMove(data.orientation, data.r, data.c);
+          const isFree = data.o === "H" ? hLines[data.r][data.c] === 0 : vLines[data.r][data.c] === 0;
+          if (isFree) applyMove(data.o, data.r, data.c);
         } else if (data.type === "REMATCH") {
           initBoard();
         }
       });
-      conn.on("close", () => {
-        alert("Opponent disconnected.");
-        location.reload();
-      });
+    }
+
+    function publishMsg(payload) {
+      if (mqttClient && mqttClient.connected) {
+        payload.sender = clientId;
+        mqttClient.publish(roomTopic, JSON.stringify(payload));
+      }
+    }
+
+    function startGameView() {
+      document.getElementById("lobbyView").classList.add("hidden");
+      document.getElementById("gameView").classList.remove("hidden");
+      initBoard();
     }
 
     function startLocalGame() {
       mode = "local";
       names = { 1: "Player 1", 2: "Player 2" };
-      document.getElementById("menuView").classList.add("hidden");
-      document.getElementById("gameView").classList.remove("hidden");
-      initBoard();
+      startGameView();
     }
 
     function initBoard() {
@@ -303,10 +342,8 @@
       document.getElementById("p1Score").innerText = scores[1];
       document.getElementById("p2Score").innerText = scores[2];
 
-      const p1Card = document.getElementById("p1Card");
-      const p2Card = document.getElementById("p2Card");
-      p1Card.className = "player-box" + (currentPlayer === 1 ? " active-p1" : "");
-      p2Card.className = "player-box" + (currentPlayer === 2 ? " active-p2" : "");
+      document.getElementById("p1Card").className = "player-box" + (currentPlayer === 1 ? " active-p1" : "");
+      document.getElementById("p2Card").className = "player-box" + (currentPlayer === 2 ? " active-p2" : "");
 
       const status = document.getElementById("turnStatus");
       if (gameOver) {
@@ -324,7 +361,6 @@
     function drawBoard() {
       ctx.clearRect(0, 0, SIZE, SIZE);
 
-      // Draw claimed boxes
       for (let r = 0; r < BOXES; r++) {
         for (let c = 0; c < BOXES; c++) {
           if (boxes[r][c] !== 0) {
@@ -334,7 +370,6 @@
         }
       }
 
-      // Draw horizontal lines
       for (let r = 0; r < DOTS; r++) {
         for (let c = 0; c < BOXES; c++) {
           const x1 = PADDING + c * SPACING;
@@ -353,7 +388,6 @@
         }
       }
 
-      // Draw vertical lines
       for (let r = 0; r < BOXES; r++) {
         for (let c = 0; c < DOTS; c++) {
           const x1 = PADDING + c * SPACING;
@@ -372,7 +406,6 @@
         }
       }
 
-      // Draw dots
       for (let r = 0; r < DOTS; r++) {
         for (let c = 0; c < DOTS; c++) {
           ctx.beginPath();
@@ -422,8 +455,8 @@
 
       if (best) {
         applyMove(best.o, best.r, best.c);
-        if (mode === "online" && conn) {
-          conn.send({ type: "MOVE", orientation: best.o, r: best.r, c: best.c });
+        if (mode === "online") {
+          publishMsg({ type: "MOVE", o: best.o, r: best.r, c: best.c });
         }
       }
     });
@@ -463,8 +496,8 @@
 
     function requestRematch() {
       initBoard();
-      if (mode === "online" && conn) {
-        conn.send({ type: "REMATCH" });
+      if (mode === "online") {
+        publishMsg({ type: "REMATCH" });
       }
     }
 
