@@ -21,7 +21,6 @@ button:active{transform:translateY(3px);box-shadow:0 1px 0 #b45309}
 button:disabled{opacity:.45;cursor:not-allowed}
 button.alt{background:#38bdf8;color:#0f172a;box-shadow:0 4px 0 #0284c7}
 button.secondary{background:#334155;color:#f8fafc;box-shadow:0 4px 0 #1e293b}
-button.danger{background:#ef4444;color:#fff;box-shadow:0 4px 0 #b91c1c}
 .avs{display:flex;gap:6px;flex-wrap:wrap;justify-content:center}
 .avs button{font-size:24px;padding:6px 8px;background:#1e293b;box-shadow:none;border:2px solid transparent;border-radius:10px}
 .avs button.sel{border-color:#facc15;background:#facc1533}
@@ -31,12 +30,12 @@ button.danger{background:#ef4444;color:#fff;box-shadow:0 4px 0 #b91c1c}
 .room-badge{background:#1e293b;border:2px dashed #facc15;border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:4px;align-items:center}
 .room-badge span{font-size:12px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px}
 .room-badge strong{font-size:28px;color:#facc15;letter-spacing:4px}
-.chip{background:rgba(15,23,42,.8);border:1px solid #334155;padding:6px 12px;border-radius:10px;font-weight:700;font-size:13px}
+.chip{background:rgba(15,23,42,.85);border:1px solid #334155;padding:6px 12px;border-radius:10px;font-weight:700;font-size:13px}
 #hud{position:fixed;top:10px;left:10px;display:flex;gap:6px;flex-wrap:wrap;z-index:3;pointer-events:none;max-width:62vw}
 #board{position:fixed;top:10px;right:10px;z-index:3;pointer-events:none;text-align:right}
 #board .chip{display:block;margin-bottom:4px}
 #emo{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);display:flex;gap:6px;z-index:3}
-#emo button{font-size:20px;padding:6px 10px;background:rgba(15,23,42,.8);border:1px solid #334155;box-shadow:none}
+#emo button{font-size:20px;padding:6px 10px;background:rgba(15,23,42,.85);border:1px solid #334155;box-shadow:none}
 #lobby{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:4}
 #plist{display:flex;flex-direction:column;gap:6px;max-height:180px;overflow-y:auto}
 #plist div{background:#1e293b;border-radius:8px;padding:8px 12px;text-align:left;font-weight:600;font-size:14px;display:flex;justify-content:space-between}
@@ -65,12 +64,12 @@ button.danger{background:#ef4444;color:#fff;box-shadow:0 4px 0 #b91c1c}
     <span>Room Code</span>
     <strong id="lCode">----</strong>
   </div>
-  <div id="netStatus" style="font-size:13px;color:#94a3b8">🟡 Connecting to server...</div>
+  <div id="netStatus" style="font-size:13px;color:#facc15;font-weight:700">🟡 Connecting...</div>
   <div id="plist"></div>
   <p id="lCount" style="font-size:13px;color:#cbd5e1"></p>
   <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
-    <button id="startBtn" style="flex:1">🔥 START</button>
-    <button id="copyBtn" class="alt">📋 Copy Code</button>
+    <button id="startBtn" style="flex:1">🔥 START MATCH</button>
+    <button id="copyBtn" class="alt">📋 Copy</button>
   </div>
   <button id="leaveBtn" class="secondary" style="padding:8px">🚪 Leave Room</button>
   <p id="lHint" style="font-size:12px;color:#94a3b8"></p>
@@ -96,7 +95,12 @@ button.danger{background:#ef4444;color:#fff;box-shadow:0 4px 0 #b91c1c}
 </div>
 
 <script>
-const BROKER = 'wss://broker.emqx.io:8084/mqtt';
+const BROKERS = [
+  'wss://broker.emqx.io:8084/mqtt',
+  'wss://broker.hivemq.com:8884/mqtt'
+];
+let brokerIdx = 0;
+
 const MAX_PLAYERS = 7, WIN_ROUNDS = 3, WORLD_W = 1000, WORLD_H = 600, RAD = 20;
 const EMOJIS = ['🥔','🐸','🦆','🐙','🤖','🍕','👾'];
 const COLORS = ['#ff6b6b','#feca57','#48dbfb','#1dd1a1','#ff9ff3','#a29bfe','#ffa502'];
@@ -110,14 +114,13 @@ if (tg) { try { tg.ready(); tg.expand(); } catch (e) {} }
 
 const cleanStr = s => String(s || '').replace(/[&<>"']/g, '');
 const me = { id: Math.random().toString(36).slice(2,10), name:'', emoji:EMOJIS[0], color:COLORS[0], x:500, y:300, vx:0, vy:0 };
-let room = '', client = null, inGame = false, selEmoji = EMOJIS[0];
+let room = '', topic = '', client = null, inGame = false, selEmoji = EMOJIS[0];
 let dpr = 1, scale = 1, offX = 0, offY = 0;
 const remotes = new Map();
 let gs = { ph:'lobby', rd:0, h:null, tm:0, w:{}, out:[], champ:null, win:null, from:null };
-let gsRecv = 0, lastRd = -1, lastPh = 'lobby', lastH = null, lastSync = 0;
+let gsRecv = 0, lastRd = -1, lastPh = 'lobby', lastH = null, lastSync = 0, lastPosSent = 0;
 let hostImmUntil = 0, lastTagAt = 0, shake = 0, tickTimer = 0;
 let particles = [], floaters = [];
-let intervals = [];
 const keys = {};
 const stick = { on:false, ox:0, oy:0, x:0, y:0 };
 
@@ -127,7 +130,7 @@ const infoOf = id => id === me.id ? me : (remotes.get(id) || {n:'Player',e:'🥔
 
 const activeIds = () => {
   const now = Date.now(), ids = [me.id];
-  for (const [id, p] of remotes) if (now - p.seen < 3500) ids.push(id);
+  for (const [id, p] of remotes) if (now - p.seen < 6000) ids.push(id);
   return ids.sort();
 };
 const isHost = () => activeIds()[0] === me.id;
@@ -146,14 +149,23 @@ function showTicker(text, ms = 1200) {
   clearTimeout(tickTimer); tickTimer = setTimeout(() => t.classList.remove('show'), ms);
 }
 
+function sendNet(payload) {
+  if (!live() || !topic) return;
+  payload.sender = me.id;
+  client.publish(topic, JSON.stringify(payload));
+}
+
 function pubEvent(o) {
-  if (live()) client.publish(`pp2b/${room}/e`, JSON.stringify(o));
+  o.kind = 'event';
+  if (isHost()) hostHandle(o);
+  onEvent(o);
+  sendNet(o);
 }
 
 function publishState() {
   gs.from = me.id; gsRecv = performance.now(); lastSync = Date.now();
   afterState();
-  if (live()) client.publish(`pp2b/${room}/s`, JSON.stringify(gs));
+  sendNet({ kind: 'state', gs });
 }
 
 EMOJIS.forEach((e, i) => {
@@ -185,19 +197,21 @@ const randomRoom = () => {
 $('nameIn').value = cleanStr(tg?.initDataUnsafe?.user?.first_name || '');
 
 function enterRoom(targetRoom) {
+  if (inGame) return;
   me.name = cleanStr($('nameIn').value.trim().slice(0,12)) || 'Player';
   me.emoji = selEmoji;
   me.color = COLORS[EMOJIS.indexOf(selEmoji)] || COLORS[0];
   room = targetRoom;
+  topic = `dots_boxes_2b_pp_${room}`;
   $('lCode').textContent = room;
   $('join').classList.add('hidden');
   $('hud').classList.remove('hidden');$('board').classList.remove('hidden');
   $('emo').classList.remove('hidden');$('lobby').classList.remove('hidden');
   inGame = true;
   connect();
-  intervals.push(setInterval(presence, 180));
-  intervals.push(setInterval(tickUI, 250));
-  intervals.push(setInterval(hostTick, 100));
+  setInterval(networkLoop, 200);
+  setInterval(tickUI, 250);
+  setInterval(hostTick, 100);
   tickUI();
 }
 
@@ -205,7 +219,7 @@ $('createBtn').onclick = () => enterRoom(randomRoom());
 
 $('joinBtn').onclick = () => {
   const code = $('roomIn').value.trim().toUpperCase().replace(/[^A-Z0-9]/g,'');
-  if (!code) { alert('Please enter a room code first.'); return; }
+  if (!code) { alert('Enter a 4-letter Room Code first.'); return; }
   enterRoom(code);
 };
 
@@ -218,54 +232,114 @@ $('copyBtn').onclick = () => {
 };
 
 function connect() {
-  const base = `pp2b/${room}`;
-  $('netStatus').textContent = '🟡 Connecting to server...';
-  client = mqtt.connect(BROKER, {
-    clientId: `pp_${me.id}_${Math.random().toString(16).slice(2,6)}`,
-    clean: true, keepalive: 20, reconnectPeriod: 2000, connectTimeout: 10000
+  if (client) { try { client.end(true); } catch (e) {} }
+  const url = BROKERS[brokerIdx % BROKERS.length];
+  $('netStatus').textContent = '🟡 Connecting to room...';
+  $('netStatus').style.color = '#facc15';
+
+  client = mqtt.connect(url, {
+    clientId: 'pp2b_' + me.id + '_' + Math.random().toString(16).slice(2,6),
+    clean: true,
+    keepalive: 60,
+    reconnectPeriod: 3000,
+    connectTimeout: 8000
   });
+
   client.on('connect', () => {
-    $('netStatus').textContent = '🟢 Connected! Waiting for players...';
-    client.subscribe([`${base}/p/+`, `${base}/s`, `${base}/e`]);
-    presence();
+    $('netStatus').textContent = '🟢 Connected & Ready';
+    $('netStatus').style.color = '#4ade80';
+    client.subscribe(topic, { qos: 0 }, (err) => {
+      if (!err) {
+        sendPresence(true);
+      }
+    });
   });
-  client.on('reconnect', () => { $('netStatus').textContent = '🟡 Reconnecting...'; });
-  client.on('offline', () => { $('netStatus').textContent = '🔴 Offline'; });
-  client.on('message', (topic, buf) => {
-    if (!buf || !buf.length) return;
+
+  client.on('reconnect', () => {
+    $('netStatus').textContent = '🟡 Reconnecting...';
+    $('netStatus').style.color = '#facc15';
+  });
+
+  client.on('error', () => {
+    brokerIdx++;
+  });
+
+  client.on('message', (t, buf) => {
+    if (t !== topic || !buf || !buf.length) return;
     let m; try { m = JSON.parse(buf.toString()); } catch (e) { return; }
-    if (topic === `${base}/s`) { if (m.from !== me.id) applyNetState(m); }
-    else if (topic === `${base}/e`) onEvent(m);
-    else { const id = topic.split('/').pop(); if (id !== me.id) onPresence(id, m); }
+    if (!m || m.sender === me.id) return;
+
+    if (m.kind === 'pos') {
+      onPresence(m.sender, m);
+    } else if (m.kind === 'state') {
+      applyNetState(m.gs);
+    } else if (m.kind === 'event') {
+      if (isHost()) hostHandle(m);
+      onEvent(m);
+    }
   });
 }
 
-function presence() {
+function sendPresence(isHello = false) {
+  lastPosSent = Date.now();
+  sendNet({
+    kind: 'pos',
+    hello: isHello,
+    n: me.name,
+    e: me.emoji,
+    c: me.color,
+    x: Math.round(me.x),
+    y: Math.round(me.y),
+    vx: Math.round(me.vx),
+    vy: Math.round(me.vy)
+  });
+}
+
+function networkLoop() {
   if (!inGame || !live()) return;
-  client.publish(`pp2b/${room}/p/${me.id}`, JSON.stringify({
-    n: me.name, e: me.emoji, c: me.color, x: Math.round(me.x), y: Math.round(me.y)
-  }));
+  const now = Date.now();
+  const interval = (gs.ph === 'play' || gs.ph === 'between') ? 200 : 1800;
+  if (now - lastPosSent >= interval) {
+    sendPresence(false);
+  }
 }
 
 function onPresence(id, m) {
-  if (m.gone) { remotes.delete(id); return; }
+  if (m.gone) { remotes.delete(id); tickUI(); return; }
   let p = remotes.get(id);
   const isNew = !p;
   if (isNew) {
-    p = { rx: m.x, ry: m.y };
+    p = { rx: m.x, ry: m.y, vx: 0, vy: 0 };
     remotes.set(id, p);
     showTicker(`${cleanStr(m.e)} ${cleanStr(m.n)} joined!`, 1000);
   }
-  Object.assign(p, { n:cleanStr(m.n), e:cleanStr(m.e), c:m.c, tx:m.x, ty:m.y, seen: Date.now() });
-  if (isNew && isHost()) publishState();
+  Object.assign(p, {
+    n: cleanStr(m.n),
+    e: cleanStr(m.e),
+    c: m.c,
+    tx: m.x,
+    ty: m.y,
+    vx: m.vx || 0,
+    vy: m.vy || 0,
+    seen: Date.now()
+  });
+
+  if (m.hello || isNew) {
+    sendPresence(false);
+    if (isHost()) publishState();
+    tickUI();
+  }
 }
 
-function applyNetState(m) {
-  gs = m; gsRecv = performance.now(); afterState();
+function applyNetState(newGs) {
+  if (!newGs) return;
+  gs = newGs;
+  gsRecv = performance.now();
+  afterState();
+  tickUI();
 }
 
 function onEvent(m) {
-  if (isHost()) hostHandle(m);
   if (m.t === 'boom') {
     burst(m.x, m.y, m.id === me.id ? '#ff4d4d' : '#ffd93d', 40);
     shake = 18;
@@ -315,7 +389,7 @@ function startMatch() {
 function newRound(ids) {
   gs.rd += 1; gs.out = []; gs.ph = 'play'; gs.win = null;
   gs.h = ids[Math.floor(Math.random() * ids.length)];
-  gs.tm = 8000 + Math.random() * 5000;
+  gs.tm = 9000 + Math.random() * 5000;
   hostImmUntil = 0;
   publishState();
 }
@@ -335,7 +409,7 @@ function explode(alive) {
     } else { gs.ph = 'between'; gs.tm = 3000; }
   } else {
     gs.h = left[Math.floor(Math.random() * left.length)];
-    gs.tm = 8000 + Math.random() * 5000;
+    gs.tm = 9000 + Math.random() * 5000;
   }
   publishState();
 }
@@ -357,7 +431,7 @@ function hostTick() {
   }
   gs.tm -= 100;
   if (gs.tm <= 0) { explode(alive); return; }
-  if (Date.now() - lastSync > 1000) publishState();
+  if (Date.now() - lastSync > 1200) publishState();
 }
 
 function spawn() {
@@ -383,7 +457,7 @@ function updateLocal(dt) {
   }
   const len = Math.hypot(ix, iy); if (len > 1) { ix /= len; iy /= len; }
   const out = isOut();
-  const base = out ? 280 : (gs.ph === 'play' && gs.h === me.id ? 165 : 235);
+  const base = out ? 280 : (gs.ph === 'play' && gs.h === me.id ? 170 : 235);
   const k = Math.min(1, dt * 10);
   me.vx += (ix * base - me.vx) * k;
   me.vy += (iy * base - me.vy) * k;
@@ -396,7 +470,7 @@ function tagCheck() {
   const now = Date.now();
   if (now - lastTagAt < 350) return;
   for (const [id, p] of remotes) {
-    if (gs.out.includes(id) || now - p.seen > 3500) continue;
+    if (gs.out.includes(id) || now - p.seen > 6000) continue;
     if (Math.hypot(p.rx - me.x, p.ry - me.y) < 44) {
       lastTagAt = now;
       pubEvent({ t:'tag', from:me.id, to:id });
@@ -419,11 +493,16 @@ function updateFx(dt) {
   floaters = floaters.filter(f => f.life > 0);
   for (const id of remotes.keys()) {
     const p = remotes.get(id);
-    if (p.tx !== undefined) { p.rx += (p.tx - p.rx) * 0.25; p.ry += (p.ty - p.ry) * 0.25; }
+    if (p.tx !== undefined) {
+      p.tx += (p.vx || 0) * dt;
+      p.ty += (p.vy || 0) * dt;
+      p.rx += (p.tx - p.rx) * 0.25;
+      p.ry += (p.ty - p.ry) * 0.25;
+    }
   }
   if (shake > 0) shake = Math.max(0, shake - 60*dt);
   const now = Date.now();
-  for (const [id, p] of remotes) if (now - p.seen > 6500) remotes.delete(id);
+  for (const [id, p] of remotes) if (now - p.seen > 8000) remotes.delete(id);
 }
 
 function drawAvatar(info, x, y, opts, now, idx) {
@@ -528,7 +607,7 @@ function refreshLobby(ids) {
 function tickUI() {
   if (!inGame) return;
   const now = Date.now();
-  for (const [id, p] of remotes) if (now - p.seen > 6500) remotes.delete(id);
+  for (const [id, p] of remotes) if (now - p.seen > 8000) remotes.delete(id);
   const ids = activeIds();
   const lobbyOn = gs.ph === 'lobby' || gs.ph === 'over';
   $('lobby').classList.toggle('hidden', !lobbyOn);
@@ -564,7 +643,7 @@ cv.addEventListener('pointercancel', endStick);
 $('startBtn').onclick = () => pubEvent({ t:'start' });
 
 addEventListener('pagehide', () => {
-  if (live() && inGame) client.publish(`pp2b/${room}/p/${me.id}`, JSON.stringify({gone:true}));
+  if (live() && inGame) sendNet({ kind:'pos', gone:true });
 });
 
 function resize() {
