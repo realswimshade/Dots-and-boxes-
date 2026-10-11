@@ -54,9 +54,6 @@
       gap: 6px;
       margin-bottom: 6px;
     }
-    .selector-grid.boxes-grid {
-      grid-template-columns: repeat(4, 1fr);
-    }
     .opt-btn {
       background: #0f172a;
       color: var(--sub);
@@ -88,6 +85,8 @@
     }
     .btn:active { opacity: 0.8; }
     .btn-secondary { background: #334155; }
+    .btn-accept { background: #10b981; margin-top: 0; }
+    .btn-deny { background: #f43f5e; margin-top: 0; }
     .input-row {
       display: flex;
       gap: 8px;
@@ -181,12 +180,42 @@
       touch-action: none;
       max-width: 100%;
     }
+    .rematch-panel {
+      background: var(--panel);
+      border-radius: 12px;
+      padding: 12px;
+      width: 100%;
+      max-width: 350px;
+      margin-top: 10px;
+      text-align: center;
+    }
+    .vote-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .toast {
+      background: rgba(244, 63, 94, 0.18);
+      border: 1px solid var(--p2);
+      color: #fda4af;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      width: 100%;
+      max-width: 360px;
+      margin-bottom: 10px;
+      text-align: center;
+    }
     .hidden { display: none !important; }
   </style>
 </head>
 <body>
 
   <h1>2B • DOTS & BOXES</h1>
+
+  <div id="toastBanner" class="toast hidden"></div>
 
   <!-- MENU VIEW -->
   <div id="menuView" class="card">
@@ -199,7 +228,7 @@
     </div>
 
     <div class="section-label">2. Number of Boxes</div>
-    <div class="selector-grid boxes-grid">
+    <div class="selector-grid">
       <button class="opt-btn" onclick="selectGrid('9', this)">9 (3×3)</button>
       <button class="opt-btn selected" onclick="selectGrid('16', this)">16 (4×4)</button>
       <button class="opt-btn" onclick="selectGrid('25', this)">25 (5×5)</button>
@@ -228,6 +257,7 @@
     <div id="lobbySlots" class="lobby-slots"></div>
     <button class="btn" onclick="copyRoomCode()">Copy Room Code</button>
     <button class="btn btn-secondary" onclick="shareTelegramInvite()">Share Invite to Telegram</button>
+    <button class="btn btn-secondary" style="background:#0f172a; border:1px solid #334155;" onclick="returnToMenu()">Cancel</button>
   </div>
 
   <!-- GAME VIEW -->
@@ -249,7 +279,25 @@
 
     <div id="turnStatus" class="status-text">Your Turn</div>
     <canvas id="board" width="350" height="350"></canvas>
-    <button id="rematchBtn" class="btn hidden" style="max-width: 350px; margin-top: 12px;" onclick="requestRematch()">Play Again</button>
+
+    <!-- INITIAL POST-GAME ACTIONS -->
+    <div id="endActions" class="rematch-panel hidden">
+      <button class="btn" style="margin-top: 0;" onclick="initiateRematch()">Play Again</button>
+      <button class="btn btn-secondary" onclick="denyOrLeaveMatch()">Main Menu</button>
+    </div>
+
+    <!-- REMATCH VOTING BLOCK -->
+    <div id="rematchVoteBox" class="rematch-panel hidden">
+      <div id="rematchTitle" style="font-size: 0.9rem; font-weight: 600; color: var(--text);">Play Again?</div>
+      <div id="rematchCountText" style="font-size: 0.8rem; color: var(--sub); margin-top: 4px;">Accepted: 1/2</div>
+      <div id="voteButtons" class="vote-grid">
+        <button class="btn btn-accept" onclick="voteRematch(true)">Accept</button>
+        <button class="btn btn-deny" onclick="voteRematch(false)">Deny</button>
+      </div>
+      <div id="votedWaitingText" class="hidden" style="font-size: 0.82rem; color: var(--p3); margin-top: 8px; font-weight: 600;">
+        Accepted! Waiting for others...
+      </div>
+    </div>
   </div>
 
   <script>
@@ -279,7 +327,7 @@
       4: { stroke: "#f59e0b", fill: "rgba(245, 158, 11, 0.28)" }
     };
 
-    let selectedMode = "1v1"; // '1v1', '1v1v1', '1v1v1v1', '2v2'
+    let selectedMode = "1v1";
     let selectedGrid = "16";
     let maxPlayers = 2;
 
@@ -292,19 +340,23 @@
     let CANVAS_W = 350;
     let CANVAS_H = 350;
 
-    let netMode = "local"; // 'local' | 'online'
+    let netMode = "local";
     let isHost = false;
     let mySeat = 1;
     let currentPlayer = 1;
     let scores = { 1: 0, 2: 0, 3: 0, 4: 0 };
     let names = { 1: "P1", 2: "P2", 3: "P3", 4: "P4" };
-    let slots = []; // [{ id, name, seat }]
+    let slots = [];
 
     let hLines = [];
     let vLines = [];
     let boxes = [];
     let lastMove = null;
     let gameOver = false;
+
+    let rematchActive = false;
+    let rematchVotes = new Set();
+    let rematchInitiator = "";
 
     let mqttClient = null;
     let roomTopic = "";
@@ -322,6 +374,17 @@
         joinOnlineRoom();
       }
     });
+
+    function showToast(msg) {
+      const banner = document.getElementById("toastBanner");
+      if (!msg) {
+        banner.classList.add("hidden");
+        return;
+      }
+      banner.innerText = msg;
+      banner.classList.remove("hidden");
+      setTimeout(() => banner.classList.add("hidden"), 4500);
+    }
 
     function selectMode(m, btn) {
       selectedMode = m;
@@ -362,9 +425,11 @@
     }
 
     function createOnlineRoom() {
+      showToast("");
       netMode = "online";
       isHost = true;
       mySeat = 1;
+      matchStarted = false;
       currentRoomCode = generateCode();
       slots = [{ id: clientId, name: myName, seat: 1 }];
 
@@ -380,8 +445,10 @@
       const code = document.getElementById("joinInput").value.trim().toUpperCase();
       if (code.length !== 4) return alert("Enter a valid 4-character room code.");
 
+      showToast("");
       netMode = "online";
       isHost = false;
+      matchStarted = false;
       currentRoomCode = code;
 
       document.getElementById("menuView").classList.add("hidden");
@@ -493,8 +560,8 @@
         } else if (data.type === "MOVE") {
           const isFree = data.o === "H" ? hLines[data.r]?.[data.c] === 0 : vLines[data.r]?.[data.c] === 0;
           if (isFree) applyMove(data.o, data.r, data.c);
-        } else if (data.type === "REMATCH") {
-          initBoard();
+        } else if (data.type === "REMATCH_VOTE") {
+          handleIncomingRematchVote(data.seat, data.accept, data.name);
         }
       });
     }
@@ -531,6 +598,7 @@
     }
 
     function startLocalGame() {
+      showToast("");
       netMode = "local";
       maxPlayers = selectedMode === "1v1" ? 2 : (selectedMode === "1v1v1" ? 3 : 4);
       for (let s = 1; s <= maxPlayers; s++) {
@@ -596,7 +664,12 @@
       scores = { 1: 0, 2: 0, 3: 0, 4: 0 };
       gameOver = false;
       lastMove = null;
-      document.getElementById("rematchBtn").classList.add("hidden");
+      rematchActive = false;
+      rematchVotes.clear();
+      rematchInitiator = "";
+
+      document.getElementById("endActions").classList.add("hidden");
+      document.getElementById("rematchVoteBox").classList.add("hidden");
 
       hLines = Array.from({ length: DOT_ROWS }, () => Array(BOX_COLS).fill(0));
       vLines = Array.from({ length: BOX_ROWS }, () => Array(DOT_COLS).fill(0));
@@ -628,7 +701,9 @@
       const status = document.getElementById("turnStatus");
       if (gameOver) {
         status.innerText = getWinnerText();
-        document.getElementById("rematchBtn").classList.remove("hidden");
+        if (!rematchActive) {
+          document.getElementById("endActions").classList.remove("hidden");
+        }
       } else if (netMode === "online") {
         const tag = selectedMode === "2v2" ? ` (${currentPlayer % 2 === 1 ? "Team 1" : "Team 2"})` : "";
         status.innerText = currentPlayer === mySeat
@@ -665,7 +740,6 @@
     function drawBoard() {
       ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
 
-      // Draw claimed boxes
       for (let r = 0; r < BOX_ROWS; r++) {
         for (let c = 0; c < BOX_COLS; c++) {
           const owner = boxes[r][c];
@@ -686,7 +760,6 @@
         }
       }
 
-      // Draw horizontal lines
       for (let r = 0; r < DOT_ROWS; r++) {
         for (let c = 0; c < BOX_COLS; c++) {
           const x1 = PADDING + c * SPACING;
@@ -706,7 +779,6 @@
         }
       }
 
-      // Draw vertical lines
       for (let r = 0; r < BOX_ROWS; r++) {
         for (let c = 0; c < DOT_COLS; c++) {
           const x1 = PADDING + c * SPACING;
@@ -726,7 +798,6 @@
         }
       }
 
-      // Draw dots
       const dotRadius = Math.max(4, Math.min(6, SPACING * 0.1));
       for (let r = 0; r < DOT_ROWS; r++) {
         for (let c = 0; c < DOT_COLS; c++) {
@@ -810,7 +881,6 @@
       if (totalClaimed === BOX_COLS * BOX_ROWS) {
         gameOver = true;
       } else if (!madeBox) {
-        // Cycles 1 -> 2 -> 3 -> 4 -> 1 (In 2v2: P1T1 -> P1T2 -> P2T1 -> P2T2)
         currentPlayer = (currentPlayer % maxPlayers) + 1;
       }
 
@@ -818,11 +888,84 @@
       drawBoard();
     }
 
-    function requestRematch() {
-      initBoard();
-      if (netMode === "online") {
-        publishMsg({ type: "REMATCH" });
+    // --- REMATCH VOTING SYSTEM ---
+    function initiateRematch() {
+      if (netMode === "local") {
+        initBoard();
+        return;
       }
+      voteRematch(true);
+    }
+
+    function denyOrLeaveMatch() {
+      if (netMode === "local") {
+        returnToMenu();
+        return;
+      }
+      voteRematch(false);
+    }
+
+    function voteRematch(accept) {
+      publishMsg({
+        type: "REMATCH_VOTE",
+        seat: mySeat,
+        accept: accept,
+        name: names[mySeat]
+      });
+      handleIncomingRematchVote(mySeat, accept, names[mySeat]);
+    }
+
+    function handleIncomingRematchVote(seat, accept, playerName) {
+      if (!accept) {
+        const who = seat === mySeat ? "You" : (playerName || names[seat] || `Player ${seat}`);
+        returnToMenu(`${who} declined the rematch.`);
+        return;
+      }
+
+      if (!rematchActive) {
+        rematchActive = true;
+        rematchInitiator = playerName || names[seat] || `Player ${seat}`;
+      }
+
+      rematchVotes.add(seat);
+      updateRematchUI();
+
+      if (rematchVotes.size >= maxPlayers) {
+        initBoard();
+      }
+    }
+
+    function updateRematchUI() {
+      document.getElementById("endActions").classList.add("hidden");
+      document.getElementById("rematchVoteBox").classList.remove("hidden");
+
+      document.getElementById("rematchTitle").innerText = `${rematchInitiator} wants to play again`;
+      document.getElementById("rematchCountText").innerText = `Accepted: ${rematchVotes.size} / ${maxPlayers}`;
+
+      const hasVoted = rematchVotes.has(mySeat);
+      document.getElementById("voteButtons").classList.toggle("hidden", hasVoted);
+      document.getElementById("votedWaitingText").classList.toggle("hidden", !hasVoted);
+    }
+
+    function returnToMenu(reason) {
+      if (lobbyInterval) {
+        clearInterval(lobbyInterval);
+        lobbyInterval = null;
+      }
+      if (mqttClient) {
+        mqttClient.end(true);
+        mqttClient = null;
+      }
+      matchStarted = false;
+      gameOver = false;
+      rematchActive = false;
+      rematchVotes.clear();
+
+      document.getElementById("gameView").classList.add("hidden");
+      document.getElementById("lobbyView").classList.add("hidden");
+      document.getElementById("menuView").classList.remove("hidden");
+
+      if (reason) showToast(reason);
     }
 
     function copyRoomCode() {
