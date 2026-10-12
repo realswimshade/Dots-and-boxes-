@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>🧱 Quoridor Multiplayer</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mqtt@5.10.3/dist/mqtt.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; user-select: none; }
+  body {
+    background: #0f172a; color: #f8fafc;
+    font-family: system-ui, -apple-system, sans-serif;
+    min-height: 100vh; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; padding: 12px;
+    overflow-x: hidden;
+  }
+  .hidden { display: none !important; }
+
+  .card {
+    background: #1e293b; border: 1px solid #334155; border-radius: 18px;
+    padding: 20px; width: min(94vw, 390px); display: flex;
+    flex-direction: column; gap: 13px; text-align: center;
+    box-shadow: 0 12px 32px rgba(0,0,0,0.55);
+  }
+  h1 { font-size: 26px; font-weight: 900; color: #facc15; letter-spacing: 0.5px; }
+  .sub { font-size: 13px; color: #94a3b8; line-height: 1.35; }
+  .divider { height: 1px; background: #334155; margin: 2px 0; }
+
+  input {
+    width: 100%; padding: 12px; border-radius: 10px;
+    border: 1px solid #475569; background: #0f172a; color: #f8fafc;
+    font-size: 16px; font-weight: 700; text-align: center; outline: none;
+  }
+  input:focus { border-color: #facc15; }
+
+  button {
+    width: 100%; padding: 12px 14px; border-radius: 12px; border: none;
+    font-size: 15px; font-weight: 800; cursor: pointer;
+    transition: transform 0.08s, opacity 0.15s;
+  }
+  button:active { transform: translateY(2px); }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .btn-primary { background: #facc15; color: #0f172a; box-shadow: 0 4px 0 #a16207; }
+  .btn-accent { background: #38bdf8; color: #0f172a; box-shadow: 0 4px 0 #0284c7; }
+  .btn-success { background: #10b981; color: #0f172a; box-shadow: 0 4px 0 #047857; }
+  .btn-secondary { background: #334155; color: #f8fafc; box-shadow: 0 4px 0 #0f172a; }
+
+  .join-row { display: flex; gap: 8px; }
+  .join-row input { flex: 1; text-transform: uppercase; letter-spacing: 3px; }
+  .join-row button { width: auto; padding: 0 22px; }
+
+  .code-box {
+    background: #0f172a; border: 2px dashed #facc15; border-radius: 12px;
+    padding: 10px; display: flex; flex-direction: column; gap: 4px;
+  }
+  .code-box span { font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; }
+  .code-box strong { font-size: 28px; color: #facc15; letter-spacing: 5px; }
+  .status-pill { font-size: 12px; font-weight: 700; color: #facc15; }
+
+  .seat-list { display: flex; flex-direction: column; gap: 8px; }
+  .seat-item {
+    background: #0f172a; border: 1px solid #334155; border-radius: 10px;
+    padding: 10px 14px; display: flex; justify-content: space-between;
+    align-items: center; font-weight: 700; font-size: 14px;
+  }
+
+  /* GAME SCREEN */
+  #gameScreen {
+    width: min(96vw, 430px); display: flex; flex-direction: column;
+    gap: 10px; align-items: center;
+  }
+  .scoreboard {
+    width: 100%; display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px;
+    background: #1e293b; border: 1px solid #334155; border-radius: 14px; padding: 8px;
+  }
+  .p-card {
+    padding: 8px; border-radius: 10px; background: #0f172a;
+    border: 2px solid transparent; text-align: center; transition: 0.2s;
+  }
+  .p-card.active-0 { border-color: #38bdf8; box-shadow: 0 0 12px rgba(56,189,248,0.35); }
+  .p-card.active-1 { border-color: #fb923c; box-shadow: 0 0 12px rgba(251,146,60,0.35); }
+  .p-name { font-size: 13px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .p-meta { display: flex; justify-content: space-around; margin-top: 4px; font-size: 13px; font-weight: 800; }
+  .vs-box { display: flex; flex-direction: column; justify-content: center; align-items: center; font-size: 11px; color: #94a3b8; font-weight: 800; padding: 0 4px; }
+
+  #turnBanner {
+    width: 100%; text-align: center; font-size: 14px; font-weight: 800;
+    padding: 8px 12px; border-radius: 10px; background: #1e293b;
+    border: 1px solid #334155;
+  }
+
+  .canvas-wrap {
+    width: 100%; aspect-ratio: 1 / 1; background: #1e293b;
+    border: 2px solid #334155; border-radius: 16px; padding: 6px;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.45);
+  }
+  canvas { width: 100%; height: 100%; display: block; border-radius: 10px; touch-action: manipulation; }
+
+  .action-bar { width: 100%; display: flex; gap: 8px; }
+</style>
+</head>
+<body>
+
+<!-- 1. MENU SCREEN -->
+<div id="menuScreen" class="card">
+  <h1>🧱 Quoridor</h1>
+  <p class="sub">Reach the opposite side of the board first! Step 1 tile or place walls to trap your opponent in a maze.</p>
+  <input id="nameInput" placeholder="Your Name" maxlength="12">
+  <div class="divider"></div>
+  <button id="createBtn" class="btn-primary">➕ Create New Room</button>
+  <div class="sub" style="font-weight:700">OR JOIN WITH CODE</div>
+  <div class="join-row">
+    <input id="codeInput" placeholder="CODE" maxlength="4">
+    <button id="joinBtn" class="btn-accent">Join</button>
+  </div>
+</div>
+
+<!-- 2. LOBBY SCREEN -->
+<div id="lobbyScreen" class="card hidden">
+  <h1>🧱 Room Lobby</h1>
+  <div class="code-box">
+    <span>Room Code</span>
+    <strong id="lobbyCode">----</strong>
+  </div>
+  <button id="copyBtn" class="btn-secondary" style="padding:8px;font-size:13px">📋 Copy Room Code</button>
+  <div id="connStatus" class="status-pill">🟡 Connecting to broker...</div>
+
+  <div class="seat-list">
+    <div class="seat-item">
+      <span>🔵 Player 1 (Top ⬇)</span>
+      <span id="seat0Name" style="color:#38bdf8">Waiting...</span>
+    </div>
+    <div class="seat-item">
+      <span>🟠 Player 2 (Bottom ⬆)</span>
+      <span id="seat1Name" style="color:#fb923c">Waiting...</span>
+    </div>
+  </div>
+
+  <button id="startBtn" class="btn-success" disabled>Waiting for Player 2...</button>
+  <button class="btn-secondary" onclick="location.reload()">🚪 Leave Room</button>
+</div>
+
+<!-- 3. GAME SCREEN -->
+<div id="gameScreen" class="hidden">
+  <div class="scoreboard">
+    <div id="card0" class="p-card">
+      <div class="p-name" style="color:#38bdf8">🔵 <span id="gName0">P1</span></div>
+      <div class="p-meta">
+        <span id="gWalls0">🧱 10</span>
+        <span id="gWins0">🏆 0</span>
+      </div>
+    </div>
+    <div class="vs-box">
+      <span>9×9</span>
+      <span style="margin-top:2px;color:#facc15">MAZE</span>
+    </div>
+    <div id="card1" class="p-card">
+      <div class="p-name" style="color:#fb923c">🟠 <span id="gName1">P2</span></div>
+      <div class="p-meta">
+        <span id="gWalls1">🧱 10</span>
+        <span id="gWins1">🏆 0</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="turnBanner">Waiting...</div>
+
+  <div class="canvas-wrap">
+    <canvas id="boardCanvas" width="540" height="540"></canvas>
+  </div>
+
+  <!-- Wall placement controls (shown when previewing a wall) -->
+  <div id="wallControls" class="action-bar">
+    <button id="rotateBtn" class="btn-secondary" disabled>🔄 Rotate Wall</button>
+    <button id="placeWallBtn" class="btn-primary" disabled>🧱 Place Wall</button>
+  </div>
+
+  <div class="action-bar">
+    <button id="rematchBtn" class="btn-success hidden">🔁 Play Again</button>
+    <button class="btn-secondary" onclick="location.reload()" style="padding:10px">🚪 Exit Room</button>
+  </div>
+</div>
+
+<script>
+const tg = window.Telegram?.WebApp;
+if (tg) { try { tg.ready(); tg.expand(); } catch (e) {} }
+
+const cleanStr = (s) => String(s || "").replace(/[&<>"']/g, "").trim().slice(0, 12);
+const myId = "q_" + Math.random().toString(36).slice(2, 9);
+let myName = cleanStr(tg?.initDataUnsafe?.user?.first_name) || "Player";
+
+const BROKER = "wss://broker.emqx.io:8084/mqtt";
+const $= (id) => document.getElementById(id);$('nameInput').value = myName;
+
+// Board Geometry Constants (Logical 540x540 Canvas)
+const LOGICAL_SIZE = 540;
+const MARGIN = 18;
+const CELL_SIZE = 48;
+const GAP_SIZE = 9;
+const STEP = CELL_SIZE + GAP_SIZE; // 57px per cell+groove
+
+let client = null;
+let roomCode = "";
+let topic = "";
+let isHost = false;
+let mySeat = -1;
+let joinRetryTimer = null;
+
+// Authoritative Game State
+let state = {
+  phase: "lobby", // 'lobby' | 'play' | 'over'
+  players: [
+    { id: null, name: "Waiting..." },
+    { id: null, name: "Waiting..." }
+  ],
+  wins: [0, 0],
+  starter: 0,
+  turn: 0,
+  pawns: [
+    { r: 0, c: 4 }, // Seat 0 starts top-center, goal is row 8
+    { r: 8, c: 4 }  // Seat 1 starts bottom-center, goal is row 0
+  ],
+  wallsLeft: [10, 10],
+  walls: [], // Array of { r: 0..7, c: 0..7, o: 'H'|'V', seat: 0|1 }
+  winner: null
+};
+
+// Local UI Preview State for Wall Placement
+let previewWall = null; // { r, c, o: 'H'|'V', valid: boolean, reason: string }
+
+function genCode() {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let res = "";
+  for (let i = 0; i < 4; i++) res += chars[Math.floor(Math.random() * chars.length)];
+  return res;
+}
+
+$('createBtn').onclick = () => {
+  myName = cleanStr($('nameInput').value) || "Player";
+  isHost = true;
+  mySeat = 0;
+  roomCode = genCode();
+  state.players[0] = { id: myId, name: myName };
+  openLobby();
+};
+
+$('joinBtn').onclick = () => {
+  myName = cleanStr($('nameInput').value) || "Player";
+  const code = $('codeInput').value.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+  if (code.length < 3) { alert("Please enter a valid 4-character room code."); return; }
+  isHost = false;
+  roomCode = code;
+  openLobby();
+};
+
+$('copyBtn').onclick = () => {
+  navigator.clipboard?.writeText(roomCode);
+  $('copyBtn').textContent = "✅ Copied: " + roomCode;
+  setTimeout(() => { $('copyBtn').textContent = "📋 Copy Room Code"; }, 1500);
+};
+
+$('startBtn').onclick = () => {
+  if (!isHost || !state.players[1].id) return;
+  startNewRound(0);
+};
+
+$('rematchBtn').onclick = () => {
+  const nextStarter = 1 - state.starter;
+  if (isHost) {
+    startNewRound(nextStarter);
+  } else {
+    publishMsg({ type: "REMATCH_REQ" });
+  }
+};
+
+function openLobby() {
+  $('menuScreen').classList.add('hidden');
+  $('lobbyScreen').classList.remove('hidden');$('lobbyCode').textContent = roomCode;
+  updateLobbyUI();
+  connectMQTT();
+}
+
+function connectMQTT() {
+  topic = `quoridor_2b_${roomCode}`;
+  client = mqtt.connect(BROKER, {
+    clientId: `qr_${myId}_${Math.random().toString(16).slice(2, 6)}`,
+    clean: true,
+    keepalive: 45,
+    reconnectPeriod: 2000
+  });
+
+  client.on('connect', () => {
+    $('connStatus').textContent = "🟢 Connected";
+    $('connStatus').style.color = "#4ade80";
+    client.subscribe(topic, { qos: 0 }, () => {
+      if (isHost) {
+        broadcastState();
+      } else {
+        sendJoinReq();
+        if (!joinRetryTimer) joinRetryTimer = setInterval(sendJoinReq, 2000);
+      }
+    });
+  });
+
+  client.on('reconnect', () => {
+    $('connStatus').textContent = "🟡 Reconnecting...";
+    $('connStatus').style.color = "#facc15";
+  });
+
+  client.on('message', (t, payload) => {
+    if (t !== topic) return;
+    let msg;
+    try { msg = JSON.parse(payload.toString()); } catch (e) { return; }
+    if (!msg || msg.sender === myId) return;
+
+    if (msg.type === "JOIN_REQ" && isHost) {
+      if (!state.players[1].id || state.players[1].id === msg.id) {
+        state.players[1] = { id: msg.id, name: cleanStr(msg.name) || "Player 2" };
+      }
+      broadcastState();
+    } else if (msg.type === "STATE_SYNC") {
+      state = msg.state;
+      if (state.players[0].id === myId) mySeat = 0;
+      else if (state.players[1].id === myId) mySeat = 1;
+      if (mySeat !== -1) clearInterval(joinRetryTimer);
+      previewWall = null;
+      syncUI();
+    } else if (msg.type === "ACTION_REQ" && isHost) {
+      processAction(msg.seat, msg.action);
+    } else if (msg.type === "REMATCH_REQ" && isHost) {
+      if (state.phase === "over") startNewRound(1 - state.starter);
+    }
+  });
+}
+
+function sendJoinReq() {
+  if (mySeat !== -1) { clearInterval(joinRetryTimer); return; }
+  publishMsg({ type: "JOIN_REQ", id: myId, name: myName });
+}
+
+function publishMsg(obj) {
+  if (!client || !client.connected) return;
+  obj.sender = myId;
+  client.publish(topic, JSON.stringify(obj));
+}
+
+function broadcastState() {
+  syncUI();
+  publishMsg({ type: "STATE_SYNC", state });
+}
+
+function updateLobbyUI() {
+  $('seat0Name').textContent = state.players[0].id ? state.players[0].name + (mySeat === 0 ? " (You)" : "") : "Waiting...";
+  $('seat1Name').textContent = state.players[1].id ? state.players[1].name + (mySeat === 1 ? " (You)" : "") : "Waiting...";
+
+  if (isHost) {
+    const ready = Boolean(state.players[0].id && state.players[1].id);
+    $('startBtn').disabled = !ready;
+    $('startBtn').textContent = ready ? "🔥 Start Match" : "Waiting for Player 2...";
+  } else {
+    $('startBtn').disabled = true;
+    $('startBtn').textContent = state.players[1].id ? "Waiting for Host to start..." : "Joining room...";
+  }
+}
+
+function startNewRound(starterSeat) {
+  state.phase = "play";
+  state.starter = starterSeat;
+  state.turn = starterSeat;
+  state.pawns = [
+    { r: 0, c: 4 },
+    { r: 8, c: 4 }
+  ];
+  state.wallsLeft = [10, 10];
+  state.walls = [];
+  state.winner = null;
+  previewWall = null;
+  broadcastState();
+}
+
+/* ============================================================================
+ * QUORIDOR RULES ENGINE (WALL VALIDATION, JUMPING & BFS PATHFINDING)
+ * ============================================================================ */
+function isEdgeBlocked(r1, c1, r2, c2, wallsList) {
+  if (r1 === r2) {
+    // Horizontal step between (r1, c1) and (r1, c2)
+    const minC = Math.min(c1, c2);
+    for (const w of wallsList) {
+      if (w.o === "V" && w.c === minC && (w.r === r1 || w.r === r1 - 1)) return true;
+    }
+  } else if (c1 === c2) {
+    // Vertical step between (r1, c1) and (r2, c1)
+    const minR = Math.min(r1, r2);
+    for (const w of wallsList) {
+      if (w.o === "H" && w.r === minR && (w.c === c1 || w.c === c1 - 1)) return true;
+    }
+  }
+  return false;
+}
+
+function hasPathToGoal(startR, startC, goalRow, wallsList) {
+  const visited = new Uint8Array(81);
+  const queue = [startR * 9 + startC];
+  visited[startR * 9 + startC] = 1;
+  const dirs = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+
+  let head = 0;
+  while (head < queue.length) {
+    const curr = queue[head++];
+    const r = Math.floor(curr / 9);
+    const c = curr % 9;
+    if (r === goalRow) return true;
+
+    for (const [dr, dc] of dirs) {
+      const nr = r + dr;
+      const nc = c + dc;
+      if (nr < 0 || nr > 8 || nc < 0 || nc > 8) continue;
+      const nIdx = nr * 9 + nc;
+      if (visited[nIdx]) continue;
+      if (!isEdgeBlocked(r, c, nr, nc, wallsList)) {
+        visited[nIdx] = 1;
+        queue.push(nIdx);
+      }
+    }
+  }
+  return false;
+}
+
+function validateWallPlacement(seat, r, c, o) {
+  if (state.wallsLeft[seat] <= 0) {
+    return { valid: false, reason: "No walls remaining!" };
+  }
+  if (r < 0 || r > 7 || c < 0 || c > 7) {
+    return { valid: false, reason: "Out of bounds" };
+  }
+
+  for (const w of state.walls) {
+    if (w.r === r && w.c === c) {
+      return { valid: false, reason: "Intersects existing wall!" };
+    }
+    if (o === "H" && w.o === "H" && w.r === r && Math.abs(w.c - c) === 1) {
+      return { valid: false, reason: "Overlaps existing horizontal wall!" };
+    }
+    if (o === "V" && w.o === "V" && w.c === c && Math.abs(w.r - r) === 1) {
+      return { valid: false, reason: "Overlaps existing vertical wall!" };
+    }
+  }
+
+  const testWalls = [...state.walls, { r, c, o }];
+  const p0Ok = hasPathToGoal(state.pawns[0].r, state.pawns[0].c, 8, testWalls);
+  const p1Ok = hasPathToGoal(state.pawns[1].r, state.pawns[1].c, 0, testWalls);
+
+  if (!p0Ok || !p1Ok) {
+    return { valid: false, reason: "Illegal: Completely traps a player!" };
+  }
+
+  return { valid: true, reason: "Tap 'Place Wall' to confirm" };
+}
+
+function getValidPawnMoves(seat) {
+  const me = state.pawns[seat];
+  const opp = state.pawns[1 - seat];
+  const moves = [];
+  const dirs = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+
+  for (const [dr, dc] of dirs) {
+    const nr = me.r + dr;
+    const nc = me.c + dc;
+    if (nr < 0 || nr > 8 || nc < 0 || nc > 8) continue;
+    if (isEdgeBlocked(me.r, me.c, nr, nc, state.walls)) continue;
+
+    if (nr === opp.r && nc === opp.c) {
+      // Opponent is adjacent: attempt straight jump over opponent
+      const jr = nr + dr;
+      const jc = nc + dc;
+      if (jr >= 0 && jr <= 8 && jc >= 0 && jc <= 8 && !isEdgeBlocked(nr, nc, jr, jc, state.walls)) {
+        moves.push({ r: jr, c: jc });
+      } else {
+        // Straight jump blocked: allow diagonal jumps beside opponent
+        const perpDirs = [[-dc, -dr], [dc, dr]];
+        for (const [pdr, pdc] of perpDirs) {
+          const dR = nr + pdr;
+          const dC = nc + pdc;
+          if (dR >= 0 && dR <= 8 && dC >= 0 && dC <= 8 && !isEdgeBlocked(nr, nc, dR, dC, state.walls)) {
+            moves.push({ r: dR, c: dC });
+          }
+        }
+      }
+    } else {
+      moves.push({ r: nr, c: nc });
+    }
+  }
+  return moves;
+}
+
+function sendOrProcessAction(action) {
+  previewWall = null;
+  if (isHost) {
+    processAction(mySeat, action);
+  } else {
+    publishMsg({ type: "ACTION_REQ", seat: mySeat, action });
+  }
+}
+
+function processAction(seat, action) {
+  if (state.phase !== "play" || state.turn !== seat) return;
+
+  if (action.kind === "move") {
+    const validMoves = getValidPawnMoves(seat);
+    const ok = validMoves.some(m => m.r === action.r && m.c === action.c);
+    if (!ok) return;
+
+    state.pawns[seat] = { r: action.r, c: action.c };
+
+    // Check Win Condition (Seat 0 reaches row 8, Seat 1 reaches row 0)
+    const goalRow = seat === 0 ? 8 : 0;
+    if (action.r === goalRow) {
+      state.phase = "over";
+      state.winner = seat;
+      state.wins[seat] += 1;
+    } else {
+      state.turn = 1 - seat;
+    }
+    broadcastState();
+  } else if (action.kind === "wall") {
+    const check = validateWallPlacement(seat, action.r, action.c, action.o);
+    if (!check.valid) return;
+
+    state.walls.push({ r: action.r, c: action.c, o: action.o, seat });
+    state.wallsLeft[seat] -= 1;
+    state.turn = 1 - seat;
+    broadcastState();
+  }
+}
+
+/* ============================================================================
+ * UI & INTERACTIVE BOARD CANVAS
+ * ============================================================================ */
+const cv = $('boardCanvas');
+const ctx = cv.getContext('2d');
+
+function setupHiDPI() {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  cv.width = LOGICAL_SIZE * dpr;
+  cv.height = LOGICAL_SIZE * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  drawBoard();
+}
+window.addEventListener('resize', setupHiDPI);
+
+$('rotateBtn').onclick = () => {
+  if (!previewWall) return;
+  const nextO = previewWall.o === "H" ? "V" : "H";
+  const res = validateWallPlacement(mySeat, previewWall.r, previewWall.c, nextO);
+  previewWall.o = nextO;
+  previewWall.valid = res.valid;
+  previewWall.reason = res.reason;
+  updateWallControlsUI();
+  drawBoard();
+};
+
+$('placeWallBtn').onclick = () => {
+  if (!previewWall || !previewWall.valid) return;
+  sendOrProcessAction({
+    kind: "wall",
+    r: previewWall.r,
+    c: previewWall.c,
+    o: previewWall.o
+  });
+};
+
+cv.addEventListener('pointerdown', (e) => {
+  if (state.phase !== "play" || state.turn !== mySeat) return;
+
+  const rect = cv.getBoundingClientRect();
+  const lx = (e.clientX - rect.left) * (LOGICAL_SIZE / rect.width);
+  const ly = (e.clientY - rect.top) * (LOGICAL_SIZE / rect.height);
+
+  // 1. Check if player tapped a valid destination tile
+  const validMoves = getValidPawnMoves(mySeat);
+  for (const m of validMoves) {
+    const tx = MARGIN + m.c * STEP;
+    const ty = MARGIN + m.r * STEP;
+    if (lx >= tx && lx <= tx + CELL_SIZE && ly >= ty && ly <= ty + CELL_SIZE) {
+      sendOrProcessAction({ kind: "move", r: m.r, c: m.c });
+      return;
+    }
+  }
+
+  // 2. Otherwise, find closest 8x8 wall intersection
+  let bestR = -1, bestC = -1, bestDist = 999;
+  for (let r = 0; r < 8; r++) {
+    for (let c = 0; c < 8; c++) {
+      const ix = MARGIN + (c + 1) * CELL_SIZE + c * GAP_SIZE + GAP_SIZE / 2;
+      const iy = MARGIN + (r + 1) * CELL_SIZE + r * GAP_SIZE + GAP_SIZE / 2;
+      const d = Math.hypot(lx - ix, ly - iy);
+      if (d < bestDist) {
+        bestDist = d;
+        bestR = r;
+        bestC = c;
+      }
+    }
+  }
+
+  if (bestDist <= 38) {
+    let nextO = "H";
+    if (previewWall && previewWall.r === bestR && previewWall.c === bestC) {
+      nextO = previewWall.o === "H" ? "V" : "H";
+    } else if (previewWall) {
+      nextO = previewWall.o;
+    }
+
+    let check = validateWallPlacement(mySeat, bestR, bestC, nextO);
+    // If orientation is invalid, automatically check if the rotated orientation is valid
+    if (!check.valid && (!previewWall || previewWall.r !== bestR || previewWall.c !== bestC)) {
+      const altO = nextO === "H" ? "V" : "H";
+      const altCheck = validateWallPlacement(mySeat, bestR, bestC, altO);
+      if (altCheck.valid) {
+        nextO = altO;
+        check = altCheck;
+      }
+    }
+
+    previewWall = { r: bestR, c: bestC, o: nextO, valid: check.valid, reason: check.reason };
+    updateWallControlsUI();
+    drawBoard();
+  }
+});
+
+function updateWallControlsUI() {
+  const isMyTurn = state.phase === "play" && state.turn === mySeat;
+  if (!isMyTurn || !previewWall) {
+    $('rotateBtn').disabled = true;
+    $('placeWallBtn').disabled = true;
+    return;
+  }
+  $('rotateBtn').disabled = false;
+  $('placeWallBtn').disabled = !previewWall.valid;
+  $('turnBanner').textContent = previewWall.valid
+    ? `🧱 ${previewWall.reason}`
+    : `⚠️ ${previewWall.reason}`;
+  $('turnBanner').style.color = previewWall.valid ? "#facc15" : "#f87171";
+}
+
+function syncUI() {
+  if (state.phase === "lobby") {
+    updateLobbyUI();
+    return;
+  }
+
+  $('lobbyScreen').classList.add('hidden');
+  $('menuScreen').classList.add('hidden');$('gameScreen').classList.remove('hidden');
+
+  $('gName0').textContent = state.players[0].name;
+  $('gName1').textContent = state.players[1].name;
+  $('gWalls0').textContent = `🧱 ${state.wallsLeft[0]}`;
+  $('gWalls1').textContent = `🧱 ${state.wallsLeft[1]}`;
+  $('gWins0').textContent = `🏆 ${state.wins[0]}`;
+  $('gWins1').textContent = `🏆 ${state.wins[1]}`;
+
+  $('card0').classList.toggle('active-0', state.phase === "play" && state.turn === 0);
+  $('card1').classList.toggle('active-1', state.phase === "play" && state.turn === 1);
+
+  if (state.phase === "play") {
+    $('rematchBtn').classList.add('hidden');$('wallControls').classList.remove('hidden');
+    if (state.turn === mySeat) {
+      $('turnBanner').textContent = "🟢 Your Turn! Tap a green tile to move or a groove to place a wall.";
+      $('turnBanner').style.color = "#4ade80";
+    } else {
+      $('turnBanner').textContent = `⏳ ${state.players[state.turn].name}'s Turn...`;
+      $('turnBanner').style.color = "#cbd5e1";
+    }
+  } else if (state.phase === "over") {
+    $('rematchBtn').classList.remove('hidden');$('wallControls').classList.add('hidden');
+    const wName = state.players[state.winner].name;
+    $('turnBanner').textContent = `🏆 ${wName} Reached the Goal & Wins!`;
+    $('turnBanner').style.color = "#facc15";
+  }
+
+  updateWallControlsUI();
+  setupHiDPI();
+}
+
+function drawBoard() {
+  ctx.clearRect(0, 0, LOGICAL_SIZE, LOGICAL_SIZE);
+  ctx.fillStyle = "#0f172a";
+  ctx.fillRect(0, 0, LOGICAL_SIZE, LOGICAL_SIZE);
+
+  // Goal Row Accent Bars (Top edge = Orange P2 Goal, Bottom edge = Cyan P1 Goal)
+  ctx.fillStyle = "rgba(251, 146, 60, 0.22)";
+  ctx.fillRect(MARGIN, 4, LOGICAL_SIZE - MARGIN * 2, 10);
+  ctx.fillStyle = "rgba(56, 189, 248, 0.22)";
+  ctx.fillRect(MARGIN, LOGICAL_SIZE - 14, LOGICAL_SIZE - MARGIN * 2, 10);
+
+  const validMoves = (state.phase === "play" && state.turn === mySeat)
+    ? getValidPawnMoves(mySeat)
+    : [];
+
+  // 1. Draw 9x9 Tiles
+  for (let r = 0; r < 9; r++) {
+    for (let c = 0; c < 9; c++) {
+      const x = MARGIN + c * STEP;
+      const y = MARGIN + r * STEP;
+      const isMoveTarget = validMoves.some(m => m.r === r && m.c === c);
+
+      ctx.beginPath();
+      ctx.roundRect(x, y, CELL_SIZE, CELL_SIZE, 8);
+      if (isMoveTarget) {
+        ctx.fillStyle = "rgba(16, 185, 129, 0.25)";
+        ctx.fill();
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = "#10b981";
+        ctx.stroke();
+      } else {
+        ctx.fillStyle = r === 0
+          ? "rgba(251, 146, 60, 0.1)"
+          : (r === 8 ? "rgba(56, 189, 248, 0.1)" : "#1e293b");
+        ctx.fill();
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = "#334155";
+        ctx.stroke();
+      }
+
+      if (isMoveTarget) {
+        ctx.beginPath();
+        ctx.arc(x + CELL_SIZE / 2, y + CELL_SIZE / 2, 8, 0, Math.PI * 2);
+        ctx.fillStyle = "#10b981";
+        ctx.fill();
+      }
+    }
+  }
+
+  // 2. Draw 8x8 Intersection Dots (Touch Targets for Walls)
+  for (let r = 0; r < 8; r++) {
+    for (let c = 0; c < 8; c++) {
+      const ix = MARGIN + (c + 1) * CELL_SIZE + c * GAP_SIZE + GAP_SIZE / 2;
+      const iy = MARGIN + (r + 1) * CELL_SIZE + r * GAP_SIZE + GAP_SIZE / 2;
+      ctx.beginPath();
+      ctx.arc(ix, iy, 2.5, 0, Math.PI * 2);
+      ctx.fillStyle = "#475569";
+      ctx.fill();
+    }
+  }
+
+  // 3. Draw Placed Walls
+  for (const w of state.walls) {
+    drawWallSegment(w.r, w.c, w.o, w.seat === 0 ? "#38bdf8" : "#fb923c", 1.0, false);
+  }
+
+  // 4. Draw Preview Wall (If active on player's turn)
+  if (state.phase === "play" && state.turn === mySeat && previewWall) {
+    const pColor = previewWall.valid ? "#facc15" : "#ef4444";
+    drawWallSegment(previewWall.r, previewWall.c, previewWall.o, pColor, 0.85, true);
+  }
+
+  // 5. Draw Pawns
+  drawPawn(state.pawns[0].r, state.pawns[0].c, "#38bdf8", "P1", state.turn === 0 && state.phase === "play");
+  drawPawn(state.pawns[1].r, state.pawns[1].c, "#fb923c", "P2", state.turn === 1 && state.phase === "play");
+}
+
+function drawWallSegment(r, c, o, color, alpha, isPreview) {
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = color;
+  ctx.strokeStyle = "#0f172a";
+  ctx.lineWidth = 1.5;
+
+  const span = CELL_SIZE * 2 + GAP_SIZE;
+  if (o === "H") {
+    const x = MARGIN + c * STEP;
+    const y = MARGIN + (r + 1) * CELL_SIZE + r * GAP_SIZE + 1;
+    ctx.beginPath();
+    ctx.roundRect(x, y, span, GAP_SIZE - 2, 4);
+    ctx.fill();
+    ctx.stroke();
+  } else {
+    const x = MARGIN + (c + 1) * CELL_SIZE + c * GAP_SIZE + 1;
+    const y = MARGIN + r * STEP;
+    ctx.beginPath();
+    ctx.roundRect(x, y, GAP_SIZE - 2, span, 4);
+    ctx.fill();
+    ctx.stroke();
+  }
+
+  if (isPreview) {
+    const ix = MARGIN + (c + 1) * CELL_SIZE + c * GAP_SIZE + GAP_SIZE / 2;
+    const iy = MARGIN + (r + 1) * CELL_SIZE + r * GAP_SIZE + GAP_SIZE / 2;
+    ctx.beginPath();
+    ctx.arc(ix, iy, 6, 0, Math.PI * 2);
+    ctx.fillStyle = "#ffffff";
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawPawn(r, c, color, label, isTurn) {
+  const cx = MARGIN + c * STEP + CELL_SIZE / 2;
+  const cy = MARGIN + r * STEP + CELL_SIZE / 2;
+
+  ctx.save();
+  if (isTurn) {
+    ctx.beginPath();
+    ctx.arc(cx, cy, 20, 0, Math.PI * 2);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+  }
+
+  ctx.beginPath();
+  ctx.arc(cx, cy, 15, 0, Math.PI * 2);
+  ctx.fillStyle = color;
+  ctx.fill();
+  ctx.lineWidth = 2.5;
+  ctx.strokeStyle = "#0f172a";
+  ctx.stroke();
+
+  ctx.font = "900 11px system-ui, sans-serif";
+  ctx.fillStyle = "#0f172a";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(label, cx, cy + 0.5);
+  ctx.restore();
+}
+
+setupHiDPI();
+</script>
+</body>
+</html>
