@@ -2,674 +2,661 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>💣 Potato Panic</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/mqtt@5.10.3/dist/mqtt.min.js"></script>
 <style>
-*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-html,body{height:100%;overflow:hidden;background:#0f172a;color:#f8fafc;font-family:system-ui,-apple-system,sans-serif;touch-action:none;user-select:none;-webkit-user-select:none}
-#cv{position:fixed;inset:0;width:100%;height:100%;display:block}
-.hidden{display:none!important}
-.screen{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:18px;text-align:center;background:radial-gradient(circle at 50% 25%,#1e293b,#0f172a 75%);z-index:10;overflow-y:auto}
-.card{background:rgba(15,23,42,.95);border:1px solid #334155;padding:20px;border-radius:18px;width:min(92vw,360px);display:flex;flex-direction:column;gap:12px;box-shadow:0 12px 32px rgba(0,0,0,.6)}
-h1{font-size:clamp(26px,7vw,42px);color:#facc15;text-shadow:0 4px 0 #b45309}
-input{font-size:17px;padding:12px;border-radius:10px;border:1px solid #475569;background:#1e293b;color:#fff;outline:none;width:100%;text-align:center;font-weight:700}
-input:focus{border-color:#facc15}
-button{font:800 16px system-ui,sans-serif;padding:12px 16px;border:none;border-radius:12px;background:#facc15;color:#0f172a;cursor:pointer;box-shadow:0 4px 0 #b45309;transition:transform .06s}
-button:active{transform:translateY(3px);box-shadow:0 1px 0 #b45309}
-button:disabled{opacity:.45;cursor:not-allowed}
-button.alt{background:#38bdf8;color:#0f172a;box-shadow:0 4px 0 #0284c7}
-button.secondary{background:#334155;color:#f8fafc;box-shadow:0 4px 0 #1e293b}
-.avs{display:flex;gap:6px;flex-wrap:wrap;justify-content:center}
-.avs button{font-size:24px;padding:6px 8px;background:#1e293b;box-shadow:none;border:2px solid transparent;border-radius:10px}
-.avs button.sel{border-color:#facc15;background:#facc1533}
-.divider{height:1px;background:#334155;margin:4px 0}
-.join-row{display:flex;gap:8px}
-.join-row input{flex:1;text-transform:uppercase;letter-spacing:2px}
-.room-badge{background:#1e293b;border:2px dashed #facc15;border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:4px;align-items:center}
-.room-badge span{font-size:12px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px}
-.room-badge strong{font-size:28px;color:#facc15;letter-spacing:4px}
-.chip{background:rgba(15,23,42,.85);border:1px solid #334155;padding:6px 12px;border-radius:10px;font-weight:700;font-size:13px}
-#hud{position:fixed;top:10px;left:10px;display:flex;gap:6px;flex-wrap:wrap;z-index:3;pointer-events:none;max-width:62vw}
-#board{position:fixed;top:10px;right:10px;z-index:3;pointer-events:none;text-align:right}
-#board .chip{display:block;margin-bottom:4px}
-#emo{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);display:flex;gap:6px;z-index:3}
-#emo button{font-size:20px;padding:6px 10px;background:rgba(15,23,42,.85);border:1px solid #334155;box-shadow:none}
-#lobby{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:4}
-#plist{display:flex;flex-direction:column;gap:6px;max-height:180px;overflow-y:auto}
-#plist div{background:#1e293b;border-radius:8px;padding:8px 12px;text-align:left;font-weight:600;font-size:14px;display:flex;justify-content:space-between}
-#ticker{position:fixed;top:36%;left:50%;transform:translate(-50%,-50%);font-size:clamp(26px,8vw,64px);font-weight:900;text-align:center;z-index:5;pointer-events:none;opacity:0;text-shadow:0 5px 0 #000;white-space:nowrap}
-#ticker.show{opacity:1;animation:pop .35s ease-out}
-@keyframes pop{0%{transform:translate(-50%,-50%) scale(.4)}70%{transform:translate(-50%,-50%) scale(1.1)}100%{transform:translate(-50%,-50%) scale(1)}}
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; user-select: none; }
+  html, body {
+    width: 100%; height: 100%; overflow: hidden;
+    background: #0f172a; color: #f8fafc;
+    font-family: system-ui, -apple-system, sans-serif;
+    touch-action: none;
+  }
+  .hidden { display: none !important; }
+
+  /* MENU & LOBBY CARDS */
+  .overlay {
+    position: fixed; inset: 0; display: flex; align-items: center;
+    justify-content: center; padding: 14px; background: #0f172a; z-index: 10;
+  }
+  .card {
+    background: #1e293b; border: 1px solid #334155; border-radius: 18px;
+    padding: 20px; width: min(94vw, 380px); display: flex;
+    flex-direction: column; gap: 12px; text-align: center;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  }
+  h1 { font-size: 26px; font-weight: 900; color: #facc15; }
+  .sub { font-size: 13px; color: #94a3b8; }
+  .divider { height: 1px; background: #334155; margin: 2px 0; }
+  input {
+    width: 100%; padding: 12px; border-radius: 10px;
+    border: 1px solid #475569; background: #0f172a; color: #f8fafc;
+    font-size: 16px; font-weight: 700; text-align: center; outline: none;
+  }
+  input:focus { border-color: #facc15; }
+  button {
+    width: 100%; padding: 13px; border-radius: 12px; border: none;
+    font-size: 16px; font-weight: 800; cursor: pointer;
+    transition: transform 0.08s, opacity 0.15s;
+  }
+  button:active { transform: translateY(2px); }
+  button:disabled { opacity: 0.45; cursor: not-allowed; }
+  .btn-primary { background: #facc15; color: #0f172a; box-shadow: 0 4px 0 #b45309; }
+  .btn-accent { background: #38bdf8; color: #0f172a; box-shadow: 0 4px 0 #0284c7; }
+  .btn-secondary { background: #334155; color: #f8fafc; box-shadow: 0 4px 0 #0f172a; }
+  .join-row { display: flex; gap: 8px; }
+  .join-row input { flex: 1; text-transform: uppercase; letter-spacing: 3px; }
+  .join-row button { width: auto; padding: 0 22px; }
+
+  .code-box {
+    background: #0f172a; border: 2px dashed #facc15; border-radius: 12px;
+    padding: 10px; display: flex; flex-direction: column; gap: 4px;
+  }
+  .code-box span { font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; }
+  .code-box strong { font-size: 28px; color: #facc15; letter-spacing: 5px; }
+  .status-pill { font-size: 12px; font-weight: 700; color: #facc15; }
+
+  .player-list { display: flex; flex-direction: column; gap: 6px; max-height: 200px; overflow-y: auto; }
+  .player-item {
+    background: #0f172a; border: 1px solid #334155; border-radius: 10px;
+    padding: 8px 12px; display: flex; justify-content: space-between;
+    align-items: center; font-weight: 700; font-size: 14px;
+  }
+
+  /* HUD & CANVAS */
+  #gameCanvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; z-index: 1; }
+  #hudTop {
+    position: fixed; top: 10px; left: 10px; right: 10px;
+    display: flex; justify-content: space-between; align-items: flex-start;
+    pointer-events: none; z-index: 5; gap: 8px;
+  }
+  .hud-box {
+    background: rgba(15, 23, 42, 0.88); border: 1px solid #334155;
+    border-radius: 10px; padding: 6px 12px; font-size: 13px; font-weight: 700;
+  }
+  #banner {
+    position: fixed; top: 58px; left: 50%; transform: translateX(-50%);
+    background: rgba(15, 23, 42, 0.92); border: 1px solid #475569;
+    padding: 6px 16px; border-radius: 999px; font-size: 14px; font-weight: 800;
+    z-index: 5; pointer-events: none; white-space: nowrap;
+  }
 </style>
 </head>
 <body>
 
-<canvas id="cv"></canvas>
-
-<div id="hud" class="hidden">
-  <div class="chip" id="hRound"></div>
-  <div class="chip" id="hInfo"></div>
-  <div class="chip" id="hTimer"></div>
-</div>
-<div id="board" class="hidden"></div>
-<div id="ticker"></div>
-<div id="emo" class="hidden"></div>
-
-<!-- LOBBY MODAL -->
-<div id="lobby" class="card hidden">
-  <h2 id="lTitle" style="font-size:20px">💣 Potato Panic Lobby</h2>
-  <div class="room-badge">
-    <span>Room Code</span>
-    <strong id="lCode">----</strong>
-  </div>
-  <div id="netStatus" style="font-size:13px;color:#facc15;font-weight:700">🟡 Connecting...</div>
-  <div id="plist"></div>
-  <p id="lCount" style="font-size:13px;color:#cbd5e1"></p>
-  <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
-    <button id="startBtn" style="flex:1">🔥 START MATCH</button>
-    <button id="copyBtn" class="alt">📋 Copy</button>
-  </div>
-  <button id="leaveBtn" class="secondary" style="padding:8px">🚪 Leave Room</button>
-  <p id="lHint" style="font-size:12px;color:#94a3b8"></p>
-</div>
-
-<!-- MAIN MENU SCREEN -->
-<div id="join" class="screen">
+<!-- 1. MENU SCREEN -->
+<div id="menuScreen" class="overlay">
   <div class="card">
-    <h1>💣 POTATO PANIC</h1>
-    <p style="font-size:13px;color:#94a3b8">Pass the bomb before it explodes! (2–7 Players)</p>
-    <input id="nameIn" placeholder="Your Name" maxlength="12">
-    <div id="avs" class="avs"></div>
+    <h1>💣 Potato Panic</h1>
+    <p class="sub">Pass the bomb before the timer hits zero! (2–7 Players)</p>
+    <input id="nameInput" placeholder="Your Name" maxlength="12">
     <div class="divider"></div>
-    <button id="createBtn">➕ Create New Room</button>
-    <div style="font-size:12px;color:#64748b;font-weight:700">OR JOIN EXISTING ROOM</div>
+    <button id="createBtn" class="btn-primary">➕ Create New Room</button>
+    <div class="sub" style="font-weight:700">OR JOIN WITH CODE</div>
     <div class="join-row">
-      <input id="roomIn" placeholder="CODE" maxlength="6">
-      <button id="joinBtn" class="alt">Join ▶</button>
+      <input id="codeInput" placeholder="CODE" maxlength="4">
+      <button id="joinBtn" class="btn-accent">Join</button>
     </div>
-    <div class="divider"></div>
-    <button class="secondary" onclick="location.href='index.html'">🟦 Switch to Dots & Boxes</button>
   </div>
 </div>
+
+<!-- 2. LOBBY SCREEN -->
+<div id="lobbyScreen" class="overlay hidden">
+  <div class="card">
+    <h1 id="lobbyTitle">💣 Room Lobby</h1>
+    <div class="code-box">
+      <span>Room Code</span>
+      <strong id="lobbyCode">----</strong>
+    </div>
+    <button id="copyBtn" class="btn-secondary" style="padding:8px;font-size:13px">📋 Copy Room Code</button>
+    <div id="connStatus" class="status-pill">🟡 Connecting to broker...</div>
+    <div id="playerList" class="player-list"></div>
+    <button id="startBtn" class="btn-primary" disabled>Waiting for players (2–7)...</button>
+    <button class="btn-secondary" onclick="location.reload()">🚪 Leave Room</button>
+  </div>
+</div>
+
+<!-- 3. GAME HUD & ARENA -->
+<canvas id="gameCanvas"></canvas>
+<div id="hudTop" class="hidden">
+  <div class="hud-box" id="roundInfo">Round 1 · First to 3 🏆</div>
+  <div class="hud-box" id="scoreInfo"></div>
+</div>
+<div id="banner" class="hidden">Get Ready!</div>
 
 <script>
-const BROKERS = [
-  'wss://broker.emqx.io:8084/mqtt',
-  'wss://broker.hivemq.com:8884/mqtt'
+const tg = window.Telegram?.WebApp;
+if (tg) { tg.ready(); tg.expand(); }
+
+const cleanStr = (s) => String(s || "").replace(/[&<>"']/g, "").trim().slice(0, 12);
+const myId = "p_" + Math.random().toString(36).slice(2, 9);
+let myName = cleanStr(tg?.initDataUnsafe?.user?.first_name) || "Player";
+
+const BROKER = "wss://broker.emqx.io:8084/mqtt";
+const MAX_PLAYERS = 7;
+const WIN_ROUNDS = 3;
+const ARENA_W = 800;
+const ARENA_H = 500;
+const PLAYER_R = 22;
+
+const AVATARS = [
+  { emoji: "🥔", color: "#facc15" },
+  { emoji: "🐸", color: "#4ade80" },
+  { emoji: "🦊", color: "#fb923c" },
+  { emoji: "🐙", color: "#f472b6" },
+  { emoji: "🤖", color: "#38bdf8" },
+  { emoji: "👾", color: "#c084fc" },
+  { emoji: "🦖", color: "#f87171" }
 ];
-let brokerIdx = 0;
 
-const MAX_PLAYERS = 7, WIN_ROUNDS = 3, WORLD_W = 1000, WORLD_H = 600, RAD = 20;
-const EMOJIS = ['🥔','🐸','🦆','🐙','🤖','🍕','👾'];
-const COLORS = ['#ff6b6b','#feca57','#48dbfb','#1dd1a1','#ff9ff3','#a29bfe','#ffa502'];
-const REACTS = ['😂','💀','🔥','😭','🤡','🎉'];
-const PILLARS = [{x:500,y:300,r:55},{x:260,y:150,r:32},{x:740,y:450,r:32},{x:260,y:450,r:28},{x:740,y:150,r:28}];
+const $= (id) => document.getElementById(id);$('nameInput').value = myName;
 
-const $ = id => document.getElementById(id);
-const cv = $('cv'), ctx = cv.getContext('2d');
-const tg = window.Telegram && window.Telegram.WebApp;
-if (tg) { try { tg.ready(); tg.expand(); } catch (e) {} }
+let client = null;
+let roomCode = "";
+let topic = "";
+let isHost = false;
+let joinRetryTimer = null;
+let hostLoopTimer = null;
 
-const cleanStr = s => String(s || '').replace(/[&<>"']/g, '');
-const me = { id: Math.random().toString(36).slice(2,10), name:'', emoji:EMOJIS[0], color:COLORS[0], x:500, y:300, vx:0, vy:0 };
-let room = '', topic = '', client = null, inGame = false, selEmoji = EMOJIS[0];
-let dpr = 1, scale = 1, offX = 0, offY = 0;
-const remotes = new Map();
-let gs = { ph:'lobby', rd:0, h:null, tm:0, w:{}, out:[], champ:null, win:null, from:null };
-let gsRecv = 0, lastRd = -1, lastPh = 'lobby', lastH = null, lastSync = 0, lastPosSent = 0;
-let hostImmUntil = 0, lastTagAt = 0, shake = 0, tickTimer = 0;
-let particles = [], floaters = [];
+// Authoritative Match State (Synced via STATE_SYNC)
+let state = {
+  phase: "lobby", // 'lobby' | 'play' | 'over'
+  round: 0,
+  holderId: null,
+  bombDuration: 10000,
+  stateVersion: 0,
+  championId: null,
+  lastEventText: "",
+  players: [] // { id, name, emoji, color, wins, out }
+};
+
+// Local & Interpolated Positions
+const positions = new Map(); // id -> { x, y, tx, ty }
+let myPos = { x: 400, y: 250 };
+let lastSentPos = { x: 400, y: 250, time: 0 };
+let bombTimerStart = 0;
+let lastTagTime = 0;
+
+// Controls
 const keys = {};
-const stick = { on:false, ox:0, oy:0, x:0, y:0 };
+const joy = { active: false, ox: 0, oy: 0, x: 0, y: 0 };
 
-const live = () => client && client.connected;
-const nameOf = id => id === me.id ? me.name : (remotes.get(id)?.n || 'Player');
-const infoOf = id => id === me.id ? me : (remotes.get(id) || {n:'Player',e:'🥔',c:'#fff'});
-
-const activeIds = () => {
-  const now = Date.now(), ids = [me.id];
-  for (const [id, p] of remotes) if (now - p.seen < 6000) ids.push(id);
-  return ids.sort();
-};
-const isHost = () => activeIds()[0] === me.id;
-const isOut = () => gs.out.includes(me.id);
-const posOf = id => {
-  if (id === me.id) return { x: me.x, y: me.y };
-  const p = remotes.get(id);
-  return p ? { x: p.rx, y: p.ry } : { x: 500, y: 300 };
-};
-const tmLeft = () => Math.max(0, gs.tm - (isHost() ? 0 : (performance.now() - gsRecv)));
-
-function showTicker(text, ms = 1200) {
-  const t = $('ticker');
-  t.textContent = text;
-  t.classList.remove('show'); void t.offsetWidth; t.classList.add('show');
-  clearTimeout(tickTimer); tickTimer = setTimeout(() => t.classList.remove('show'), ms);
-}
-
-function sendNet(payload) {
-  if (!live() || !topic) return;
-  payload.sender = me.id;
-  client.publish(topic, JSON.stringify(payload));
-}
-
-function pubEvent(o) {
-  o.kind = 'event';
-  if (isHost()) hostHandle(o);
-  onEvent(o);
-  sendNet(o);
-}
-
-function publishState() {
-  gs.from = me.id; gsRecv = performance.now(); lastSync = Date.now();
-  afterState();
-  sendNet({ kind: 'state', gs });
-}
-
-EMOJIS.forEach((e, i) => {
-  const b = document.createElement('button');
-  b.textContent = e;
-  if (i === 0) b.classList.add('sel');
-  b.onclick = () => {
-    selEmoji = e;
-    document.querySelectorAll('#avs button').forEach(x => x.classList.remove('sel'));
-    b.classList.add('sel');
-  };
-  $('avs').appendChild(b);
-});
-
-REACTS.forEach(e => {
-  const b = document.createElement('button');
-  b.textContent = e;
-  b.onclick = ev => { ev.stopPropagation(); pubEvent({ t:'emo', id:me.id, e }); };
-  $('emo').appendChild(b);
-});
-
-const randomRoom = () => {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let out = '';
+function genCode() {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let out = "";
   for (let i = 0; i < 4; i++) out += chars[Math.floor(Math.random() * chars.length)];
   return out;
-};
-
-$('nameIn').value = cleanStr(tg?.initDataUnsafe?.user?.first_name || '');
-
-function enterRoom(targetRoom) {
-  if (inGame) return;
-  me.name = cleanStr($('nameIn').value.trim().slice(0,12)) || 'Player';
-  me.emoji = selEmoji;
-  me.color = COLORS[EMOJIS.indexOf(selEmoji)] || COLORS[0];
-  room = targetRoom;
-  topic = `dots_boxes_2b_pp_${room}`;
-  $('lCode').textContent = room;
-  $('join').classList.add('hidden');
-  $('hud').classList.remove('hidden');$('board').classList.remove('hidden');
-  $('emo').classList.remove('hidden');$('lobby').classList.remove('hidden');
-  inGame = true;
-  connect();
-  setInterval(networkLoop, 200);
-  setInterval(tickUI, 250);
-  setInterval(hostTick, 100);
-  tickUI();
 }
 
-$('createBtn').onclick = () => enterRoom(randomRoom());
+$('createBtn').onclick = () => {
+  myName = cleanStr($('nameInput').value) || "Player";
+  isHost = true;
+  roomCode = genCode();
+  state.players = [{
+    id: myId, name: myName,
+    emoji: AVATARS[0].emoji, color: AVATARS[0].color,
+    wins: 0, out: false
+  }];
+  openLobby();
+};
 
 $('joinBtn').onclick = () => {
-  const code = $('roomIn').value.trim().toUpperCase().replace(/[^A-Z0-9]/g,'');
-  if (!code) { alert('Enter a 4-letter Room Code first.'); return; }
-  enterRoom(code);
+  myName = cleanStr($('nameInput').value) || "Player";
+  const code = $('codeInput').value.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+  if (code.length < 3) { alert("Please enter a valid 4-character room code."); return; }
+  isHost = false;
+  roomCode = code;
+  openLobby();
 };
-
-$('leaveBtn').onclick = () => location.reload();
 
 $('copyBtn').onclick = () => {
-  if (navigator.clipboard) {
-    navigator.clipboard.writeText(room).then(() => showTicker(`Copied: ${room}`, 1000));
-  }
+  navigator.clipboard?.writeText(roomCode);
+  $('copyBtn').textContent = "✅ Copied: " + roomCode;
+  setTimeout(() => { $('copyBtn').textContent = "📋 Copy Room Code"; }, 1500);
 };
 
-function connect() {
-  if (client) { try { client.end(true); } catch (e) {} }
-  const url = BROKERS[brokerIdx % BROKERS.length];
-  $('netStatus').textContent = '🟡 Connecting to room...';
-  $('netStatus').style.color = '#facc15';
+$('startBtn').onclick = () => {
+  if (!isHost || state.players.length < 2) return;
+  if (state.phase === "over") {
+    state.players.forEach(p => { p.wins = 0; p.out = false; });
+    state.round = 0;
+    state.championId = null;
+  }
+  startNextRound();
+};
 
-  client = mqtt.connect(url, {
-    clientId: 'pp2b_' + me.id + '_' + Math.random().toString(16).slice(2,6),
+function openLobby() {
+  $('menuScreen').classList.add('hidden');
+  $('lobbyScreen').classList.remove('hidden');$('lobbyCode').textContent = roomCode;
+  renderLobby();
+  connectMQTT();
+}
+
+function connectMQTT() {
+  topic = `potato_panic_2b_${roomCode}`;
+  client = mqtt.connect(BROKER, {
+    clientId: `pp_${myId}_${Math.random().toString(16).slice(2, 6)}`,
     clean: true,
-    keepalive: 60,
-    reconnectPeriod: 3000,
-    connectTimeout: 8000
+    keepalive: 45,
+    reconnectPeriod: 2000
   });
 
   client.on('connect', () => {
-    $('netStatus').textContent = '🟢 Connected & Ready';
-    $('netStatus').style.color = '#4ade80';
-    client.subscribe(topic, { qos: 0 }, (err) => {
-      if (!err) {
-        sendPresence(true);
+    $('connStatus').textContent = "🟢 Connected";
+    $('connStatus').style.color = "#4ade80";
+    client.subscribe(topic, { qos: 0 }, () => {
+      if (isHost) {
+        broadcastState();
+        if (!hostLoopTimer) hostLoopTimer = setInterval(hostTick, 100);
+      } else {
+        requestJoin();
+        if (!joinRetryTimer) joinRetryTimer = setInterval(requestJoin, 2000);
       }
     });
   });
 
   client.on('reconnect', () => {
-    $('netStatus').textContent = '🟡 Reconnecting...';
-    $('netStatus').style.color = '#facc15';
+    $('connStatus').textContent = "🟡 Reconnecting...";
+    $('connStatus').style.color = "#facc15";
   });
 
-  client.on('error', () => {
-    brokerIdx++;
-  });
+  client.on('message', (t, payload) => {
+    if (t !== topic) return;
+    let msg;
+    try { msg = JSON.parse(payload.toString()); } catch (e) { return; }
+    if (!msg || msg.sender === myId) return;
 
-  client.on('message', (t, buf) => {
-    if (t !== topic || !buf || !buf.length) return;
-    let m; try { m = JSON.parse(buf.toString()); } catch (e) { return; }
-    if (!m || m.sender === me.id) return;
-
-    if (m.kind === 'pos') {
-      onPresence(m.sender, m);
-    } else if (m.kind === 'state') {
-      applyNetState(m.gs);
-    } else if (m.kind === 'event') {
-      if (isHost()) hostHandle(m);
-      onEvent(m);
+    if (msg.type === "JOIN_REQ" && isHost) {
+      handleJoinReq(msg);
+    } else if (msg.type === "STATE_SYNC") {
+      applyStateSync(msg);
+    } else if (msg.type === "POS") {
+      updateRemotePos(msg.sender, msg.x, msg.y);
+    } else if (msg.type === "TAG_REQ" && isHost) {
+      handleTagReq(msg.fromId, msg.toId);
     }
   });
 }
 
-function sendPresence(isHello = false) {
-  lastPosSent = Date.now();
-  sendNet({
-    kind: 'pos',
-    hello: isHello,
-    n: me.name,
-    e: me.emoji,
-    c: me.color,
-    x: Math.round(me.x),
-    y: Math.round(me.y),
-    vx: Math.round(me.vx),
-    vy: Math.round(me.vy)
-  });
+function publishMsg(obj) {
+  if (!client || !client.connected) return;
+  obj.sender = myId;
+  client.publish(topic, JSON.stringify(obj));
 }
 
-function networkLoop() {
-  if (!inGame || !live()) return;
-  const now = Date.now();
-  const interval = (gs.ph === 'play' || gs.ph === 'between') ? 200 : 1800;
-  if (now - lastPosSent >= interval) {
-    sendPresence(false);
-  }
-}
-
-function onPresence(id, m) {
-  if (m.gone) { remotes.delete(id); tickUI(); return; }
-  let p = remotes.get(id);
-  const isNew = !p;
-  if (isNew) {
-    p = { rx: m.x, ry: m.y, vx: 0, vy: 0 };
-    remotes.set(id, p);
-    showTicker(`${cleanStr(m.e)} ${cleanStr(m.n)} joined!`, 1000);
-  }
-  Object.assign(p, {
-    n: cleanStr(m.n),
-    e: cleanStr(m.e),
-    c: m.c,
-    tx: m.x,
-    ty: m.y,
-    vx: m.vx || 0,
-    vy: m.vy || 0,
-    seen: Date.now()
-  });
-
-  if (m.hello || isNew) {
-    sendPresence(false);
-    if (isHost()) publishState();
-    tickUI();
-  }
-}
-
-function applyNetState(newGs) {
-  if (!newGs) return;
-  gs = newGs;
-  gsRecv = performance.now();
-  afterState();
-  tickUI();
-}
-
-function onEvent(m) {
-  if (m.t === 'boom') {
-    burst(m.x, m.y, m.id === me.id ? '#ff4d4d' : '#ffd93d', 40);
-    shake = 18;
-    showTicker(`💥 ${nameOf(m.id)} is OUT!`, 1300);
-  } else if (m.t === 'emo') {
-    const p = posOf(m.id);
-    floaters.push({ x:p.x, y:p.y - 30, text:cleanStr(m.e), life:1.4 });
-  } else if (m.t === 'champ') {
-    showTicker(`👑 ${nameOf(m.id)} WINS!`, 3000);
-  }
-}
-
-function afterState() {
-  const roundNew = gs.ph === 'play' && gs.rd !== lastRd;
-  if (roundNew) { lastRd = gs.rd; spawn(); showTicker(`ROUND ${gs.rd}`, 1300); }
-  else if (gs.ph === 'play' && lastPh === 'play' && gs.h && lastH && gs.h !== lastH) {
-    showTicker(`🔥 ${nameOf(gs.h)} HAS THE BOMB`, 900);
-  }
-  if (gs.ph === 'between' && lastPh === 'play') {
-    showTicker(gs.win ? `🏆 ${nameOf(gs.win)} survives!` : '💥 Nobody survives!', 1600);
-  }
-  lastPh = gs.ph; lastH = gs.h;
-}
-
-function hostHandle(m) {
-  if (m.t === 'start') {
-    const count = activeIds().length;
-    if ((gs.ph === 'lobby' || gs.ph === 'over') && count >= 2 && count <= MAX_PLAYERS) startMatch();
+function requestJoin() {
+  if (state.players.some(p => p.id === myId)) {
+    clearInterval(joinRetryTimer);
     return;
   }
-  if (m.t === 'tag') {
-    const now = Date.now(), ids = activeIds();
-    if (gs.ph === 'play' && m.from === gs.h && m.to !== m.from && ids.includes(m.to)
-        && !gs.out.includes(m.to) && now >= hostImmUntil) {
-      gs.h = m.to; hostImmUntil = now + 1000;
-      publishState();
+  publishMsg({ type: "JOIN_REQ", id: myId, name: myName });
+}
+
+function handleJoinReq(msg) {
+  const existing = state.players.find(p => p.id === msg.id);
+  if (!existing) {
+    if (state.players.length >= MAX_PLAYERS || state.phase !== "lobby") return;
+    const av = AVATARS[state.players.length % AVATARS.length];
+    state.players.push({
+      id: msg.id,
+      name: cleanStr(msg.name) || "Player",
+      emoji: av.emoji,
+      color: av.color,
+      wins: 0,
+      out: false
+    });
+  }
+  broadcastState();
+}
+
+function broadcastState(resetBombClock = false) {
+  if (resetBombClock) {
+    state.stateVersion += 1;
+    bombTimerStart = performance.now();
+  }
+  syncUI();
+  publishMsg({
+    type: "STATE_SYNC",
+    state,
+    spawnReset: resetBombClock === "round_start"
+  });
+}
+
+function applyStateSync(msg) {
+  const prevVersion = state.stateVersion;
+  state = msg.state;
+  if (state.stateVersion !== prevVersion) {
+    bombTimerStart = performance.now();
+  }
+  if (msg.spawnReset) {
+    placePlayersInCircle();
+  }
+  syncUI();
+}
+
+function placePlayersInCircle() {
+  const count = state.players.length;
+  state.players.forEach((p, idx) => {
+    const angle = (idx / count) * Math.PI * 2;
+    const px = Math.round(ARENA_W / 2 + Math.cos(angle) * 240);
+    const py = Math.round(ARENA_H / 2 + Math.sin(angle) * 150);
+    positions.set(p.id, { x: px, y: py, tx: px, ty: py });
+    if (p.id === myId) {
+      myPos.x = px;
+      myPos.y = py;
     }
-  }
+  });
 }
 
-function startMatch() {
-  gs.w = {}; gs.champ = null; gs.rd = 0; gs.out = []; gs.ph = 'between';
-  gs.tm = 2500; gs.h = null; gs.win = null;
-  publishState();
+function startNextRound() {
+  state.round += 1;
+  state.phase = "play";
+  state.players.forEach(p => { p.out = false; });
+  const randomIdx = Math.floor(Math.random() * state.players.length);
+  state.holderId = state.players[randomIdx].id;
+  state.bombDuration = 9000 + Math.floor(Math.random() * 4000);
+  state.lastEventText = `Round ${state.round} — ${getPlayerName(state.holderId)} has the bomb!`;
+  placePlayersInCircle();
+  lastTagTime = Date.now() + 1000;
+  broadcastState("round_start");
 }
 
-function newRound(ids) {
-  gs.rd += 1; gs.out = []; gs.ph = 'play'; gs.win = null;
-  gs.h = ids[Math.floor(Math.random() * ids.length)];
-  gs.tm = 9000 + Math.random() * 5000;
-  hostImmUntil = 0;
-  publishState();
-}
+function handleTagReq(fromId, toId) {
+  if (state.phase !== "play" || state.holderId !== fromId) return;
+  const now = Date.now();
+  if (now - lastTagTime < 900) return;
+  const target = state.players.find(p => p.id === toId && !p.out);
+  if (!target) return;
 
-function explode(alive) {
-  const v = gs.h, p = posOf(v);
-  pubEvent({ t:'boom', id:v, x:Math.round(p.x), y:Math.round(p.y) });
-  gs.out.push(v);
-  const left = alive.filter(i => i !== v);
-  gs.h = null;
-  if (left.length <= 1) {
-    gs.win = left[0] || null;
-    if (gs.win) gs.w[gs.win] = (gs.w[gs.win] || 0) + 1;
-    if (gs.win && gs.w[gs.win] >= WIN_ROUNDS) {
-      gs.ph = 'over'; gs.champ = gs.win;
-      pubEvent({ t:'champ', id:gs.win });
-    } else { gs.ph = 'between'; gs.tm = 3000; }
-  } else {
-    gs.h = left[Math.floor(Math.random() * left.length)];
-    gs.tm = 9000 + Math.random() * 5000;
-  }
-  publishState();
+  lastTagTime = now;
+  state.holderId = toId;
+  state.lastEventText = `🔥 ${target.name} got tagged with the bomb!`;
+  broadcastState(false);
 }
 
 function hostTick() {
-  if (!live() || !isHost()) return;
-  const ids = activeIds();
-  if (gs.ph === 'lobby' || gs.ph === 'over') return;
-  if (ids.length < 2) { gs.ph = 'lobby'; gs.h = null; publishState(); return; }
-  if (gs.ph === 'between') {
-    gs.tm -= 100;
-    if (gs.tm <= 0) newRound(ids);
+  if (!isHost || state.phase !== "play") return;
+  const elapsed = performance.now() - bombTimerStart;
+  if (elapsed < state.bombDuration) return;
+
+  // Bomb Explodes
+  const victim = state.players.find(p => p.id === state.holderId);
+  if (victim) victim.out = true;
+
+  const alive = state.players.filter(p => !p.out);
+  if (alive.length <= 1) {
+    const winner = alive[0];
+    if (winner) {
+      winner.wins += 1;
+      if (winner.wins >= WIN_ROUNDS) {
+        state.phase = "over";
+        state.championId = winner.id;
+        state.holderId = null;
+        state.lastEventText = `👑 ${winner.name} wins the match!`;
+        broadcastState(false);
+        return;
+      }
+      state.lastEventText = `🏆 ${winner.name} won Round ${state.round}!`;
+    }
+    startNextRound();
+  } else {
+    const nextHolder = alive[Math.floor(Math.random() * alive.length)];
+    state.holderId = nextHolder.id;
+    state.bombDuration = 8000 + Math.floor(Math.random() * 4000);
+    state.lastEventText = `💥 ${victim ? victim.name : "Player"} exploded! Bomb on ${nextHolder.name}!`;
+    lastTagTime = Date.now() + 1000;
+    broadcastState(true);
+  }
+}
+
+function getPlayerName(id) {
+  return state.players.find(p => p.id === id)?.name || "Player";
+}
+
+function renderLobby() {
+  const isOver = state.phase === "over";
+  $('lobbyTitle').textContent = isOver
+    ? `👑 ${getPlayerName(state.championId)} Wins!`
+    : "💣 Room Lobby";
+
+  $('playerList').innerHTML = state.players.map((p, i) => `
+    <div class="player-item">
+      <span>${p.emoji} ${p.name} ${p.id === myId ? "(You)" : ""} ${i === 0 ? "👑" : ""}</span>
+      <span style="color:#facc15">🏆 ${p.wins}</span>
+    </div>
+  `).join("");
+
+  if (isHost) {
+    const canStart = state.players.length >= 2;
+    $('startBtn').disabled = !canStart;
+    $('startBtn').textContent = canStart
+      ? (isOver ? "🔁 Play New Match" : `🔥 Start Match (${state.players.length} Players)`)
+      : "Waiting for at least 2 players...";
+  } else {
+    $('startBtn').disabled = true;
+    $('startBtn').textContent = state.players.some(p => p.id === myId)
+      ? "Waiting for Host to start..."
+      : "Joining room...";
+  }
+}
+
+function syncUI() {
+  if (state.phase === "lobby" || state.phase === "over") {
+    $('lobbyScreen').classList.remove('hidden');
+    $('hudTop').classList.add('hidden');$('banner').classList.add('hidden');
+    renderLobby();
     return;
   }
-  const alive = ids.filter(i => !gs.out.includes(i));
-  if (!alive.includes(gs.h)) {
-    gs.h = alive[Math.floor(Math.random() * alive.length)];
-    publishState(); return;
-  }
-  gs.tm -= 100;
-  if (gs.tm <= 0) { explode(alive); return; }
-  if (Date.now() - lastSync > 1200) publishState();
+
+  $('lobbyScreen').classList.add('hidden');
+  $('hudTop').classList.remove('hidden');$('banner').classList.remove('hidden');
+
+  $('roundInfo').textContent = `Round ${state.round} · First to ${WIN_ROUNDS} 🏆`;
+  $('scoreInfo').textContent = state.players.map(p => `${p.emoji}${p.wins}`).join("  ");
+  $('banner').textContent = state.lastEventText || "Run!";
 }
 
-function spawn() {
-  const ids = activeIds(), i = Math.max(0, ids.indexOf(me.id)), a = (i / ids.length) * Math.PI * 2 + 0.3;
-  me.x = 500 + Math.cos(a) * 330; me.y = 300 + Math.sin(a) * 200; me.vx = me.vy = 0;
-}
-
-function collide(p) {
-  p.x = Math.max(RAD, Math.min(WORLD_W - RAD, p.x));
-  p.y = Math.max(RAD, Math.min(WORLD_H - RAD, p.y));
-  for (const c of PILLARS) {
-    const dx = p.x - c.x, dy = p.y - c.y, d = Math.hypot(dx, dy), min = c.r + RAD;
-    if (d < min && d > 0) { p.x = c.x + dx / d * min; p.y = c.y + dy / d * min; }
+function updateRemotePos(id, x, y) {
+  let pos = positions.get(id);
+  if (!pos) {
+    pos = { x, y, tx: x, ty: y };
+    positions.set(id, pos);
+  } else {
+    pos.tx = x;
+    pos.ty = y;
   }
 }
 
-function updateLocal(dt) {
-  let ix = (keys['d'] || keys['arrowright'] ? 1 : 0) - (keys['a'] || keys['arrowleft'] ? 1 : 0);
-  let iy = (keys['s'] || keys['arrowdown'] ? 1 : 0) - (keys['w'] || keys['arrowup'] ? 1 : 0);
-  if (stick.on) {
-    const dx = stick.x - stick.ox, dy = stick.y - stick.oy, len = Math.hypot(dx, dy);
-    if (len > 6) { const k = Math.min(1, len / 55) / len; ix = dx * k; iy = dy * k; }
-  }
-  const len = Math.hypot(ix, iy); if (len > 1) { ix /= len; iy /= len; }
-  const out = isOut();
-  const base = out ? 280 : (gs.ph === 'play' && gs.h === me.id ? 170 : 235);
-  const k = Math.min(1, dt * 10);
-  me.vx += (ix * base - me.vx) * k;
-  me.vy += (iy * base - me.vy) * k;
-  me.x += me.vx * dt; me.y += me.vy * dt;
-  collide(me);
-}
-
-function tagCheck() {
-  if (gs.ph !== 'play' || gs.h !== me.id || isOut()) return;
-  const now = Date.now();
-  if (now - lastTagAt < 350) return;
-  for (const [id, p] of remotes) {
-    if (gs.out.includes(id) || now - p.seen > 6000) continue;
-    if (Math.hypot(p.rx - me.x, p.ry - me.y) < 44) {
-      lastTagAt = now;
-      pubEvent({ t:'tag', from:me.id, to:id });
-      break;
-    }
-  }
-}
-
-function burst(x, y, c, n) {
-  for (let i = 0; i < n; i++) {
-    const a = Math.random() * Math.PI * 2, s = 80 + Math.random() * 260;
-    particles.push({ x, y, vx:Math.cos(a)*s, vy:Math.sin(a)*s - 120, life:1, c });
-  }
-}
-
-function updateFx(dt) {
-  for (const p of particles) { p.x += p.vx*dt; p.y += p.vy*dt; p.vy += 600*dt; p.life -= dt*1.4; }
-  particles = particles.filter(p => p.life > 0);
-  for (const f of floaters) { f.y -= 50*dt; f.life -= dt*0.7; }
-  floaters = floaters.filter(f => f.life > 0);
-  for (const id of remotes.keys()) {
-    const p = remotes.get(id);
-    if (p.tx !== undefined) {
-      p.tx += (p.vx || 0) * dt;
-      p.ty += (p.vy || 0) * dt;
-      p.rx += (p.tx - p.rx) * 0.25;
-      p.ry += (p.ty - p.ry) * 0.25;
-    }
-  }
-  if (shake > 0) shake = Math.max(0, shake - 60*dt);
-  const now = Date.now();
-  for (const [id, p] of remotes) if (now - p.seen > 8000) remotes.delete(id);
-}
-
-function drawAvatar(info, x, y, opts, now, idx) {
-  ctx.save();
-  ctx.translate(x, y);
-  ctx.rotate(Math.sin(now / 200 + idx) * 0.08);
-  ctx.globalAlpha = opts.ghost ? 0.35 : 1;
-  ctx.beginPath(); ctx.ellipse(0, 20, 18, 6, 0, 0, Math.PI * 2);
-  ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.fill();
-  if (opts.holder) {
-    ctx.beginPath(); ctx.arc(0, 0, 27 + Math.sin(now/100)*3, 0, Math.PI*2);
-    ctx.strokeStyle = '#ff3b3b'; ctx.lineWidth = 4; ctx.stroke();
-  }
-  ctx.beginPath(); ctx.arc(0, 0, RAD, 0, Math.PI*2);
-  ctx.fillStyle = info.c || '#fff'; ctx.fill();
-  ctx.lineWidth = 3; ctx.strokeStyle = '#000'; ctx.stroke();
-  if (opts.mine) { ctx.beginPath(); ctx.arc(0,0,RAD+5,0,Math.PI*2); ctx.strokeStyle='rgba(255,255,255,.7)'; ctx.lineWidth=2; ctx.stroke(); }
-  ctx.font = '22px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText(opts.ghost ? '💀' : info.e, 0, 1);
-  ctx.font = 'bold 13px system-ui, sans-serif';
-  ctx.lineWidth = 4; ctx.strokeStyle = '#000'; ctx.strokeText(info.n, 0, -32);
-  ctx.fillStyle = '#fff'; ctx.fillText(info.n, 0, -32);
-  if (opts.holder) {
-    const bx = 16, by = -18, urgent = tmLeft() < 3000 && Math.floor(now / 120) % 2 === 0;
-    ctx.beginPath(); ctx.arc(bx, by, 10, 0, Math.PI*2);
-    ctx.fillStyle = urgent ? '#ff3b3b' : '#222'; ctx.fill();
-    ctx.font = 'bold 20px system-ui, sans-serif'; ctx.lineWidth = 5;
-    ctx.strokeStyle = '#000'; ctx.strokeText(Math.ceil(tmLeft()/1000), 0, -52);
-    ctx.fillStyle = urgent ? '#ff6b6b' : '#fff'; ctx.fillText(Math.ceil(tmLeft()/1000), 0, -52);
-  }
-  ctx.restore();
-}
-
-function draw(now) {
-  const W = innerWidth, H = innerHeight;
-  ctx.setTransform(dpr,0,0,dpr,0,0);
-  ctx.fillStyle = '#0f172a'; ctx.fillRect(0, 0, W, H);
-  const sx = shake > 0 ? (Math.random()-.5)*shake : 0, sy = shake > 0 ? (Math.random()-.5)*shake : 0;
-  ctx.setTransform(dpr*scale, 0, 0, dpr*scale, dpr*(offX+sx), dpr*(offY+sy));
-
-  ctx.fillStyle = '#2f6b45'; ctx.fillRect(0, 0, WORLD_W, WORLD_H);
-  ctx.strokeStyle = 'rgba(255,255,255,.07)'; ctx.lineWidth = 2; ctx.beginPath();
-  for (let x = 0; x <= WORLD_W; x += 50) { ctx.moveTo(x,0); ctx.lineTo(x,WORLD_H); }
-  for (let y = 0; y <= WORLD_H; y += 50) { ctx.moveTo(0,y); ctx.lineTo(WORLD_W,y); }
-  ctx.stroke();
-  ctx.lineWidth = 8; ctx.strokeStyle = '#0b1f14'; ctx.strokeRect(4, 4, WORLD_W-8, WORLD_H-8);
-
-  for (const c of PILLARS) {
-    ctx.beginPath(); ctx.arc(c.x, c.y+6, c.r, 0, Math.PI*2); ctx.fillStyle='rgba(0,0,0,.3)'; ctx.fill();
-    ctx.beginPath(); ctx.arc(c.x, c.y, c.r, 0, Math.PI*2); ctx.fillStyle='#6d4c41'; ctx.fill();
-    ctx.beginPath(); ctx.arc(c.x, c.y-4, c.r-8, 0, Math.PI*2); ctx.fillStyle='#8d6e63'; ctx.fill();
-  }
-
-  if (inGame) {
-    const list = [{ id: me.id, info: me, x: me.x, y: me.y, mine: true }];
-    for (const [id, p] of remotes) list.push({ id, info: p, x: p.rx, y: p.ry });
-    list.sort((a, b) => a.y - b.y);
-    list.forEach((e, i) => {
-      const ghost = gs.out.includes(e.id);
-      const holder = gs.ph === 'play' && gs.h === e.id && !ghost;
-      drawAvatar(e.info, e.x, e.y, { ghost, holder, mine: e.mine }, now, i);
-    });
-  }
-
-  for (const p of particles) {
-    ctx.globalAlpha = Math.max(0, p.life);
-    ctx.beginPath(); ctx.arc(p.x, p.y, 3 + 4*p.life, 0, Math.PI*2);
-    ctx.fillStyle = p.c; ctx.fill();
-  }
-  ctx.globalAlpha = 1;
-  ctx.font = 'bold 26px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  for (const f of floaters) { ctx.globalAlpha = Math.max(0, f.life); ctx.fillText(f.text, f.x, f.y); }
-  ctx.globalAlpha = 1;
-
-  ctx.setTransform(dpr,0,0,dpr,0,0);
-  if (stick.on) {
-    ctx.beginPath(); ctx.arc(stick.ox, stick.oy, 55, 0, Math.PI*2);
-    ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 3; ctx.stroke();
-    let dx = stick.x - stick.ox, dy = stick.y - stick.oy;
-    const l = Math.hypot(dx, dy); if (l > 55) { dx = dx/l*55; dy = dy/l*55; }
-    ctx.beginPath(); ctx.arc(stick.ox+dx, stick.oy+dy, 22, 0, Math.PI*2);
-    ctx.fillStyle = 'rgba(255,255,255,.4)'; ctx.fill();
-  }
-}
-
-function refreshLobby(ids) {
-  const over = gs.ph === 'over';
-  $('lTitle').textContent = over ? `👑 ${nameOf(gs.champ)} Wins!` : '💣 Potato Panic Lobby';
-  $('plist').innerHTML = ids.map(id => {
-    const i = infoOf(id), w = gs.w[id] || 0;
-    return `<div><span>${cleanStr(i.e)} ${cleanStr(i.n)}${id===me.id?' (You)':''}</span><span>🏆 ${w}</span></div>`;
-  }).join('');
-  $('lCount').textContent = `Players in room: ${ids.length} / ${MAX_PLAYERS}`;
-  const ok = ids.length >= 2 && ids.length <= MAX_PLAYERS;
-  $('startBtn').disabled = !ok;
-  $('startBtn').textContent = over ? '🔁 PLAY AGAIN' : '🔥 START MATCH';
-  $('lHint').textContent = ids.length < 2
-    ? 'Share the 4-character Room Code above with your friends to start!'
-    : `Ready! First player to win ${WIN_ROUNDS} rounds takes the crown.`;
-}
-
-function tickUI() {
-  if (!inGame) return;
-  const now = Date.now();
-  for (const [id, p] of remotes) if (now - p.seen > 8000) remotes.delete(id);
-  const ids = activeIds();
-  const lobbyOn = gs.ph === 'lobby' || gs.ph === 'over';
-  $('lobby').classList.toggle('hidden', !lobbyOn);
-  if (lobbyOn) refreshLobby(ids);
-  $('hRound').textContent = `Round ${gs.rd} (First to ${WIN_ROUNDS})`;
-  $('hInfo').textContent = gs.ph === 'play' && gs.h ? `💣 ${nameOf(gs.h)}` : (gs.ph === 'between' ? 'Get ready…' : 'Lobby');
-  $('hTimer').textContent = gs.ph === 'play' ? `⏱️ ${Math.ceil(tmLeft()/1000)}s` : '';
-  $('board').innerHTML = ids.map(id => {
-    const i = infoOf(id), tags = [];
-    if (gs.h === id && gs.ph === 'play') tags.push('💣');
-    if (gs.out.includes(id)) tags.push('💀');
-    return `<div class="chip">${cleanStr(i.e)} ${cleanStr(i.n)} 🏆${gs.w[id]||0} ${tags.join(' ')}</div>`;
-  }).join('');
-}
-
-addEventListener('keydown', e => {
-  const k = e.key.toLowerCase();
-  keys[k] = true;
-  if (k.startsWith('arrow') || k === ' ') e.preventDefault();
-});
-addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
-cv.addEventListener('contextmenu', e => e.preventDefault());
-cv.addEventListener('pointerdown', e => {
-  if (!inGame) return;
-  stick.on = true; stick.ox = stick.x = e.clientX; stick.oy = stick.y = e.clientY;
-  try { cv.setPointerCapture(e.pointerId); } catch (_) {}
-});
-cv.addEventListener('pointermove', e => { if (stick.on) { stick.x = e.clientX; stick.y = e.clientY; } });
-const endStick = () => { stick.on = false; };
-cv.addEventListener('pointerup', endStick);
-cv.addEventListener('pointercancel', endStick);
-
-$('startBtn').onclick = () => pubEvent({ t:'start' });
-
-addEventListener('pagehide', () => {
-  if (live() && inGame) sendNet({ kind:'pos', gone:true });
-});
+/* INPUT & MOVEMENT */
+const cv = $('gameCanvas');
+const ctx = cv.getContext('2d');
+let dpr = 1, scale = 1, offX = 0, offY = 0;
 
 function resize() {
   dpr = Math.min(window.devicePixelRatio || 1, 2);
-  cv.width = innerWidth * dpr; cv.height = innerHeight * dpr;
-  cv.style.width = innerWidth + 'px'; cv.style.height = innerHeight + 'px';
-  scale = Math.min(innerWidth / WORLD_W, innerHeight / WORLD_H) * 0.96;
-  offX = (innerWidth - WORLD_W * scale) / 2;
-  offY = (innerHeight - WORLD_H * scale) / 2;
+  cv.width = window.innerWidth * dpr;
+  cv.height = window.innerHeight * dpr;
+  scale = Math.min(window.innerWidth / ARENA_W, window.innerHeight / ARENA_H) * 0.94;
+  offX = (window.innerWidth - ARENA_W * scale) / 2;
+  offY = (window.innerHeight - ARENA_H * scale) / 2;
 }
-addEventListener('resize', resize);
+window.addEventListener('resize', resize);
 resize();
 
-let lastFrame = performance.now();
-function frame(now) {
-  const dt = Math.min(0.05, (now - lastFrame) / 1000);
-  lastFrame = now;
-  if (inGame) {
-    updateLocal(dt);
-    updateFx(dt);
-    tagCheck();
+window.addEventListener('keydown', e => { keys[e.key.toLowerCase()] = true; });
+window.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
+
+cv.addEventListener('pointerdown', e => {
+  if (state.phase !== "play") return;
+  joy.active = true;
+  joy.ox = joy.x = e.clientX;
+  joy.oy = joy.y = e.clientY;
+});
+cv.addEventListener('pointermove', e => {
+  if (joy.active) { joy.x = e.clientX; joy.y = e.clientY; }
+});
+const stopJoy = () => { joy.active = false; };
+cv.addEventListener('pointerup', stopJoy);
+cv.addEventListener('pointercancel', stopJoy);
+
+function updateGame(dt) {
+  if (state.phase !== "play") return;
+
+  const meObj = state.players.find(p => p.id === myId);
+  if (meObj && !meObj.out) {
+    let dx = (keys['d'] || keys['arrowright'] ? 1 : 0) - (keys['a'] || keys['arrowleft'] ? 1 : 0);
+    let dy = (keys['s'] || keys['arrowdown'] ? 1 : 0) - (keys['w'] || keys['arrowup'] ? 1 : 0);
+
+    if (joy.active) {
+      const jx = joy.x - joy.ox;
+      const jy = joy.y - joy.oy;
+      const dist = Math.hypot(jx, jy);
+      if (dist > 8) {
+        dx = jx / dist;
+        dy = jy / dist;
+      }
+    }
+
+    const len = Math.hypot(dx, dy);
+    if (len > 0) {
+      dx /= len;
+      dy /= len;
+      const speed = (state.holderId === myId) ? 160 : 230;
+      myPos.x = Math.max(PLAYER_R, Math.min(ARENA_W - PLAYER_R, myPos.x + dx * speed * dt));
+      myPos.y = Math.max(PLAYER_R, Math.min(ARENA_H - PLAYER_R, myPos.y + dy * speed * dt));
+      positions.set(myId, { x: myPos.x, y: myPos.y, tx: myPos.x, ty: myPos.y });
+
+      // Throttled position send (only when moving, max once per 150ms)
+      const now = Date.now();
+      if (now - lastSentPos.time >= 150 && Math.hypot(myPos.x - lastSentPos.x, myPos.y - lastSentPos.y) > 3) {
+        lastSentPos = { x: Math.round(myPos.x), y: Math.round(myPos.y), time: now };
+        publishMsg({ type: "POS", x: lastSentPos.x, y: lastSentPos.y });
+      }
+    }
+
+    // If holding the bomb, check collision with other alive players
+    if (state.holderId === myId && Date.now() - lastTagTime > 900) {
+      for (const p of state.players) {
+        if (p.id === myId || p.out) continue;
+        const rPos = positions.get(p.id);
+        if (!rPos) continue;
+        if (Math.hypot(rPos.x - myPos.x, rPos.y - myPos.y) < PLAYER_R * 2) {
+          lastTagTime = Date.now();
+          if (isHost) {
+            handleTagReq(myId, p.id);
+          } else {
+            publishMsg({ type: "TAG_REQ", fromId: myId, toId: p.id });
+          }
+          break;
+        }
+      }
+    }
   }
-  draw(now);
-  requestAnimationFrame(frame);
+
+  // Smoothly interpolate remote players
+  for (const [id, pos] of positions) {
+    if (id === myId) continue;
+    pos.x += (pos.tx - pos.x) * 0.25;
+    pos.y += (pos.ty - pos.y) * 0.25;
+  }
 }
-requestAnimationFrame(frame);
+
+function drawGame() {
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = "#0f172a";
+  ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
+
+  if (state.phase !== "play") return;
+
+  ctx.setTransform(dpr * scale, 0, 0, dpr * scale, dpr * offX, dpr * offY);
+
+  // Arena Floor & Border
+  ctx.fillStyle = "#1e293b";
+  ctx.fillRect(0, 0, ARENA_W, ARENA_H);
+  ctx.strokeStyle = "#334155";
+  ctx.lineWidth = 4;
+  ctx.strokeRect(0, 0, ARENA_W, ARENA_H);
+
+  const timeLeftSec = Math.max(0, Math.ceil((state.bombDuration - (performance.now() - bombTimerStart)) / 1000));
+
+  // Draw Players
+  for (const p of state.players) {
+    if (p.out) continue;
+    const pos = positions.get(p.id) || { x: ARENA_W / 2, y: ARENA_H / 2 };
+    const isHolder = state.holderId === p.id;
+
+    ctx.save();
+    ctx.translate(pos.x, pos.y);
+
+    // Bomb Holder Danger Ring
+    if (isHolder) {
+      ctx.beginPath();
+      ctx.arc(0, 0, PLAYER_R + 8, 0, Math.PI * 2);
+      ctx.strokeStyle = "#ef4444";
+      ctx.lineWidth = 4;
+      ctx.stroke();
+    }
+
+    // Player Circle
+    ctx.beginPath();
+    ctx.arc(0, 0, PLAYER_R, 0, Math.PI * 2);
+    ctx.fillStyle = p.color;
+    ctx.fill();
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = p.id === myId ? "#ffffff" : "#0f172a";
+    ctx.stroke();
+
+    // Emoji
+    ctx.font = "20px system-ui, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(p.emoji, 0, 1);
+
+    // Name Tag
+    ctx.font = "bold 13px system-ui, sans-serif";
+    ctx.fillStyle = "#f8fafc";
+    ctx.fillText(p.name, 0, -PLAYER_R - 10);
+
+    // Bomb Countdown Above Holder
+    if (isHolder) {
+      ctx.font = "900 18px system-ui, sans-serif";
+      ctx.fillStyle = "#ef4444";
+      ctx.fillText(`💣 ${timeLeftSec}s`, 0, -PLAYER_R - 28);
+    }
+
+    ctx.restore();
+  }
+
+  // Draw Touch Joystick
+  if (joy.active) {
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.beginPath();
+    ctx.arc(joy.ox, joy.oy, 45, 0, Math.PI * 2);
+    ctx.strokeStyle = "rgba(255,255,255,0.25)";
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    let dx = joy.x - joy.ox, dy = joy.y - joy.oy;
+    const dist = Math.hypot(dx, dy);
+    if (dist > 45) { dx = (dx / dist) * 45; dy = (dy / dist) * 45; }
+    ctx.beginPath();
+    ctx.arc(joy.ox + dx, joy.oy + dy, 18, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(250, 204, 21, 0.45)";
+    ctx.fill();
+  }
+}
+
+let lastTime = performance.now();
+function loop(now) {
+  const dt = Math.min(0.05, (now - lastTime) / 1000);
+  lastTime = now;
+  updateGame(dt);
+  drawGame();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
 </script>
 </body>
 </html>
