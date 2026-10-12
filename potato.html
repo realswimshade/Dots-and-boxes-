@@ -16,7 +16,6 @@
   }
   .hidden { display: none !important; }
 
-  /* MENU & LOBBY CARDS */
   .overlay {
     position: fixed; inset: 0; display: flex; align-items: center;
     justify-content: center; padding: 14px; background: #0f172a; z-index: 10;
@@ -65,7 +64,6 @@
     align-items: center; font-weight: 700; font-size: 14px;
   }
 
-  /* HUD & CANVAS */
   #gameCanvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; z-index: 1; }
   #hudTop {
     position: fixed; top: 10px; left: 10px; right: 10px;
@@ -131,7 +129,7 @@ const tg = window.Telegram?.WebApp;
 if (tg) { tg.ready(); tg.expand(); }
 
 const cleanStr = (s) => String(s || "").replace(/[&<>"']/g, "").trim().slice(0, 12);
-const myId = "p_" + Math.random().toString(36).slice(2, 9);
+const myId = "p_" + Math.random().toString(36).slice(2, 8);
 let myName = cleanStr(tg?.initDataUnsafe?.user?.first_name) || "Player";
 
 const BROKER = "wss://broker.emqx.io:8084/mqtt";
@@ -160,26 +158,25 @@ let isHost = false;
 let joinRetryTimer = null;
 let hostLoopTimer = null;
 
-// Authoritative Match State (Synced via STATE_SYNC)
 let state = {
-  phase: "lobby", // 'lobby' | 'play' | 'over'
+  phase: "lobby",
   round: 0,
   holderId: null,
   bombDuration: 10000,
   stateVersion: 0,
   championId: null,
   lastEventText: "",
-  players: [] // { id, name, emoji, color, wins, out }
+  players: []
 };
 
-// Local & Interpolated Positions
-const positions = new Map(); // id -> { x, y, tx, ty }
-let myPos = { x: 400, y: 250 };
-let lastSentPos = { x: 400, y: 250, time: 0 };
+// Positions: id -> { x, y, tx, ty, vx, vy, lastUpdate }
+const positions = new Map();
+let myPos = { x: 400, y: 250, vx: 0, vy: 0 };
+let lastSentTime = 0;
+let wasMoving = false;
 let bombTimerStart = 0;
 let lastTagTime = 0;
 
-// Controls
 const keys = {};
 const joy = { active: false, ox: 0, oy: 0, x: 0, y: 0 };
 
@@ -240,7 +237,7 @@ function connectMQTT() {
     clientId: `pp_${myId}_${Math.random().toString(16).slice(2, 6)}`,
     clean: true,
     keepalive: 45,
-    reconnectPeriod: 2000
+    reconnectPeriod: 1500
   });
 
   client.on('connect', () => {
@@ -249,7 +246,7 @@ function connectMQTT() {
     client.subscribe(topic, { qos: 0 }, () => {
       if (isHost) {
         broadcastState();
-        if (!hostLoopTimer) hostLoopTimer = setInterval(hostTick, 100);
+        if (!hostLoopTimer) hostLoopTimer = setInterval(hostTick, 80);
       } else {
         requestJoin();
         if (!joinRetryTimer) joinRetryTimer = setInterval(requestJoin, 2000);
@@ -266,23 +263,29 @@ function connectMQTT() {
     if (t !== topic) return;
     let msg;
     try { msg = JSON.parse(payload.toString()); } catch (e) { return; }
-    if (!msg || msg.sender === myId) return;
+    if (!msg || msg.s === myId) return;
 
-    if (msg.type === "JOIN_REQ" && isHost) {
-      handleJoinReq(msg);
-    } else if (msg.type === "STATE_SYNC") {
+    if (msg.t === "P") {
+      updateRemotePos(msg.s, msg.x, msg.y, msg.vx, msg.vy);
+    } else if (msg.t === "TAG") {
+      if (isHost) {
+        handleTagReq(msg.f, msg.to);
+      } else if (state.phase === "play" && state.holderId === msg.f) {
+        // Optimistic tag update for all clients immediately
+        state.holderId = msg.to;
+        $('banner').textContent = `🔥 ${getPlayerName(msg.to)} got tagged with the bomb!`;
+      }
+    } else if (msg.t === "SYNC") {
       applyStateSync(msg);
-    } else if (msg.type === "POS") {
-      updateRemotePos(msg.sender, msg.x, msg.y);
-    } else if (msg.type === "TAG_REQ" && isHost) {
-      handleTagReq(msg.fromId, msg.toId);
+    } else if (msg.t === "JOIN" && isHost) {
+      handleJoinReq(msg);
     }
   });
 }
 
 function publishMsg(obj) {
   if (!client || !client.connected) return;
-  obj.sender = myId;
+  obj.s = myId;
   client.publish(topic, JSON.stringify(obj));
 }
 
@@ -291,7 +294,7 @@ function requestJoin() {
     clearInterval(joinRetryTimer);
     return;
   }
-  publishMsg({ type: "JOIN_REQ", id: myId, name: myName });
+  publishMsg({ t: "JOIN", id: myId, name: myName });
 }
 
 function handleJoinReq(msg) {
@@ -311,26 +314,25 @@ function handleJoinReq(msg) {
   broadcastState();
 }
 
-function broadcastState(resetBombClock = false) {
-  if (resetBombClock) {
+function broadcastState(resetMode = false) {
+  if (resetMode) {
     state.stateVersion += 1;
     bombTimerStart = performance.now();
   }
+  const elapsed = Math.round(performance.now() - bombTimerStart);
   syncUI();
   publishMsg({
-    type: "STATE_SYNC",
+    t: "SYNC",
     state,
-    spawnReset: resetBombClock === "round_start"
+    el: elapsed,
+    sp: resetMode === "round_start"
   });
 }
 
 function applyStateSync(msg) {
-  const prevVersion = state.stateVersion;
   state = msg.state;
-  if (state.stateVersion !== prevVersion) {
-    bombTimerStart = performance.now();
-  }
-  if (msg.spawnReset) {
+  bombTimerStart = performance.now() - (msg.el || 0);
+  if (msg.sp) {
     placePlayersInCircle();
   }
   syncUI();
@@ -342,10 +344,12 @@ function placePlayersInCircle() {
     const angle = (idx / count) * Math.PI * 2;
     const px = Math.round(ARENA_W / 2 + Math.cos(angle) * 240);
     const py = Math.round(ARENA_H / 2 + Math.sin(angle) * 150);
-    positions.set(p.id, { x: px, y: py, tx: px, ty: py });
+    positions.set(p.id, { x: px, y: py, tx: px, ty: py, vx: 0, vy: 0, lastUpdate: performance.now() });
     if (p.id === myId) {
       myPos.x = px;
       myPos.y = py;
+      myPos.vx = 0;
+      myPos.vy = 0;
     }
   });
 }
@@ -356,17 +360,17 @@ function startNextRound() {
   state.players.forEach(p => { p.out = false; });
   const randomIdx = Math.floor(Math.random() * state.players.length);
   state.holderId = state.players[randomIdx].id;
-  state.bombDuration = 9000 + Math.floor(Math.random() * 4000);
+  state.bombDuration = 9500 + Math.floor(Math.random() * 4000);
   state.lastEventText = `Round ${state.round} — ${getPlayerName(state.holderId)} has the bomb!`;
   placePlayersInCircle();
-  lastTagTime = Date.now() + 1000;
+  lastTagTime = Date.now() + 900;
   broadcastState("round_start");
 }
 
 function handleTagReq(fromId, toId) {
   if (state.phase !== "play" || state.holderId !== fromId) return;
   const now = Date.now();
-  if (now - lastTagTime < 900) return;
+  if (now - lastTagTime < 750) return;
   const target = state.players.find(p => p.id === toId && !p.out);
   if (!target) return;
 
@@ -381,7 +385,6 @@ function hostTick() {
   const elapsed = performance.now() - bombTimerStart;
   if (elapsed < state.bombDuration) return;
 
-  // Bomb Explodes
   const victim = state.players.find(p => p.id === state.holderId);
   if (victim) victim.out = true;
 
@@ -404,9 +407,9 @@ function hostTick() {
   } else {
     const nextHolder = alive[Math.floor(Math.random() * alive.length)];
     state.holderId = nextHolder.id;
-    state.bombDuration = 8000 + Math.floor(Math.random() * 4000);
+    state.bombDuration = 8500 + Math.floor(Math.random() * 4000);
     state.lastEventText = `💥 ${victim ? victim.name : "Player"} exploded! Bomb on ${nextHolder.name}!`;
-    lastTagTime = Date.now() + 1000;
+    lastTagTime = Date.now() + 900;
     broadcastState(true);
   }
 }
@@ -458,18 +461,21 @@ function syncUI() {
   $('banner').textContent = state.lastEventText || "Run!";
 }
 
-function updateRemotePos(id, x, y) {
+function updateRemotePos(id, x, y, vx = 0, vy = 0) {
   let pos = positions.get(id);
+  const now = performance.now();
   if (!pos) {
-    pos = { x, y, tx: x, ty: y };
-    positions.set(id, pos);
+    positions.set(id, { x, y, tx: x, ty: y, vx, vy, lastUpdate: now });
   } else {
     pos.tx = x;
     pos.ty = y;
+    pos.vx = vx;
+    pos.vy = vy;
+    pos.lastUpdate = now;
   }
 }
 
-/* INPUT & MOVEMENT */
+/* INPUT, DEAD RECKONING & RENDERING */
 const cv = $('gameCanvas');
 const ctx = cv.getContext('2d');
 let dpr = 1, scale = 1, offX = 0, offY = 0;
@@ -501,7 +507,7 @@ const stopJoy = () => { joy.active = false; };
 cv.addEventListener('pointerup', stopJoy);
 cv.addEventListener('pointercancel', stopJoy);
 
-function updateGame(dt) {
+function updateGame(dt, nowPerf) {
   if (state.phase !== "play") return;
 
   const meObj = state.players.find(p => p.id === myId);
@@ -513,53 +519,80 @@ function updateGame(dt) {
       const jx = joy.x - joy.ox;
       const jy = joy.y - joy.oy;
       const dist = Math.hypot(jx, jy);
-      if (dist > 8) {
+      if (dist > 6) {
         dx = jx / dist;
         dy = jy / dist;
       }
     }
 
     const len = Math.hypot(dx, dy);
+    const speed = (state.holderId === myId) ? 175 : 240;
+
     if (len > 0) {
       dx /= len;
       dy /= len;
-      const speed = (state.holderId === myId) ? 160 : 230;
-      myPos.x = Math.max(PLAYER_R, Math.min(ARENA_W - PLAYER_R, myPos.x + dx * speed * dt));
-      myPos.y = Math.max(PLAYER_R, Math.min(ARENA_H - PLAYER_R, myPos.y + dy * speed * dt));
-      positions.set(myId, { x: myPos.x, y: myPos.y, tx: myPos.x, ty: myPos.y });
+      myPos.vx = dx * speed;
+      myPos.vy = dy * speed;
+      myPos.x = Math.max(PLAYER_R, Math.min(ARENA_W - PLAYER_R, myPos.x + myPos.vx * dt));
+      myPos.y = Math.max(PLAYER_R, Math.min(ARENA_H - PLAYER_R, myPos.y + myPos.vy * dt));
+      positions.set(myId, { x: myPos.x, y: myPos.y, tx: myPos.x, ty: myPos.y, vx: myPos.vx, vy: myPos.vy, lastUpdate: nowPerf });
 
-      // Throttled position send (only when moving, max once per 150ms)
-      const now = Date.now();
-      if (now - lastSentPos.time >= 150 && Math.hypot(myPos.x - lastSentPos.x, myPos.y - lastSentPos.y) > 3) {
-        lastSentPos = { x: Math.round(myPos.x), y: Math.round(myPos.y), time: now };
-        publishMsg({ type: "POS", x: lastSentPos.x, y: lastSentPos.y });
+      // Send position + velocity every 70ms (~14.2 ticks/sec) while moving
+      if (nowPerf - lastSentTime >= 70) {
+        lastSentTime = nowPerf;
+        publishMsg({
+          t: "P",
+          x: Math.round(myPos.x),
+          y: Math.round(myPos.y),
+          vx: Math.round(myPos.vx),
+          vy: Math.round(myPos.vy)
+        });
       }
+      wasMoving = true;
+    } else if (wasMoving) {
+      // Immediately send a final stop packet so remote clients stop dead-reckoning
+      myPos.vx = 0;
+      myPos.vy = 0;
+      wasMoving = false;
+      lastSentTime = nowPerf;
+      publishMsg({
+        t: "P",
+        x: Math.round(myPos.x),
+        y: Math.round(myPos.y),
+        vx: 0,
+        vy: 0
+      });
     }
 
-    // If holding the bomb, check collision with other alive players
-    if (state.holderId === myId && Date.now() - lastTagTime > 900) {
+    // Tag Check with optimistic local transfer
+    if (state.holderId === myId && Date.now() - lastTagTime > 750) {
       for (const p of state.players) {
         if (p.id === myId || p.out) continue;
         const rPos = positions.get(p.id);
         if (!rPos) continue;
-        if (Math.hypot(rPos.x - myPos.x, rPos.y - myPos.y) < PLAYER_R * 2) {
+        if (Math.hypot(rPos.x - myPos.x, rPos.y - myPos.y) < PLAYER_R * 2.2) {
           lastTagTime = Date.now();
-          if (isHost) {
-            handleTagReq(myId, p.id);
-          } else {
-            publishMsg({ type: "TAG_REQ", fromId: myId, toId: p.id });
-          }
+          state.holderId = p.id;
+          $('banner').textContent = `🔥 ${p.name} got tagged with the bomb!`;
+          publishMsg({ t: "TAG", f: myId, to: p.id });
+          if (isHost) handleTagReq(myId, p.id);
           break;
         }
       }
     }
   }
 
-  // Smoothly interpolate remote players
+  // Dead Reckoning + Frame-Rate Independent Smoothing for Remote Players
+  const blend = 1 - Math.exp(-18 * dt);
   for (const [id, pos] of positions) {
     if (id === myId) continue;
-    pos.x += (pos.tx - pos.x) * 0.25;
-    pos.y += (pos.ty - pos.y) * 0.25;
+    // Predict target movement using velocity for up to 250ms after last packet
+    if (nowPerf - (pos.lastUpdate || 0) < 250) {
+      pos.tx = Math.max(PLAYER_R, Math.min(ARENA_W - PLAYER_R, pos.tx + (pos.vx || 0) * dt));
+      pos.ty = Math.max(PLAYER_R, Math.min(ARENA_H - PLAYER_R, pos.ty + (pos.vy || 0) * dt));
+    }
+    pos.x += (pos.tx - pos.x) * blend;
+    pos.y += (pos.ty - pos.y) * blend;
   }
 }
 
@@ -572,7 +605,6 @@ function drawGame() {
 
   ctx.setTransform(dpr * scale, 0, 0, dpr * scale, dpr * offX, dpr * offY);
 
-  // Arena Floor & Border
   ctx.fillStyle = "#1e293b";
   ctx.fillRect(0, 0, ARENA_W, ARENA_H);
   ctx.strokeStyle = "#334155";
@@ -581,7 +613,6 @@ function drawGame() {
 
   const timeLeftSec = Math.max(0, Math.ceil((state.bombDuration - (performance.now() - bombTimerStart)) / 1000));
 
-  // Draw Players
   for (const p of state.players) {
     if (p.out) continue;
     const pos = positions.get(p.id) || { x: ARENA_W / 2, y: ARENA_H / 2 };
@@ -590,7 +621,6 @@ function drawGame() {
     ctx.save();
     ctx.translate(pos.x, pos.y);
 
-    // Bomb Holder Danger Ring
     if (isHolder) {
       ctx.beginPath();
       ctx.arc(0, 0, PLAYER_R + 8, 0, Math.PI * 2);
@@ -599,7 +629,6 @@ function drawGame() {
       ctx.stroke();
     }
 
-    // Player Circle
     ctx.beginPath();
     ctx.arc(0, 0, PLAYER_R, 0, Math.PI * 2);
     ctx.fillStyle = p.color;
@@ -608,18 +637,15 @@ function drawGame() {
     ctx.strokeStyle = p.id === myId ? "#ffffff" : "#0f172a";
     ctx.stroke();
 
-    // Emoji
     ctx.font = "20px system-ui, sans-serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText(p.emoji, 0, 1);
 
-    // Name Tag
     ctx.font = "bold 13px system-ui, sans-serif";
     ctx.fillStyle = "#f8fafc";
     ctx.fillText(p.name, 0, -PLAYER_R - 10);
 
-    // Bomb Countdown Above Holder
     if (isHolder) {
       ctx.font = "900 18px system-ui, sans-serif";
       ctx.fillStyle = "#ef4444";
@@ -629,7 +655,6 @@ function drawGame() {
     ctx.restore();
   }
 
-  // Draw Touch Joystick
   if (joy.active) {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.beginPath();
@@ -652,7 +677,7 @@ let lastTime = performance.now();
 function loop(now) {
   const dt = Math.min(0.05, (now - lastTime) / 1000);
   lastTime = now;
-  updateGame(dt);
+  updateGame(dt, now);
   drawGame();
   requestAnimationFrame(loop);
 }
