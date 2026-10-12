@@ -12,7 +12,7 @@
     background: #0f172a; color: #f8fafc;
     font-family: system-ui, -apple-system, sans-serif;
     min-height: 100vh; display: flex; flex-direction: column;
-    align-items: center; justify-content: center; padding: 12px;
+    align-items: center; justify-content: center; padding: 10px;
     overflow-x: hidden;
   }
   .hidden { display: none !important; }
@@ -35,9 +35,9 @@
   input:focus { border-color: #facc15; }
 
   button {
-    width: 100%; padding: 12px 14px; border-radius: 12px; border: none;
-    font-size: 15px; font-weight: 800; cursor: pointer;
-    transition: transform 0.08s, opacity 0.15s;
+    width: 100%; padding: 11px 12px; border-radius: 12px; border: none;
+    font-size: 14px; font-weight: 800; cursor: pointer;
+    transition: transform 0.08s, opacity 0.15s, background 0.15s;
   }
   button:active { transform: translateY(2px); }
   button:disabled { opacity: 0.4; cursor: not-allowed; }
@@ -69,14 +69,14 @@
   /* GAME SCREEN */
   #gameScreen {
     width: min(96vw, 430px); display: flex; flex-direction: column;
-    gap: 10px; align-items: center;
+    gap: 8px; align-items: center;
   }
   .scoreboard {
     width: 100%; display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px;
     background: #1e293b; border: 1px solid #334155; border-radius: 14px; padding: 8px;
   }
   .p-card {
-    padding: 8px; border-radius: 10px; background: #0f172a;
+    padding: 7px; border-radius: 10px; background: #0f172a;
     border: 2px solid transparent; text-align: center; transition: 0.2s;
   }
   .p-card.active-0 { border-color: #38bdf8; box-shadow: 0 0 12px rgba(56,189,248,0.35); }
@@ -86,9 +86,24 @@
   .vs-box { display: flex; flex-direction: column; justify-content: center; align-items: center; font-size: 11px; color: #94a3b8; font-weight: 800; padding: 0 4px; }
 
   #turnBanner {
-    width: 100%; text-align: center; font-size: 14px; font-weight: 800;
-    padding: 8px 12px; border-radius: 10px; background: #1e293b;
+    width: 100%; text-align: center; font-size: 13px; font-weight: 800;
+    padding: 8px 10px; border-radius: 10px; background: #1e293b;
     border: 1px solid #334155;
+  }
+
+  /* MODE SWITCHER TABS */
+  .mode-tabs {
+    width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+  }
+  .tab-btn {
+    background: #1e293b; color: #94a3b8; border: 2px solid #334155;
+    box-shadow: none; padding: 10px; font-size: 14px;
+  }
+  .tab-btn.active-move {
+    background: rgba(16, 185, 129, 0.2); color: #34d399; border-color: #10b981;
+  }
+  .tab-btn.active-wall {
+    background: rgba(250, 204, 21, 0.2); color: #facc15; border-color: #facc15;
   }
 
   .canvas-wrap {
@@ -97,7 +112,7 @@
     display: flex; align-items: center; justify-content: center;
     box-shadow: 0 8px 24px rgba(0,0,0,0.45);
   }
-  canvas { width: 100%; height: 100%; display: block; border-radius: 10px; touch-action: manipulation; }
+  canvas { width: 100%; height: 100%; display: block; border-radius: 10px; touch-action: none; }
 
   .action-bar { width: 100%; display: flex; gap: 8px; }
 </style>
@@ -168,19 +183,25 @@
 
   <div id="turnBanner">Waiting...</div>
 
+  <!-- MODE SELECTOR TABS -->
+  <div id="modeTabs" class="mode-tabs">
+    <button id="moveModeBtn" class="tab-btn active-move">🚶 Move Pawn</button>
+    <button id="wallModeBtn" class="tab-btn">🧱 Wall Mode</button>
+  </div>
+
   <div class="canvas-wrap">
     <canvas id="boardCanvas" width="540" height="540"></canvas>
   </div>
 
-  <!-- Wall placement controls (shown when previewing a wall) -->
-  <div id="wallControls" class="action-bar">
-    <button id="rotateBtn" class="btn-secondary" disabled>🔄 Rotate Wall</button>
-    <button id="placeWallBtn" class="btn-primary" disabled>🧱 Place Wall</button>
+  <!-- WALL CONFIRMATION BAR (Shown automatically in Wall Mode) -->
+  <div id="wallControls" class="action-bar hidden">
+    <button id="rotateBtn" class="btn-secondary">🔄 Rotate (H/V)</button>
+    <button id="placeWallBtn" class="btn-primary">✅ Confirm Wall</button>
   </div>
 
   <div class="action-bar">
     <button id="rematchBtn" class="btn-success hidden">🔁 Play Again</button>
-    <button class="btn-secondary" onclick="location.reload()" style="padding:10px">🚪 Exit Room</button>
+    <button class="btn-secondary" onclick="location.reload()" style="padding:9px">🚪 Exit Room</button>
   </div>
 </div>
 
@@ -193,7 +214,8 @@ const myId = "q_" + Math.random().toString(36).slice(2, 9);
 let myName = cleanStr(tg?.initDataUnsafe?.user?.first_name) || "Player";
 
 const BROKER = "wss://broker.emqx.io:8084/mqtt";
-const $= (id) => document.getElementById(id);$('nameInput').value = myName;
+const $ = (id) => document.getElementById(id);
+$('nameInput').value = myName;
 
 // Board Geometry Constants (Logical 540x540 Canvas)
 const LOGICAL_SIZE = 540;
@@ -211,7 +233,7 @@ let joinRetryTimer = null;
 
 // Authoritative Game State
 let state = {
-  phase: "lobby", // 'lobby' | 'play' | 'over'
+  phase: "lobby",
   players: [
     { id: null, name: "Waiting..." },
     { id: null, name: "Waiting..." }
@@ -220,16 +242,18 @@ let state = {
   starter: 0,
   turn: 0,
   pawns: [
-    { r: 0, c: 4 }, // Seat 0 starts top-center, goal is row 8
-    { r: 8, c: 4 }  // Seat 1 starts bottom-center, goal is row 0
+    { r: 0, c: 4 },
+    { r: 8, c: 4 }
   ],
   wallsLeft: [10, 10],
-  walls: [], // Array of { r: 0..7, c: 0..7, o: 'H'|'V', seat: 0|1 }
+  walls: [],
   winner: null
 };
 
-// Local UI Preview State for Wall Placement
-let previewWall = null; // { r, c, o: 'H'|'V', valid: boolean, reason: string }
+// Local UI Mode: 'move' | 'wall'
+let inputMode = "move";
+let previewWall = { r: 3, c: 4, o: "H", valid: true, reason: "" };
+let isDraggingWall = false;
 
 function genCode() {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -278,7 +302,8 @@ $('rematchBtn').onclick = () => {
 
 function openLobby() {
   $('menuScreen').classList.add('hidden');
-  $('lobbyScreen').classList.remove('hidden');$('lobbyCode').textContent = roomCode;
+  $('lobbyScreen').classList.remove('hidden');
+  $('lobbyCode').textContent = roomCode;
   updateLobbyUI();
   connectMQTT();
 }
@@ -318,7 +343,7 @@ function connectMQTT() {
 
     if (msg.type === "JOIN_REQ" && isHost) {
       if (!state.players[1].id || state.players[1].id === msg.id) {
-        state.players[1] = { id: msg.id, name: cleanStr(msg.name) || "Player 2" };
+        state.players[1] = { id: msg.id, name: cleanName(msg.name) || "Player 2" };
       }
       broadcastState();
     } else if (msg.type === "STATE_SYNC") {
@@ -326,7 +351,7 @@ function connectMQTT() {
       if (state.players[0].id === myId) mySeat = 0;
       else if (state.players[1].id === myId) mySeat = 1;
       if (mySeat !== -1) clearInterval(joinRetryTimer);
-      previewWall = null;
+      setMode("move");
       syncUI();
     } else if (msg.type === "ACTION_REQ" && isHost) {
       processAction(msg.seat, msg.action);
@@ -334,6 +359,10 @@ function connectMQTT() {
       if (state.phase === "over") startNewRound(1 - state.starter);
     }
   });
+}
+
+function cleanName(s) {
+  return cleanStr(s) || "Player";
 }
 
 function sendJoinReq() {
@@ -348,13 +377,14 @@ function publishMsg(obj) {
 }
 
 function broadcastState() {
+  setMode("move");
   syncUI();
   publishMsg({ type: "STATE_SYNC", state });
 }
 
 function updateLobbyUI() {
   $('seat0Name').textContent = state.players[0].id ? state.players[0].name + (mySeat === 0 ? " (You)" : "") : "Waiting...";
-  $('seat1Name').textContent = state.players[1].id ? state.players[1].name + (mySeat === 1 ? " (You)" : "") : "Waiting...";
+  $('seat1Name').textContent = state.players[1].id ? state.players[1].id ? state.players[1].name + (mySeat === 1 ? " (You)" : "") : "Waiting..." : "Waiting...";
 
   if (isHost) {
     const ready = Boolean(state.players[0].id && state.players[1].id);
@@ -377,22 +407,19 @@ function startNewRound(starterSeat) {
   state.wallsLeft = [10, 10];
   state.walls = [];
   state.winner = null;
-  previewWall = null;
   broadcastState();
 }
 
 /* ============================================================================
- * QUORIDOR RULES ENGINE (WALL VALIDATION, JUMPING & BFS PATHFINDING)
+ * QUORIDOR RULES ENGINE
  * ============================================================================ */
 function isEdgeBlocked(r1, c1, r2, c2, wallsList) {
   if (r1 === r2) {
-    // Horizontal step between (r1, c1) and (r1, c2)
     const minC = Math.min(c1, c2);
     for (const w of wallsList) {
       if (w.o === "V" && w.c === minC && (w.r === r1 || w.r === r1 - 1)) return true;
     }
   } else if (c1 === c2) {
-    // Vertical step between (r1, c1) and (r2, c1)
     const minR = Math.min(r1, r2);
     for (const w of wallsList) {
       if (w.o === "H" && w.r === minR && (w.c === c1 || w.c === c1 - 1)) return true;
@@ -431,7 +458,7 @@ function hasPathToGoal(startR, startC, goalRow, wallsList) {
 
 function validateWallPlacement(seat, r, c, o) {
   if (state.wallsLeft[seat] <= 0) {
-    return { valid: false, reason: "No walls remaining!" };
+    return { valid: false, reason: "You have 0 walls left!" };
   }
   if (r < 0 || r > 7 || c < 0 || c > 7) {
     return { valid: false, reason: "Out of bounds" };
@@ -439,13 +466,13 @@ function validateWallPlacement(seat, r, c, o) {
 
   for (const w of state.walls) {
     if (w.r === r && w.c === c) {
-      return { valid: false, reason: "Intersects existing wall!" };
+      return { valid: false, reason: "Crosses an existing wall!" };
     }
     if (o === "H" && w.o === "H" && w.r === r && Math.abs(w.c - c) === 1) {
-      return { valid: false, reason: "Overlaps existing horizontal wall!" };
+      return { valid: false, reason: "Overlaps a horizontal wall!" };
     }
     if (o === "V" && w.o === "V" && w.c === c && Math.abs(w.r - r) === 1) {
-      return { valid: false, reason: "Overlaps existing vertical wall!" };
+      return { valid: false, reason: "Overlaps a vertical wall!" };
     }
   }
 
@@ -454,10 +481,10 @@ function validateWallPlacement(seat, r, c, o) {
   const p1Ok = hasPathToGoal(state.pawns[1].r, state.pawns[1].c, 0, testWalls);
 
   if (!p0Ok || !p1Ok) {
-    return { valid: false, reason: "Illegal: Completely traps a player!" };
+    return { valid: false, reason: "Illegal: Completely blocks all paths!" };
   }
 
-  return { valid: true, reason: "Tap 'Place Wall' to confirm" };
+  return { valid: true, reason: "Drag on board to move wall, then tap Confirm!" };
 }
 
 function getValidPawnMoves(seat) {
@@ -473,13 +500,11 @@ function getValidPawnMoves(seat) {
     if (isEdgeBlocked(me.r, me.c, nr, nc, state.walls)) continue;
 
     if (nr === opp.r && nc === opp.c) {
-      // Opponent is adjacent: attempt straight jump over opponent
       const jr = nr + dr;
       const jc = nc + dc;
       if (jr >= 0 && jr <= 8 && jc >= 0 && jc <= 8 && !isEdgeBlocked(nr, nc, jr, jc, state.walls)) {
         moves.push({ r: jr, c: jc });
       } else {
-        // Straight jump blocked: allow diagonal jumps beside opponent
         const perpDirs = [[-dc, -dr], [dc, dr]];
         for (const [pdr, pdc] of perpDirs) {
           const dR = nr + pdr;
@@ -497,7 +522,6 @@ function getValidPawnMoves(seat) {
 }
 
 function sendOrProcessAction(action) {
-  previewWall = null;
   if (isHost) {
     processAction(mySeat, action);
   } else {
@@ -515,7 +539,6 @@ function processAction(seat, action) {
 
     state.pawns[seat] = { r: action.r, c: action.c };
 
-    // Check Win Condition (Seat 0 reaches row 8, Seat 1 reaches row 0)
     const goalRow = seat === 0 ? 8 : 0;
     if (action.r === goalRow) {
       state.phase = "over";
@@ -537,22 +560,44 @@ function processAction(seat, action) {
 }
 
 /* ============================================================================
- * UI & INTERACTIVE BOARD CANVAS
+ * MODE SWITCHING & INTERACTIVE BOARD CONTROLS
  * ============================================================================ */
 const cv = $('boardCanvas');
 const ctx = cv.getContext('2d');
 
-function setupHiDPI() {
-  const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  cv.width = LOGICAL_SIZE * dpr;
-  cv.height = LOGICAL_SIZE * dpr;
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+function setMode(mode) {
+  if (state.phase !== "play" || state.turn !== mySeat) {
+    inputMode = "move";
+  } else {
+    if (mode === "wall" && state.wallsLeft[mySeat] <= 0) {
+      $('turnBanner').textContent = "⚠️ You have 0 walls left! Move your pawn.";
+      $('turnBanner').style.color = "#f87171";
+      return;
+    }
+    inputMode = mode;
+  }
+
+  $('moveModeBtn').classList.toggle('active-move', inputMode === "move");
+  $('wallModeBtn').classList.toggle('active-wall', inputMode === "wall");
+  $('wallControls').classList.toggle('hidden', inputMode !== "wall");
+
+  if (inputMode === "wall") {
+    // Re-validate current previewWall or find a valid spot near center
+    const check = validateWallPlacement(mySeat, previewWall.r, previewWall.c, previewWall.o);
+    previewWall.valid = check.valid;
+    previewWall.reason = check.reason;
+    updateWallControlsUI();
+  } else {
+    updateTurnBanner();
+  }
   drawBoard();
 }
-window.addEventListener('resize', setupHiDPI);
+
+$('moveModeBtn').onclick = () => setMode("move");
+$('wallModeBtn').onclick = () => setMode("wall");
 
 $('rotateBtn').onclick = () => {
-  if (!previewWall) return;
+  if (inputMode !== "wall") return;
   const nextO = previewWall.o === "H" ? "V" : "H";
   const res = validateWallPlacement(mySeat, previewWall.r, previewWall.c, nextO);
   previewWall.o = nextO;
@@ -563,7 +608,7 @@ $('rotateBtn').onclick = () => {
 };
 
 $('placeWallBtn').onclick = () => {
-  if (!previewWall || !previewWall.valid) return;
+  if (inputMode !== "wall" || !previewWall.valid) return;
   sendOrProcessAction({
     kind: "wall",
     r: previewWall.r,
@@ -572,26 +617,12 @@ $('placeWallBtn').onclick = () => {
   });
 };
 
-cv.addEventListener('pointerdown', (e) => {
-  if (state.phase !== "play" || state.turn !== mySeat) return;
-
+function snapWallToPointer(clientX, clientY, allowToggleOnSameSpot) {
   const rect = cv.getBoundingClientRect();
-  const lx = (e.clientX - rect.left) * (LOGICAL_SIZE / rect.width);
-  const ly = (e.clientY - rect.top) * (LOGICAL_SIZE / rect.height);
+  const lx = (clientX - rect.left) * (LOGICAL_SIZE / rect.width);
+  const ly = (clientY - rect.top) * (LOGICAL_SIZE / rect.height);
 
-  // 1. Check if player tapped a valid destination tile
-  const validMoves = getValidPawnMoves(mySeat);
-  for (const m of validMoves) {
-    const tx = MARGIN + m.c * STEP;
-    const ty = MARGIN + m.r * STEP;
-    if (lx >= tx && lx <= tx + CELL_SIZE && ly >= ty && ly <= ty + CELL_SIZE) {
-      sendOrProcessAction({ kind: "move", r: m.r, c: m.c });
-      return;
-    }
-  }
-
-  // 2. Otherwise, find closest 8x8 wall intersection
-  let bestR = -1, bestC = -1, bestDist = 999;
+  let bestR = 0, bestC = 0, bestDist = 9999;
   for (let r = 0; r < 8; r++) {
     for (let c = 0; c < 8; c++) {
       const ix = MARGIN + (c + 1) * CELL_SIZE + c * GAP_SIZE + GAP_SIZE / 2;
@@ -605,44 +636,92 @@ cv.addEventListener('pointerdown', (e) => {
     }
   }
 
-  if (bestDist <= 38) {
-    let nextO = "H";
-    if (previewWall && previewWall.r === bestR && previewWall.c === bestC) {
-      nextO = previewWall.o === "H" ? "V" : "H";
-    } else if (previewWall) {
-      nextO = previewWall.o;
-    }
+  let nextO = previewWall.o;
+  if (allowToggleOnSameSpot && previewWall.r === bestR && previewWall.c === bestC) {
+    nextO = nextO === "H" ? "V" : "H";
+  }
 
-    let check = validateWallPlacement(mySeat, bestR, bestC, nextO);
-    // If orientation is invalid, automatically check if the rotated orientation is valid
-    if (!check.valid && (!previewWall || previewWall.r !== bestR || previewWall.c !== bestC)) {
-      const altO = nextO === "H" ? "V" : "H";
-      const altCheck = validateWallPlacement(mySeat, bestR, bestC, altO);
-      if (altCheck.valid) {
-        nextO = altO;
-        check = altCheck;
+  let check = validateWallPlacement(mySeat, bestR, bestC, nextO);
+  if (!check.valid && (previewWall.r !== bestR || previewWall.c !== bestC)) {
+    const altO = nextO === "H" ? "V" : "H";
+    const altCheck = validateWallPlacement(mySeat, bestR, bestC, altO);
+    if (altCheck.valid) {
+      nextO = altO;
+      check = altCheck;
+    }
+  }
+
+  previewWall = { r: bestR, c: bestC, o: nextO, valid: check.valid, reason: check.reason };
+  updateWallControlsUI();
+  drawBoard();
+}
+
+cv.addEventListener('pointerdown', (e) => {
+  if (state.phase !== "play" || state.turn !== mySeat) return;
+
+  const rect = cv.getBoundingClientRect();
+  const lx = (e.clientX - rect.left) * (LOGICAL_SIZE / rect.width);
+  const ly = (e.clientY - rect.top) * (LOGICAL_SIZE / rect.height);
+
+  if (inputMode === "move") {
+    // Check if player tapped a valid green move tile
+    const validMoves = getValidPawnMoves(mySeat);
+    for (const m of validMoves) {
+      const tx = MARGIN + m.c * STEP;
+      const ty = MARGIN + m.r * STEP;
+      if (lx >= tx && lx <= tx + CELL_SIZE && ly >= ty && ly <= ty + CELL_SIZE) {
+        sendOrProcessAction({ kind: "move", r: m.r, c: m.c });
+        return;
       }
     }
-
-    previewWall = { r: bestR, c: bestC, o: nextO, valid: check.valid, reason: check.reason };
-    updateWallControlsUI();
-    drawBoard();
+    // If they tapped a groove while in move mode and have walls left, switch to Wall Mode automatically
+    if (state.wallsLeft[mySeat] > 0) {
+      setMode("wall");
+      isDraggingWall = true;
+      snapWallToPointer(e.clientX, e.clientY, false);
+    }
+  } else {
+    // In Wall Mode: dragging or tapping anywhere moves the preview wall
+    isDraggingWall = true;
+    snapWallToPointer(e.clientX, e.clientY, true);
   }
 });
 
+cv.addEventListener('pointermove', (e) => {
+  if (!isDraggingWall || inputMode !== "wall" || state.phase !== "play" || state.turn !== mySeat) return;
+  snapWallToPointer(e.clientX, e.clientY, false);
+});
+
+window.addEventListener('pointerup', () => { isDraggingWall = false; });
+window.addEventListener('pointercancel', () => { isDraggingWall = false; });
+
 function updateWallControlsUI() {
   const isMyTurn = state.phase === "play" && state.turn === mySeat;
-  if (!isMyTurn || !previewWall) {
-    $('rotateBtn').disabled = true;
-    $('placeWallBtn').disabled = true;
-    return;
+  $('rotateBtn').disabled = !isMyTurn;
+  $('placeWallBtn').disabled = !isMyTurn || !previewWall.valid;
+
+  if (isMyTurn && inputMode === "wall") {
+    $('turnBanner').textContent = previewWall.valid
+      ? `🧱 ${previewWall.reason}`
+      : `⚠️ ${previewWall.reason}`;
+    $('turnBanner').style.color = previewWall.valid ? "#facc15" : "#f87171";
   }
-  $('rotateBtn').disabled = false;
-  $('placeWallBtn').disabled = !previewWall.valid;
-  $('turnBanner').textContent = previewWall.valid
-    ? `🧱 ${previewWall.reason}`
-    : `⚠️ ${previewWall.reason}`;
-  $('turnBanner').style.color = previewWall.valid ? "#facc15" : "#f87171";
+}
+
+function updateTurnBanner() {
+  if (state.phase === "play") {
+    if (state.turn === mySeat) {
+      $('turnBanner').textContent = "🟢 Your Turn! Tap a green tile to move, or tap '🧱 Wall Mode'.";
+      $('turnBanner').style.color = "#4ade80";
+    } else {
+      $('turnBanner').textContent = `⏳ Waiting for ${state.players[state.turn].name}...`;
+      $('turnBanner').style.color = "#cbd5e1";
+    }
+  } else if (state.phase === "over") {
+    const wName = state.players[state.winner].name;
+    $('turnBanner').textContent = `🏆 ${wName} Reached the Goal & Wins!`;
+    $('turnBanner').style.color = "#facc15";
+  }
 }
 
 function syncUI() {
@@ -664,40 +743,44 @@ function syncUI() {
   $('card0').classList.toggle('active-0', state.phase === "play" && state.turn === 0);
   $('card1').classList.toggle('active-1', state.phase === "play" && state.turn === 1);
 
+  const isMyTurn = state.phase === "play" && state.turn === mySeat;
+  $('moveModeBtn').disabled = !isMyTurn;
+  $('wallModeBtn').disabled = !isMyTurn || state.wallsLeft[mySeat] <= 0;
+  $('wallModeBtn').textContent = mySeat !== -1 ? `🧱 Wall Mode (${state.wallsLeft[mySeat]})` : "🧱 Wall Mode";
+
   if (state.phase === "play") {
-    $('rematchBtn').classList.add('hidden');$('wallControls').classList.remove('hidden');
-    if (state.turn === mySeat) {
-      $('turnBanner').textContent = "🟢 Your Turn! Tap a green tile to move or a groove to place a wall.";
-      $('turnBanner').style.color = "#4ade80";
-    } else {
-      $('turnBanner').textContent = `⏳ ${state.players[state.turn].name}'s Turn...`;
-      $('turnBanner').style.color = "#cbd5e1";
-    }
+    $('rematchBtn').classList.add('hidden');$('modeTabs').classList.remove('hidden');
   } else if (state.phase === "over") {
-    $('rematchBtn').classList.remove('hidden');$('wallControls').classList.add('hidden');
-    const wName = state.players[state.winner].name;
-    $('turnBanner').textContent = `🏆 ${wName} Reached the Goal & Wins!`;
-    $('turnBanner').style.color = "#facc15";
+    $('rematchBtn').classList.remove('hidden');
+    $('modeTabs').classList.add('hidden');$('wallControls').classList.add('hidden');
   }
 
-  updateWallControlsUI();
+  updateTurnBanner();
   setupHiDPI();
 }
+
+function setupHiDPI() {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  cv.width = LOGICAL_SIZE * dpr;
+  cv.height = LOGICAL_SIZE * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  drawBoard();
+}
+window.addEventListener('resize', setupHiDPI);
 
 function drawBoard() {
   ctx.clearRect(0, 0, LOGICAL_SIZE, LOGICAL_SIZE);
   ctx.fillStyle = "#0f172a";
   ctx.fillRect(0, 0, LOGICAL_SIZE, LOGICAL_SIZE);
 
-  // Goal Row Accent Bars (Top edge = Orange P2 Goal, Bottom edge = Cyan P1 Goal)
-  ctx.fillStyle = "rgba(251, 146, 60, 0.22)";
+  // Goal Row Accent Bars
+  ctx.fillStyle = "rgba(251, 146, 60, 0.25)";
   ctx.fillRect(MARGIN, 4, LOGICAL_SIZE - MARGIN * 2, 10);
-  ctx.fillStyle = "rgba(56, 189, 248, 0.22)";
+  ctx.fillStyle = "rgba(56, 189, 248, 0.25)";
   ctx.fillRect(MARGIN, LOGICAL_SIZE - 14, LOGICAL_SIZE - MARGIN * 2, 10);
 
-  const validMoves = (state.phase === "play" && state.turn === mySeat)
-    ? getValidPawnMoves(mySeat)
-    : [];
+  const showMoves = (state.phase === "play" && state.turn === mySeat && inputMode === "move");
+  const validMoves = showMoves ? getValidPawnMoves(mySeat) : [];
 
   // 1. Draw 9x9 Tiles
   for (let r = 0; r < 9; r++) {
@@ -709,7 +792,7 @@ function drawBoard() {
       ctx.beginPath();
       ctx.roundRect(x, y, CELL_SIZE, CELL_SIZE, 8);
       if (isMoveTarget) {
-        ctx.fillStyle = "rgba(16, 185, 129, 0.25)";
+        ctx.fillStyle = "rgba(16, 185, 129, 0.28)";
         ctx.fill();
         ctx.lineWidth = 2;
         ctx.strokeStyle = "#10b981";
@@ -733,14 +816,14 @@ function drawBoard() {
     }
   }
 
-  // 2. Draw 8x8 Intersection Dots (Touch Targets for Walls)
+  // 2. Draw 8x8 Intersection Dots (Brighter when in Wall Mode)
   for (let r = 0; r < 8; r++) {
     for (let c = 0; c < 8; c++) {
       const ix = MARGIN + (c + 1) * CELL_SIZE + c * GAP_SIZE + GAP_SIZE / 2;
       const iy = MARGIN + (r + 1) * CELL_SIZE + r * GAP_SIZE + GAP_SIZE / 2;
       ctx.beginPath();
-      ctx.arc(ix, iy, 2.5, 0, Math.PI * 2);
-      ctx.fillStyle = "#475569";
+      ctx.arc(ix, iy, inputMode === "wall" ? 4 : 2.5, 0, Math.PI * 2);
+      ctx.fillStyle = inputMode === "wall" ? "#94a3b8" : "#475569";
       ctx.fill();
     }
   }
@@ -750,10 +833,10 @@ function drawBoard() {
     drawWallSegment(w.r, w.c, w.o, w.seat === 0 ? "#38bdf8" : "#fb923c", 1.0, false);
   }
 
-  // 4. Draw Preview Wall (If active on player's turn)
-  if (state.phase === "play" && state.turn === mySeat && previewWall) {
+  // 4. Draw Preview Wall (Whenever in Wall Mode on Player's Turn)
+  if (state.phase === "play" && state.turn === mySeat && inputMode === "wall") {
     const pColor = previewWall.valid ? "#facc15" : "#ef4444";
-    drawWallSegment(previewWall.r, previewWall.c, previewWall.o, pColor, 0.85, true);
+    drawWallSegment(previewWall.r, previewWall.c, previewWall.o, pColor, 0.9, true);
   }
 
   // 5. Draw Pawns
@@ -765,22 +848,22 @@ function drawWallSegment(r, c, o, color, alpha, isPreview) {
   ctx.save();
   ctx.globalAlpha = alpha;
   ctx.fillStyle = color;
-  ctx.strokeStyle = "#0f172a";
-  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = isPreview ? "#ffffff" : "#0f172a";
+  ctx.lineWidth = isPreview ? 2 : 1.5;
 
   const span = CELL_SIZE * 2 + GAP_SIZE;
   if (o === "H") {
     const x = MARGIN + c * STEP;
-    const y = MARGIN + (r + 1) * CELL_SIZE + r * GAP_SIZE + 1;
+    const y = MARGIN + (r + 1) * CELL_SIZE + r * GAP_SIZE;
     ctx.beginPath();
-    ctx.roundRect(x, y, span, GAP_SIZE - 2, 4);
+    ctx.roundRect(x, y, span, GAP_SIZE, 4);
     ctx.fill();
     ctx.stroke();
   } else {
-    const x = MARGIN + (c + 1) * CELL_SIZE + c * GAP_SIZE + 1;
+    const x = MARGIN + (c + 1) * CELL_SIZE + c * GAP_SIZE;
     const y = MARGIN + r * STEP;
     ctx.beginPath();
-    ctx.roundRect(x, y, GAP_SIZE - 2, span, 4);
+    ctx.roundRect(x, y, GAP_SIZE, span, 4);
     ctx.fill();
     ctx.stroke();
   }
