@@ -2,97 +2,319 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>💣 Potato Panic</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/mqtt@5.10.3/dist/mqtt.min.js"></script>
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; user-select: none; }
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    -webkit-user-select: none;
+  }
   html, body {
-    width: 100%; height: 100%; overflow: hidden;
-    background: #0f172a; color: #f8fafc;
-    font-family: system-ui, -apple-system, sans-serif;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: #0b1120;
+    color: #f8fafc;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     touch-action: none;
   }
   .hidden { display: none !important; }
 
+  /* OVERLAYS & CARDS */
   .overlay {
-    position: fixed; inset: 0; display: flex; align-items: center;
-    justify-content: center; padding: 14px; background: #0f172a; z-index: 10;
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background: radial-gradient(circle at 50% 20%, #1e293b 0%, #0b1120 80%);
+    z-index: 20;
+    overflow-y: auto;
   }
   .card {
-    background: #1e293b; border: 1px solid #334155; border-radius: 18px;
-    padding: 20px; width: min(94vw, 380px); display: flex;
-    flex-direction: column; gap: 12px; text-align: center;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    background: rgba(30, 41, 59, 0.96);
+    border: 1px solid #334155;
+    border-radius: 20px;
+    padding: 22px;
+    width: min(94vw, 390px);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    text-align: center;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.65);
   }
-  h1 { font-size: 26px; font-weight: 900; color: #facc15; }
-  .sub { font-size: 13px; color: #94a3b8; }
-  .divider { height: 1px; background: #334155; margin: 2px 0; }
+  h1 {
+    font-size: 28px;
+    font-weight: 900;
+    color: #facc15;
+    letter-spacing: 0.5px;
+    text-shadow: 0 3px 0 #854d0e;
+  }
+  .sub {
+    font-size: 13px;
+    color: #94a3b8;
+    line-height: 1.4;
+  }
+  .divider {
+    height: 1px;
+    background: #334155;
+    margin: 4px 0;
+  }
+
+  /* INPUTS & BUTTONS */
   input {
-    width: 100%; padding: 12px; border-radius: 10px;
-    border: 1px solid #475569; background: #0f172a; color: #f8fafc;
-    font-size: 16px; font-weight: 700; text-align: center; outline: none;
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 2px solid #475569;
+    background: #0f172a;
+    color: #f8fafc;
+    font-size: 16px;
+    font-weight: 700;
+    text-align: center;
+    outline: none;
+    transition: border-color 0.15s;
   }
   input:focus { border-color: #facc15; }
+
   button {
-    width: 100%; padding: 13px; border-radius: 12px; border: none;
-    font-size: 16px; font-weight: 800; cursor: pointer;
-    transition: transform 0.08s, opacity 0.15s;
+    width: 100%;
+    padding: 13px 16px;
+    border-radius: 12px;
+    border: none;
+    font-size: 16px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: transform 0.06s, opacity 0.15s;
   }
-  button:active { transform: translateY(2px); }
+  button:active { transform: translateY(3px); }
   button:disabled { opacity: 0.45; cursor: not-allowed; }
-  .btn-primary { background: #facc15; color: #0f172a; box-shadow: 0 4px 0 #b45309; }
-  .btn-accent { background: #38bdf8; color: #0f172a; box-shadow: 0 4px 0 #0284c7; }
-  .btn-secondary { background: #334155; color: #f8fafc; box-shadow: 0 4px 0 #0f172a; }
-  .join-row { display: flex; gap: 8px; }
-  .join-row input { flex: 1; text-transform: uppercase; letter-spacing: 3px; }
-  .join-row button { width: auto; padding: 0 22px; }
+
+  .btn-primary {
+    background: #facc15;
+    color: #0f172a;
+    box-shadow: 0 4px 0 #a16207;
+  }
+  .btn-accent {
+    background: #38bdf8;
+    color: #0f172a;
+    box-shadow: 0 4px 0 #0369a1;
+  }
+  .btn-secondary {
+    background: #334155;
+    color: #f8fafc;
+    box-shadow: 0 4px 0 #0f172a;
+  }
+
+  .avatar-grid {
+    display: flex;
+    gap: 6px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .avatar-btn {
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    font-size: 22px;
+    background: #0f172a;
+    border: 2px solid #334155;
+    border-radius: 10px;
+    box-shadow: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .avatar-btn.selected {
+    border-color: #facc15;
+    background: rgba(250, 204, 21, 0.2);
+  }
+
+  .join-row {
+    display: flex;
+    gap: 8px;
+  }
+  .join-row input {
+    flex: 1;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+  }
+  .join-row button {
+    width: auto;
+    padding: 0 24px;
+  }
 
   .code-box {
-    background: #0f172a; border: 2px dashed #facc15; border-radius: 12px;
-    padding: 10px; display: flex; flex-direction: column; gap: 4px;
+    background: #0f172a;
+    border: 2px dashed #facc15;
+    border-radius: 14px;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
   }
-  .code-box span { font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; }
-  .code-box strong { font-size: 28px; color: #facc15; letter-spacing: 5px; }
-  .status-pill { font-size: 12px; font-weight: 700; color: #facc15; }
+  .code-box span {
+    font-size: 11px;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 700;
+  }
+  .code-box strong {
+    font-size: 30px;
+    color: #facc15;
+    letter-spacing: 6px;
+  }
 
-  .player-list { display: flex; flex-direction: column; gap: 6px; max-height: 200px; overflow-y: auto; }
+  .status-pill {
+    font-size: 12px;
+    font-weight: 700;
+    color: #facc15;
+  }
+
+  .player-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 210px;
+    overflow-y: auto;
+  }
   .player-item {
-    background: #0f172a; border: 1px solid #334155; border-radius: 10px;
-    padding: 8px 12px; display: flex; justify-content: space-between;
-    align-items: center; font-weight: 700; font-size: 14px;
+    background: #0f172a;
+    border: 1px solid #334155;
+    border-radius: 10px;
+    padding: 9px 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 700;
+    font-size: 14px;
   }
 
-  #gameCanvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; z-index: 1; }
+  /* GAMEPLAY HUD & CANVAS */
+  #gameCanvas {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    z-index: 1;
+  }
+
   #hudTop {
-    position: fixed; top: 10px; left: 10px; right: 10px;
-    display: flex; justify-content: space-between; align-items: flex-start;
-    pointer-events: none; z-index: 5; gap: 8px;
+    position: fixed;
+    top: 10px;
+    left: 10px;
+    right: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    pointer-events: none;
+    z-index: 5;
+    gap: 8px;
   }
-  .hud-box {
-    background: rgba(15, 23, 42, 0.88); border: 1px solid #334155;
-    border-radius: 10px; padding: 6px 12px; font-size: 13px; font-weight: 700;
+  .hud-group {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    flex-wrap: wrap;
   }
+  .hud-chip {
+    background: rgba(15, 23, 42, 0.9);
+    border: 1px solid #334155;
+    border-radius: 10px;
+    padding: 6px 10px;
+    font-size: 12px;
+    font-weight: 800;
+    color: #f8fafc;
+  }
+
   #banner {
-    position: fixed; top: 58px; left: 50%; transform: translateX(-50%);
-    background: rgba(15, 23, 42, 0.92); border: 1px solid #475569;
-    padding: 6px 16px; border-radius: 999px; font-size: 14px; font-weight: 800;
-    z-index: 5; pointer-events: none; white-space: nowrap;
+    position: fixed;
+    top: 52px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(15, 23, 42, 0.92);
+    border: 1px solid #475569;
+    padding: 6px 16px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 800;
+    z-index: 5;
+    pointer-events: none;
+    white-space: nowrap;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  }
+
+  #centerAnnouncement {
+    position: fixed;
+    top: 42%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: clamp(28px, 7vw, 54px);
+    font-weight: 900;
+    color: #facc15;
+    text-shadow: 0 5px 0 #000, 0 0 24px rgba(0,0,0,0.8);
+    z-index: 8;
+    pointer-events: none;
+    text-align: center;
+    white-space: nowrap;
+  }
+
+  /* DASH BUTTON FOR MOBILE/TOUCH */
+  #dashBtn {
+    position: fixed;
+    right: 22px;
+    bottom: 24px;
+    width: 78px;
+    height: 78px;
+    border-radius: 50%;
+    background: #38bdf8;
+    color: #0f172a;
+    border: 4px solid #bae6fd;
+    box-shadow: 0 6px 0 #0284c7, 0 8px 20px rgba(0,0,0,0.5);
+    font-size: 14px;
+    font-weight: 900;
+    z-index: 6;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    touch-action: manipulation;
+  }
+  #dashBtn:active {
+    transform: translateY(3px);
+    box-shadow: 0 3px 0 #0284c7;
+  }
+  #dashBtn.cooldown {
+    background: #334155;
+    color: #94a3b8;
+    border-color: #475569;
+    box-shadow: 0 4px 0 #1e293b;
   }
 </style>
 </head>
 <body>
 
-<!-- 1. MENU SCREEN -->
+<!-- 1. MAIN MENU OVERLAY -->
 <div id="menuScreen" class="overlay">
   <div class="card">
     <h1>💣 Potato Panic</h1>
-    <p class="sub">Pass the bomb before the timer hits zero! (2–7 Players)</p>
+    <p class="sub">Tag another player to pass the bomb before it explodes! First to 3 round wins takes the crown.</p>
     <input id="nameInput" placeholder="Your Name" maxlength="12">
+    <div class="sub" style="font-weight:700;font-size:12px">CHOOSE AVATAR</div>
+    <div id="avatarGrid" class="avatar-grid"></div>
     <div class="divider"></div>
     <button id="createBtn" class="btn-primary">➕ Create New Room</button>
-    <div class="sub" style="font-weight:700">OR JOIN WITH CODE</div>
+    <div class="sub" style="font-weight:700;font-size:12px">OR JOIN ROOM CODE</div>
     <div class="join-row">
       <input id="codeInput" placeholder="CODE" maxlength="4">
       <button id="joinBtn" class="btn-accent">Join</button>
@@ -100,7 +322,7 @@
   </div>
 </div>
 
-<!-- 2. LOBBY SCREEN -->
+<!-- 2. ROOM LOBBY OVERLAY -->
 <div id="lobbyScreen" class="overlay hidden">
   <div class="card">
     <h1 id="lobbyTitle">💣 Room Lobby</h1>
@@ -109,35 +331,61 @@
       <strong id="lobbyCode">----</strong>
     </div>
     <button id="copyBtn" class="btn-secondary" style="padding:8px;font-size:13px">📋 Copy Room Code</button>
-    <div id="connStatus" class="status-pill">🟡 Connecting to broker...</div>
+    <div id="connStatus" class="status-pill">🟡 Connecting to server...</div>
     <div id="playerList" class="player-list"></div>
     <button id="startBtn" class="btn-primary" disabled>Waiting for players (2–7)...</button>
     <button class="btn-secondary" onclick="location.reload()">🚪 Leave Room</button>
   </div>
 </div>
 
-<!-- 3. GAME HUD & ARENA -->
+<!-- 3. GAMEPLAY HUD & ARENA -->
 <canvas id="gameCanvas"></canvas>
+
 <div id="hudTop" class="hidden">
-  <div class="hud-box" id="roundInfo">Round 1 · First to 3 🏆</div>
-  <div class="hud-box" id="scoreInfo"></div>
+  <div class="hud-group">
+    <div class="hud-chip" id="roundChip">Round 1 (First to 3 🏆)</div>
+    <div class="hud-chip" id="scoreChip"></div>
+  </div>
+  <div class="hud-group">
+    <div class="hud-chip" id="pingChip" style="color:#4ade80">🟢 24ms</div>
+  </div>
 </div>
-<div id="banner" class="hidden">Get Ready!</div>
+
+<div id="banner" class="hidden">Get ready!</div>
+<div id="centerAnnouncement" class="hidden"></div>
+
+<button id="dashBtn" class="hidden">
+  <span style="font-size:20px">⚡</span>
+  <span id="dashLabel">DASH</span>
+</button>
 
 <script>
+/* ============================================================================
+ * 1. INITIALIZATION & CONSTANTS
+ * ============================================================================ */
 const tg = window.Telegram?.WebApp;
-if (tg) { tg.ready(); tg.expand(); }
+if (tg) {
+  try { tg.ready(); tg.expand(); } catch (e) {}
+}
 
 const cleanStr = (s) => String(s || "").replace(/[&<>"']/g, "").trim().slice(0, 12);
-const myId = "p_" + Math.random().toString(36).slice(2, 8);
+const myId = "u_" + Math.random().toString(36).slice(2, 9);
 let myName = cleanStr(tg?.initDataUnsafe?.user?.first_name) || "Player";
 
 const BROKER = "wss://broker.emqx.io:8084/mqtt";
 const MAX_PLAYERS = 7;
 const WIN_ROUNDS = 3;
-const ARENA_W = 800;
-const ARENA_H = 500;
+const ARENA_W = 860;
+const ARENA_H = 520;
 const PLAYER_R = 22;
+
+const BASE_SPEED = 245;
+const HOLDER_SPEED = 185;
+const GHOST_SPEED = 260;
+const DASH_MULTIPLIER = 1.85;
+const DASH_DURATION_MS = 220;
+const DASH_COOLDOWN_MS = 2800;
+const TAG_IMMUNITY_MS = 1150;
 
 const AVATARS = [
   { emoji: "🥔", color: "#facc15" },
@@ -149,37 +397,91 @@ const AVATARS = [
   { emoji: "🦖", color: "#f87171" }
 ];
 
-const $= (id) => document.getElementById(id);$('nameInput').value = myName;
+// Arena obstacles for cover and juking
+const PILLARS = [
+  { x: 430, y: 260, r: 44 },
+  { x: 220, y: 150, r: 28 },
+  { x: 640, y: 150, r: 28 },
+  { x: 220, y: 370, r: 28 },
+  { x: 640, y: 370, r: 28 }
+];
 
+const $ = (id) => document.getElementById(id);
+$('nameInput').value = myName;
+
+let selectedAvatarIdx = 0;
+AVATARS.forEach((av, idx) => {
+  const btn = document.createElement("button");
+  btn.className = "avatar-btn" + (idx === 0 ? " selected" : "");
+  btn.textContent = av.emoji;
+  btn.onclick = () => {
+    selectedAvatarIdx = idx;
+    document.querySelectorAll(".avatar-btn").forEach(b => b.classList.remove("selected"));
+    btn.classList.add("selected");
+  };
+  $('avatarGrid').appendChild(btn);
+});
+
+/* ============================================================================
+ * 2. GAME & NETWORK STATE
+ * ============================================================================ */
 let client = null;
 let roomCode = "";
 let topic = "";
 let isHost = false;
+let mySlot = -1;
+
 let joinRetryTimer = null;
 let hostLoopTimer = null;
+let pingTimer = null;
+let announceTimer = null;
+let lastPingSent = 0;
+let currentPingMs = 30;
 
+// Authoritative state
 let state = {
-  phase: "lobby",
+  phase: "lobby",      // 'lobby' | 'play' | 'between' | 'over'
   round: 0,
-  holderId: null,
-  bombDuration: 10000,
-  stateVersion: 0,
-  championId: null,
-  lastEventText: "",
-  players: []
+  holderSlot: -1,
+  championSlot: -1,
+  players: []          // [{ id, slot, name, emoji, color, wins, out }]
 };
 
-// Positions: id -> { x, y, tx, ty, vx, vy, lastUpdate }
-const positions = new Map();
-let myPos = { x: 400, y: 250, vx: 0, vy: 0 };
-let lastSentTime = 0;
-let wasMoving = false;
-let bombTimerStart = 0;
-let lastTagTime = 0;
+// Local timing & physics
+let bombEndTime = 0;
+let immuneUntil = 0;
+let freezeUntil = 0;
+let hostNextRoundAt = 0;
 
+// Local player physics state
+const localPhys = {
+  x: 430,
+  y: 260,
+  vx: 0,
+  vy: 0,
+  kx: 0, // knockback velocity X
+  ky: 0, // knockback velocity Y
+  dashUntil: 0,
+  dashReadyAt: 0
+};
+
+// Remote interpolation map: slot -> { x, y, netX, netY, netVx, netVy, pktTime }
+const remotePhys = new Map();
+
+// Visual FX
+let shockwaves = []; // { x, y, r, maxR, color, alpha }
+let passLines = [];  // { x1, y1, x2, y2, alpha }
+
+let lastNetSend = 0;
+let wasMovingLastFrame = false;
+
+// Input state
 const keys = {};
-const joy = { active: false, ox: 0, oy: 0, x: 0, y: 0 };
+const joy = { active: false, pointerId: null, ox: 0, oy: 0, x: 0, y: 0 };
 
+/* ============================================================================
+ * 3. LOBBY & MQTT CONNECTION
+ * ============================================================================ */
 function genCode() {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   let out = "";
@@ -189,12 +491,18 @@ function genCode() {
 
 $('createBtn').onclick = () => {
   myName = cleanStr($('nameInput').value) || "Player";
+  const av = AVATARS[selectedAvatarIdx];
   isHost = true;
+  mySlot = 0;
   roomCode = genCode();
   state.players = [{
-    id: myId, name: myName,
-    emoji: AVATARS[0].emoji, color: AVATARS[0].color,
-    wins: 0, out: false
+    id: myId,
+    slot: 0,
+    name: myName,
+    emoji: av.emoji,
+    color: av.color,
+    wins: 0,
+    out: false
   }];
   openLobby();
 };
@@ -202,7 +510,10 @@ $('createBtn').onclick = () => {
 $('joinBtn').onclick = () => {
   myName = cleanStr($('nameInput').value) || "Player";
   const code = $('codeInput').value.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
-  if (code.length < 3) { alert("Please enter a valid 4-character room code."); return; }
+  if (code.length < 3) {
+    alert("Please enter a valid 4-character room code.");
+    return;
+  }
   isHost = false;
   roomCode = code;
   openLobby();
@@ -219,20 +530,20 @@ $('startBtn').onclick = () => {
   if (state.phase === "over") {
     state.players.forEach(p => { p.wins = 0; p.out = false; });
     state.round = 0;
-    state.championId = null;
+    state.championSlot = -1;
   }
-  startNextRound();
+  hostStartNextRound();
 };
 
 function openLobby() {
   $('menuScreen').classList.add('hidden');
   $('lobbyScreen').classList.remove('hidden');$('lobbyCode').textContent = roomCode;
-  renderLobby();
+  renderLobbyUI();
   connectMQTT();
 }
 
 function connectMQTT() {
-  topic = `potato_panic_2b_${roomCode}`;
+  topic = `pp2b_v3_${roomCode}`;
   client = mqtt.connect(BROKER, {
     clientId: `pp_${myId}_${Math.random().toString(16).slice(2, 6)}`,
     clean: true,
@@ -245,11 +556,17 @@ function connectMQTT() {
     $('connStatus').style.color = "#4ade80";
     client.subscribe(topic, { qos: 0 }, () => {
       if (isHost) {
-        broadcastState();
-        if (!hostLoopTimer) hostLoopTimer = setInterval(hostTick, 80);
+        broadcastLobbyState();
+        if (!hostLoopTimer) hostLoopTimer = setInterval(hostAuthoritativeTick, 50);
       } else {
-        requestJoin();
-        if (!joinRetryTimer) joinRetryTimer = setInterval(requestJoin, 2000);
+        sendJoinRequest();
+        if (!joinRetryTimer) joinRetryTimer = setInterval(sendJoinRequest, 1800);
+      }
+      if (!pingTimer) {
+        pingTimer = setInterval(() => {
+          lastPingSent = performance.now();
+          publishRaw({ t: "PING", id: myId });
+        }, 3000);
       }
     });
   });
@@ -263,224 +580,478 @@ function connectMQTT() {
     if (t !== topic) return;
     let msg;
     try { msg = JSON.parse(payload.toString()); } catch (e) { return; }
-    if (!msg || msg.s === myId) return;
+    if (!msg) return;
 
-    if (msg.t === "P") {
-      updateRemotePos(msg.s, msg.x, msg.y, msg.vx, msg.vy);
-    } else if (msg.t === "TAG") {
-      if (isHost) {
-        handleTagReq(msg.f, msg.to);
-      } else if (state.phase === "play" && state.holderId === msg.f) {
-        // Optimistic tag update for all clients immediately
-        state.holderId = msg.to;
-        $('banner').textContent = `🔥 ${getPlayerName(msg.to)} got tagged with the bomb!`;
+    // Measure own round-trip ping
+    if (msg.t === "PING") {
+      if (msg.id === myId) {
+        currentPingMs = Math.max(8, Math.round(performance.now() - lastPingSent));
+        const chip = $('pingChip');
+        chip.textContent = `${currentPingMs < 120 ? "🟢" : "🟡"} ${currentPingMs}ms`;
+        chip.style.color = currentPingMs < 120 ? "#4ade80" : "#facc15";
       }
-    } else if (msg.t === "SYNC") {
-      applyStateSync(msg);
-    } else if (msg.t === "JOIN" && isHost) {
-      handleJoinReq(msg);
+      return;
+    }
+
+    // Ignore other packets sent by self
+    if (msg.s === myId) return;
+
+    switch (msg.t) {
+      case "P":
+        onRemotePositionPacket(msg);
+        break;
+      case "TAG_REQ":
+        if (isHost) hostProcessTag(msg.f, msg.to);
+        break;
+      case "TAG_SYNC":
+        onTagSyncPacket(msg);
+        break;
+      case "BOOM":
+        onBoomPacket(msg);
+        break;
+      case "ROUND_START":
+        onRoundStartPacket(msg);
+        break;
+      case "ROUND_WIN":
+        onRoundWinPacket(msg);
+        break;
+      case "JOIN_REQ":
+        if (isHost) hostHandleJoin(msg);
+        break;
+      case "LOBBY_SYNC":
+        onLobbySyncPacket(msg);
+        break;
     }
   });
 }
 
-function publishMsg(obj) {
+function publishRaw(obj) {
   if (!client || !client.connected) return;
   obj.s = myId;
   client.publish(topic, JSON.stringify(obj));
 }
 
-function requestJoin() {
-  if (state.players.some(p => p.id === myId)) {
+function sendJoinRequest() {
+  if (mySlot !== -1) {
     clearInterval(joinRetryTimer);
     return;
   }
-  publishMsg({ t: "JOIN", id: myId, name: myName });
+  const av = AVATARS[selectedAvatarIdx];
+  publishRaw({
+    t: "JOIN_REQ",
+    id: myId,
+    name: myName,
+    emoji: av.emoji,
+    color: av.color
+  });
 }
 
-function handleJoinReq(msg) {
-  const existing = state.players.find(p => p.id === msg.id);
+function hostHandleJoin(msg) {
+  let existing = state.players.find(p => p.id === msg.id);
   if (!existing) {
     if (state.players.length >= MAX_PLAYERS || state.phase !== "lobby") return;
-    const av = AVATARS[state.players.length % AVATARS.length];
+    const slot = state.players.length;
     state.players.push({
       id: msg.id,
+      slot,
       name: cleanStr(msg.name) || "Player",
-      emoji: av.emoji,
-      color: av.color,
+      emoji: msg.emoji || AVATARS[slot % AVATARS.length].emoji,
+      color: msg.color || AVATARS[slot % AVATARS.length].color,
       wins: 0,
       out: false
     });
   }
-  broadcastState();
+  broadcastLobbyState();
 }
 
-function broadcastState(resetMode = false) {
-  if (resetMode) {
-    state.stateVersion += 1;
-    bombTimerStart = performance.now();
-  }
-  const elapsed = Math.round(performance.now() - bombTimerStart);
-  syncUI();
-  publishMsg({
-    t: "SYNC",
-    state,
-    el: elapsed,
-    sp: resetMode === "round_start"
+function broadcastLobbyState() {
+  syncScreenVisibility();
+  renderLobbyUI();
+  publishRaw({
+    t: "LOBBY_SYNC",
+    phase: state.phase,
+    championSlot: state.championSlot,
+    players: state.players
   });
 }
 
-function applyStateSync(msg) {
-  state = msg.state;
-  bombTimerStart = performance.now() - (msg.el || 0);
-  if (msg.sp) {
-    placePlayersInCircle();
+function onLobbySyncPacket(msg) {
+  state.phase = msg.phase;
+  state.championSlot = msg.championSlot;
+  state.players = msg.players;
+  const me = state.players.find(p => p.id === myId);
+  if (me) {
+    mySlot = me.slot;
+    clearInterval(joinRetryTimer);
   }
-  syncUI();
+  syncScreenVisibility();
+  renderLobbyUI();
 }
 
-function placePlayersInCircle() {
-  const count = state.players.length;
-  state.players.forEach((p, idx) => {
-    const angle = (idx / count) * Math.PI * 2;
-    const px = Math.round(ARENA_W / 2 + Math.cos(angle) * 240);
-    const py = Math.round(ARENA_H / 2 + Math.sin(angle) * 150);
-    positions.set(p.id, { x: px, y: py, tx: px, ty: py, vx: 0, vy: 0, lastUpdate: performance.now() });
-    if (p.id === myId) {
-      myPos.x = px;
-      myPos.y = py;
-      myPos.vx = 0;
-      myPos.vy = 0;
-    }
-  });
-}
-
-function startNextRound() {
+/* ============================================================================
+ * 4. AUTHORITATIVE ROUND, TAG & EXPLOSION LOGIC (ZERO TELEPORT)
+ * ============================================================================ */
+function hostStartNextRound() {
   state.round += 1;
   state.phase = "play";
   state.players.forEach(p => { p.out = false; });
-  const randomIdx = Math.floor(Math.random() * state.players.length);
-  state.holderId = state.players[randomIdx].id;
-  state.bombDuration = 9500 + Math.floor(Math.random() * 4000);
-  state.lastEventText = `Round ${state.round} — ${getPlayerName(state.holderId)} has the bomb!`;
-  placePlayersInCircle();
-  lastTagTime = Date.now() + 900;
-  broadcastState("round_start");
+
+  const count = state.players.length;
+  const spawns = [];
+  for (let i = 0; i < count; i++) {
+    const angle = (i / count) * Math.PI * 2;
+    spawns.push({
+      slot: i,
+      x: Math.round(ARENA_W / 2 + Math.cos(angle) * 260),
+      y: Math.round(ARENA_H / 2 + Math.sin(angle) * 165)
+    });
+  }
+
+  const holderSlot = Math.floor(Math.random() * count);
+  const dur = 10000 + Math.floor(Math.random() * 3500);
+
+  const pkt = {
+    t: "ROUND_START",
+    round: state.round,
+    holderSlot,
+    dur,
+    spawns,
+    wins: state.players.map(p => p.wins)
+  };
+
+  onRoundStartPacket(pkt);
+  publishRaw(pkt);
 }
 
-function handleTagReq(fromId, toId) {
-  if (state.phase !== "play" || state.holderId !== fromId) return;
-  const now = Date.now();
-  if (now - lastTagTime < 750) return;
-  const target = state.players.find(p => p.id === toId && !p.out);
-  if (!target) return;
+function onRoundStartPacket(msg) {
+  state.phase = "play";
+  state.round = msg.round;
+  state.holderSlot = msg.holderSlot;
+  state.players.forEach((p, idx) => {
+    p.out = false;
+    if (msg.wins && msg.wins[idx] !== undefined) p.wins = msg.wins[idx];
+  });
 
-  lastTagTime = now;
-  state.holderId = toId;
-  state.lastEventText = `🔥 ${target.name} got tagged with the bomb!`;
-  broadcastState(false);
+  const now = performance.now();
+  // 1.5s countdown grace period at the start of a round
+  freezeUntil = now + 1500;
+  bombEndTime = now + 1500 + msg.dur;
+  immuneUntil = now + 2200;
+
+  // Apply initial spawn coordinates ONLY on ROUND_START
+  remotePhys.clear();
+  for (const sp of msg.spawns) {
+    if (sp.slot === mySlot) {
+      localPhys.x = sp.x;
+      localPhys.y = sp.y;
+      localPhys.vx = 0;
+      localPhys.vy = 0;
+      localPhys.kx = 0;
+      localPhys.ky = 0;
+    } else {
+      remotePhys.set(sp.slot, {
+        x: sp.x, y: sp.y,
+        netX: sp.x, netY: sp.y,
+        netVx: 0, netVy: 0,
+        pktTime: now
+      });
+    }
+  }
+
+  syncScreenVisibility();
+  updateHudText(`Round ${state.round} — ${getPlayerName(state.holderSlot)} starts with the bomb!`);
+  showAnnouncement(`ROUND ${state.round}`, 1400);
 }
 
-function hostTick() {
-  if (!isHost || state.phase !== "play") return;
-  const elapsed = performance.now() - bombTimerStart;
-  if (elapsed < state.bombDuration) return;
+function hostProcessTag(fromSlot, toSlot) {
+  if (state.phase !== "play") return;
+  if (state.holderSlot !== fromSlot) return;
+  const now = performance.now();
+  if (now < immuneUntil) return;
 
-  const victim = state.players.find(p => p.id === state.holderId);
-  if (victim) victim.out = true;
+  const target = state.players[toSlot];
+  if (!target || target.out) return;
+
+  // Add a 1.2s fuse buffer when passed so latency never causes instant unfair death
+  const remaining = Math.max(2200, Math.min(12000, (bombEndTime - now) + 1200));
+
+  const pkt = {
+    t: "TAG_SYNC",
+    f: fromSlot,
+    to: toSlot,
+    rem: Math.round(remaining)
+  };
+
+  onTagSyncPacket(pkt);
+  publishRaw(pkt);
+}
+
+function onTagSyncPacket(msg) {
+  const now = performance.now();
+  state.holderSlot = msg.to;
+  immuneUntil = now + TAG_IMMUNITY_MS;
+  bombEndTime = now + msg.rem;
+
+  const fromPos = getSlotPosition(msg.f);
+  const toPos = getSlotPosition(msg.to);
+
+  // Visual pass beam + shockwave
+  passLines.push({ x1: fromPos.x, y1: fromPos.y, x2: toPos.x, y2: toPos.y, alpha: 1 });
+  shockwaves.push({ x: toPos.x, y: toPos.y, r: 15, maxR: 65, color: "#facc15", alpha: 1 });
+
+  // Apply gentle separation impulse so players don't stay stacked on top of each other
+  if (mySlot === msg.f || mySlot === msg.to) {
+    const otherPos = (mySlot === msg.f) ? toPos : fromPos;
+    let dx = localPhys.x - otherPos.x;
+    let dy = localPhys.y - otherPos.y;
+    const dist = Math.hypot(dx, dy) || 1;
+    localPhys.kx = (dx / dist) * 260;
+    localPhys.ky = (dy / dist) * 260;
+  }
+
+  updateHudText(`🔥 ${getPlayerName(msg.to)} has the bomb!`);
+}
+
+function hostAuthoritativeTick() {
+  if (!isHost) return;
+  const now = performance.now();
+
+  if (state.phase === "between") {
+    if (now >= hostNextRoundAt) {
+      hostStartNextRound();
+    }
+    return;
+  }
+
+  if (state.phase !== "play") return;
+  if (now < bombEndTime) return;
+
+  // Bomb explodes on current holder
+  const explodedSlot = state.holderSlot;
+  if (state.players[explodedSlot]) {
+    state.players[explodedSlot].out = true;
+  }
 
   const alive = state.players.filter(p => !p.out);
+
   if (alive.length <= 1) {
     const winner = alive[0];
+    let isChamp = false;
     if (winner) {
       winner.wins += 1;
       if (winner.wins >= WIN_ROUNDS) {
-        state.phase = "over";
-        state.championId = winner.id;
-        state.holderId = null;
-        state.lastEventText = `👑 ${winner.name} wins the match!`;
-        broadcastState(false);
-        return;
+        isChamp = true;
+        state.championSlot = winner.slot;
       }
-      state.lastEventText = `🏆 ${winner.name} won Round ${state.round}!`;
     }
-    startNextRound();
+
+    const pkt = {
+      t: "ROUND_WIN",
+      outSlot: explodedSlot,
+      winSlot: winner ? winner.slot : -1,
+      wins: state.players.map(p => p.wins),
+      isChamp
+    };
+
+    onRoundWinPacket(pkt);
+    publishRaw(pkt);
+
+    if (!isChamp) {
+      state.phase = "between";
+      hostNextRoundAt = now + 3000;
+    }
   } else {
-    const nextHolder = alive[Math.floor(Math.random() * alive.length)];
-    state.holderId = nextHolder.id;
-    state.bombDuration = 8500 + Math.floor(Math.random() * 4000);
-    state.lastEventText = `💥 ${victim ? victim.name : "Player"} exploded! Bomb on ${nextHolder.name}!`;
-    lastTagTime = Date.now() + 900;
-    broadcastState(true);
+    // Mid-round explosion: pick next holder WITHOUT resetting positions!
+    const nextPlayer = alive[Math.floor(Math.random() * alive.length)];
+    const dur = 8500 + Math.floor(Math.random() * 3000);
+    const pkt = {
+      t: "BOOM",
+      outSlot: explodedSlot,
+      nextHolder: nextPlayer.slot,
+      dur
+    };
+    onBoomPacket(pkt);
+    publishRaw(pkt);
   }
 }
 
-function getPlayerName(id) {
-  return state.players.find(p => p.id === id)?.name || "Player";
+function onBoomPacket(msg) {
+  const now = performance.now();
+  if (state.players[msg.outSlot]) {
+    state.players[msg.outSlot].out = true;
+  }
+  state.holderSlot = msg.nextHolder;
+  bombEndTime = now + msg.dur;
+  immuneUntil = now + TAG_IMMUNITY_MS;
+
+  const boomPos = getSlotPosition(msg.outSlot);
+  shockwaves.push({ x: boomPos.x, y: boomPos.y, r: 10, maxR: 120, color: "#ef4444", alpha: 1 });
+
+  const deadName = getPlayerName(msg.outSlot);
+  const nextName = getPlayerName(msg.nextHolder);
+  updateHudText(`💥 ${deadName} exploded! Bomb is now on ${nextName}!`);
+  showAnnouncement(`💥 ${deadName} OUT!`, 1200);
 }
 
-function renderLobby() {
+function onRoundWinPacket(msg) {
+  if (state.players[msg.outSlot]) {
+    state.players[msg.outSlot].out = true;
+  }
+  msg.wins.forEach((w, idx) => {
+    if (state.players[idx]) state.players[idx].wins = w;
+  });
+
+  const boomPos = getSlotPosition(msg.outSlot);
+  shockwaves.push({ x: boomPos.x, y: boomPos.y, r: 10, maxR: 130, color: "#ef4444", alpha: 1 });
+
+  state.holderSlot = -1;
+  const winName = msg.winSlot >= 0 ? getPlayerName(msg.winSlot) : "Nobody";
+
+  if (msg.isChamp) {
+    state.championSlot = msg.winSlot;
+    showAnnouncement(`👑 ${winName} WINS THE MATCH!`, 2600);
+    setTimeout(() => {
+      state.phase = "over";
+      syncScreenVisibility();
+      renderLobbyUI();
+    }, 2600);
+  } else {
+    state.phase = "between";
+    updateHudText(`🏆 ${winName} survives Round ${state.round}! Next round starting...`);
+    showAnnouncement(`🏆 ${winName} WINS ROUND!`, 2400);
+  }
+}
+
+/* ============================================================================
+ * 5. POSITION SYNC & NON-DESTRUCTIVE SNAPSHOT INTERPOLATION
+ * ============================================================================ */
+function onRemotePositionPacket(msg) {
+  const slot = msg.i;
+  if (slot === mySlot || slot === undefined) return;
+  const now = performance.now();
+  let r = remotePhys.get(slot);
+  if (!r) {
+    r = { x: msg.x, y: msg.y, netX: msg.x, netY: msg.y, netVx: msg.vx, netVy: msg.vy, pktTime: now };
+    remotePhys.set(slot, r);
+  } else {
+    r.netX = msg.x;
+    r.netY = msg.y;
+    r.netVx = msg.vx;
+    r.netVy = msg.vy;
+    r.pktTime = now;
+  }
+}
+
+function getSlotPosition(slot) {
+  if (slot === mySlot) return { x: localPhys.x, y: localPhys.y };
+  const r = remotePhys.get(slot);
+  return r ? { x: r.x, y: r.y } : { x: ARENA_W / 2, y: ARENA_H / 2 };
+}
+
+function resolveArenaCollisions(entity) {
+  entity.x = Math.max(PLAYER_R, Math.min(ARENA_W - PLAYER_R, entity.x));
+  entity.y = Math.max(PLAYER_R, Math.min(ARENA_H - PLAYER_R, entity.y));
+
+  for (const pil of PILLARS) {
+    const dx = entity.x - pil.x;
+    const dy = entity.y - pil.y;
+    const dist = Math.hypot(dx, dy);
+    const minDist = pil.r + PLAYER_R;
+    if (dist < minDist && dist > 0.001) {
+      entity.x = pil.x + (dx / dist) * minDist;
+      entity.y = pil.y + (dy / dist) * minDist;
+    }
+  }
+}
+
+/* ============================================================================
+ * 6. UI HELPERS & CONTROLS
+ * ============================================================================ */
+function getPlayerName(slot) {
+  return state.players[slot]?.name || "Player";
+}
+
+function showAnnouncement(text, ms = 1400) {
+  const el = $('centerAnnouncement');
+  el.textContent = text;
+  el.classList.remove('hidden');
+  clearTimeout(announceTimer);
+  announceTimer = setTimeout(() => el.classList.add('hidden'), ms);
+}
+
+function updateHudText(bannerText) {
+  $('roundChip').textContent = `Round ${state.round} · First to ${WIN_ROUNDS} 🏆`;
+  $('scoreChip').textContent = state.players.map(p => `${p.emoji}${p.wins}`).join("  ");
+  if (bannerText) $('banner').textContent = bannerText;
+}
+
+function syncScreenVisibility() {
+  const inLobby = (state.phase === "lobby" || state.phase === "over");
+  $('lobbyScreen').classList.toggle('hidden', !inLobby);$('hudTop').classList.toggle('hidden', inLobby);
+  $('banner').classList.toggle('hidden', inLobby);$('dashBtn').classList.toggle('hidden', inLobby);
+}
+
+function renderLobbyUI() {
   const isOver = state.phase === "over";
   $('lobbyTitle').textContent = isOver
-    ? `👑 ${getPlayerName(state.championId)} Wins!`
+    ? `👑 ${getPlayerName(state.championSlot)} Wins!`
     : "💣 Room Lobby";
 
-  $('playerList').innerHTML = state.players.map((p, i) => `
+  $('playerList').innerHTML = state.players.map((p, idx) => `
     <div class="player-item">
-      <span>${p.emoji} ${p.name} ${p.id === myId ? "(You)" : ""} ${i === 0 ? "👑" : ""}</span>
+      <span>${p.emoji} ${p.name} ${p.slot === mySlot ? "(You)" : ""} ${idx === 0 ? "👑" : ""}</span>
       <span style="color:#facc15">🏆 ${p.wins}</span>
     </div>
   `).join("");
 
   if (isHost) {
-    const canStart = state.players.length >= 2;
-    $('startBtn').disabled = !canStart;
-    $('startBtn').textContent = canStart
-      ? (isOver ? "🔁 Play New Match" : `🔥 Start Match (${state.players.length} Players)`)
+    const ok = state.players.length >= 2;
+    $('startBtn').disabled = !ok;
+    $('startBtn').textContent = ok
+      ? (isOver ? "🔁 Start New Match" : `🔥 Start Match (${state.players.length} Players)`)
       : "Waiting for at least 2 players...";
   } else {
     $('startBtn').disabled = true;
-    $('startBtn').textContent = state.players.some(p => p.id === myId)
+    $('startBtn').textContent = mySlot !== -1
       ? "Waiting for Host to start..."
       : "Joining room...";
   }
 }
 
-function syncUI() {
-  if (state.phase === "lobby" || state.phase === "over") {
-    $('lobbyScreen').classList.remove('hidden');
-    $('hudTop').classList.add('hidden');$('banner').classList.add('hidden');
-    renderLobby();
-    return;
-  }
-
-  $('lobbyScreen').classList.add('hidden');
-  $('hudTop').classList.remove('hidden');$('banner').classList.remove('hidden');
-
-  $('roundInfo').textContent = `Round ${state.round} · First to ${WIN_ROUNDS} 🏆`;
-  $('scoreInfo').textContent = state.players.map(p => `${p.emoji}${p.wins}`).join("  ");
-  $('banner').textContent = state.lastEventText || "Run!";
-}
-
-function updateRemotePos(id, x, y, vx = 0, vy = 0) {
-  let pos = positions.get(id);
+function triggerDash() {
+  if (state.phase !== "play") return;
   const now = performance.now();
-  if (!pos) {
-    positions.set(id, { x, y, tx: x, ty: y, vx, vy, lastUpdate: now });
-  } else {
-    pos.tx = x;
-    pos.ty = y;
-    pos.vx = vx;
-    pos.vy = vy;
-    pos.lastUpdate = now;
-  }
+  if (now < localPhys.dashReadyAt) return;
+  localPhys.dashUntil = now + DASH_DURATION_MS;
+  localPhys.dashReadyAt = now + DASH_COOLDOWN_MS;
+  shockwaves.push({ x: localPhys.x, y: localPhys.y, r: 8, maxR: 42, color: "#38bdf8", alpha: 0.85 });
 }
 
-/* INPUT, DEAD RECKONING & RENDERING */
+$('dashBtn').addEventListener('pointerdown', (e) => {
+  e.stopPropagation();
+  triggerDash();
+});
+
+window.addEventListener('keydown', (e) => {
+  const k = e.key.toLowerCase();
+  keys[k] = true;
+  if (k === " " || k === "shift") {
+    e.preventDefault();
+    triggerDash();
+  }
+});
+window.addEventListener('keyup', (e) => {
+  keys[e.key.toLowerCase()] = false;
+});
+
+/* ============================================================================
+ * 7. CANVAS SETUP, JOYSTICK & MAIN GAME LOOP
+ * ============================================================================ */
 const cv = $('gameCanvas');
 const ctx = cv.getContext('2d');
 let dpr = 1, scale = 1, offX = 0, offY = 0;
 
-function resize() {
+function resizeCanvas() {
   dpr = Math.min(window.devicePixelRatio || 1, 2);
   cv.width = window.innerWidth * dpr;
   cv.height = window.innerHeight * dpr;
@@ -488,200 +1059,330 @@ function resize() {
   offX = (window.innerWidth - ARENA_W * scale) / 2;
   offY = (window.innerHeight - ARENA_H * scale) / 2;
 }
-window.addEventListener('resize', resize);
-resize();
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
 
-window.addEventListener('keydown', e => { keys[e.key.toLowerCase()] = true; });
-window.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
-
-cv.addEventListener('pointerdown', e => {
-  if (state.phase !== "play") return;
+cv.addEventListener('pointerdown', (e) => {
+  if (state.phase !== "play" && state.phase !== "between") return;
   joy.active = true;
+  joy.pointerId = e.pointerId;
   joy.ox = joy.x = e.clientX;
   joy.oy = joy.y = e.clientY;
 });
-cv.addEventListener('pointermove', e => {
-  if (joy.active) { joy.x = e.clientX; joy.y = e.clientY; }
+
+cv.addEventListener('pointermove', (e) => {
+  if (joy.active && e.pointerId === joy.pointerId) {
+    joy.x = e.clientX;
+    joy.y = e.clientY;
+  }
 });
-const stopJoy = () => { joy.active = false; };
-cv.addEventListener('pointerup', stopJoy);
-cv.addEventListener('pointercancel', stopJoy);
 
-function updateGame(dt, nowPerf) {
-  if (state.phase !== "play") return;
+const releaseJoystick = (e) => {
+  if (joy.active && (!e || e.pointerId === joy.pointerId)) {
+    joy.active = false;
+    joy.pointerId = null;
+  }
+};
+cv.addEventListener('pointerup', releaseJoystick);
+cv.addEventListener('pointercancel', releaseJoystick);
 
-  const meObj = state.players.find(p => p.id === myId);
-  if (meObj && !meObj.out) {
-    let dx = (keys['d'] || keys['arrowright'] ? 1 : 0) - (keys['a'] || keys['arrowleft'] ? 1 : 0);
-    let dy = (keys['s'] || keys['arrowdown'] ? 1 : 0) - (keys['w'] || keys['arrowup'] ? 1 : 0);
+function updatePhysics(dt, now) {
+  if (state.phase !== "play" && state.phase !== "between") return;
+
+  // Update Dash Button UI
+  const dashWait = Math.max(0, localPhys.dashReadyAt - now);
+  if (dashWait > 0) {
+    $('dashBtn').classList.add('cooldown');$('dashLabel').textContent = (dashWait / 1000).toFixed(1) + "s";
+  } else {
+    $('dashBtn').classList.remove('cooldown');$('dashLabel').textContent = "DASH";
+  }
+
+  const me = state.players[mySlot];
+  if (me && now >= freezeUntil) {
+    let ix = (keys['d'] || keys['arrowright'] ? 1 : 0) - (keys['a'] || keys['arrowleft'] ? 1 : 0);
+    let iy = (keys['s'] || keys['arrowdown'] ? 1 : 0) - (keys['w'] || keys['arrowup'] ? 1 : 0);
 
     if (joy.active) {
-      const jx = joy.x - joy.ox;
-      const jy = joy.y - joy.oy;
-      const dist = Math.hypot(jx, jy);
+      const dx = joy.x - joy.ox;
+      const dy = joy.y - joy.oy;
+      const dist = Math.hypot(dx, dy);
       if (dist > 6) {
-        dx = jx / dist;
-        dy = jy / dist;
+        const strength = Math.min(1, dist / 50);
+        ix = (dx / dist) * strength;
+        iy = (dy / dist) * strength;
       }
     }
 
-    const len = Math.hypot(dx, dy);
-    const speed = (state.holderId === myId) ? 175 : 240;
+    const mag = Math.hypot(ix, iy);
+    if (mag > 1) { ix /= mag; iy /= mag; }
 
-    if (len > 0) {
-      dx /= len;
-      dy /= len;
-      myPos.vx = dx * speed;
-      myPos.vy = dy * speed;
-      myPos.x = Math.max(PLAYER_R, Math.min(ARENA_W - PLAYER_R, myPos.x + myPos.vx * dt));
-      myPos.y = Math.max(PLAYER_R, Math.min(ARENA_H - PLAYER_R, myPos.y + myPos.vy * dt));
-      positions.set(myId, { x: myPos.x, y: myPos.y, tx: myPos.x, ty: myPos.y, vx: myPos.vx, vy: myPos.vy, lastUpdate: nowPerf });
+    let topSpeed = me.out ? GHOST_SPEED : (state.holderSlot === mySlot ? HOLDER_SPEED : BASE_SPEED);
+    if (now < localPhys.dashUntil) topSpeed *= DASH_MULTIPLIER;
 
-      // Send position + velocity every 70ms (~14.2 ticks/sec) while moving
-      if (nowPerf - lastSentTime >= 70) {
-        lastSentTime = nowPerf;
-        publishMsg({
+    localPhys.vx = ix * topSpeed + localPhys.kx;
+    localPhys.vy = iy * topSpeed + localPhys.ky;
+
+    // Decay knockback impulse smoothly
+    const knockDecay = Math.exp(-10 * dt);
+    localPhys.kx *= knockDecay;
+    localPhys.ky *= knockDecay;
+    if (Math.hypot(localPhys.kx, localPhys.ky) < 4) {
+      localPhys.kx = 0;
+      localPhys.ky = 0;
+    }
+
+    const moving = Math.hypot(localPhys.vx, localPhys.vy) > 2;
+    if (moving) {
+      localPhys.x += localPhys.vx * dt;
+      localPhys.y += localPhys.vy * dt;
+      resolveArenaCollisions(localPhys);
+
+      // 20Hz (50ms) position sync while moving
+      if (now - lastNetSend >= 50) {
+        lastNetSend = now;
+        publishRaw({
           t: "P",
-          x: Math.round(myPos.x),
-          y: Math.round(myPos.y),
-          vx: Math.round(myPos.vx),
-          vy: Math.round(myPos.vy)
+          i: mySlot,
+          x: Math.round(localPhys.x),
+          y: Math.round(localPhys.y),
+          vx: Math.round(localPhys.vx),
+          vy: Math.round(localPhys.vy)
         });
       }
-      wasMoving = true;
-    } else if (wasMoving) {
-      // Immediately send a final stop packet so remote clients stop dead-reckoning
-      myPos.vx = 0;
-      myPos.vy = 0;
-      wasMoving = false;
-      lastSentTime = nowPerf;
-      publishMsg({
+      wasMovingLastFrame = true;
+    } else if (wasMovingLastFrame) {
+      wasMovingLastFrame = false;
+      lastNetSend = now;
+      publishRaw({
         t: "P",
-        x: Math.round(myPos.x),
-        y: Math.round(myPos.y),
+        i: mySlot,
+        x: Math.round(localPhys.x),
+        y: Math.round(localPhys.y),
         vx: 0,
         vy: 0
       });
     }
 
-    // Tag Check with optimistic local transfer
-    if (state.holderId === myId && Date.now() - lastTagTime > 750) {
+    // Check bomb tag collision (only if holding bomb and immunity expired)
+    if (state.phase === "play" && !me.out && state.holderSlot === mySlot && now >= immuneUntil) {
       for (const p of state.players) {
-        if (p.id === myId || p.out) continue;
-        const rPos = positions.get(p.id);
-        if (!rPos) continue;
-        if (Math.hypot(rPos.x - myPos.x, rPos.y - myPos.y) < PLAYER_R * 2.2) {
-          lastTagTime = Date.now();
-          state.holderId = p.id;
-          $('banner').textContent = `🔥 ${p.name} got tagged with the bomb!`;
-          publishMsg({ t: "TAG", f: myId, to: p.id });
-          if (isHost) handleTagReq(myId, p.id);
+        if (p.slot === mySlot || p.out) continue;
+        const r = remotePhys.get(p.slot);
+        if (!r) continue;
+        if (Math.hypot(r.x - localPhys.x, r.y - localPhys.y) < PLAYER_R * 2.15) {
+          if (isHost) {
+            hostProcessTag(mySlot, p.slot);
+          } else {
+            // Set local immunity immediately so client never spams duplicate TAG_REQs
+            immuneUntil = now + 400;
+            publishRaw({ t: "TAG_REQ", f: mySlot, to: p.slot });
+          }
           break;
         }
       }
     }
   }
 
-  // Dead Reckoning + Frame-Rate Independent Smoothing for Remote Players
-  const blend = 1 - Math.exp(-18 * dt);
-  for (const [id, pos] of positions) {
-    if (id === myId) continue;
-    // Predict target movement using velocity for up to 250ms after last packet
-    if (nowPerf - (pos.lastUpdate || 0) < 250) {
-      pos.tx = Math.max(PLAYER_R, Math.min(ARENA_W - PLAYER_R, pos.tx + (pos.vx || 0) * dt));
-      pos.ty = Math.max(PLAYER_R, Math.min(ARENA_H - PLAYER_R, pos.ty + (pos.vy || 0) * dt));
-    }
-    pos.x += (pos.tx - pos.x) * blend;
-    pos.y += (pos.ty - pos.y) * blend;
+  // Non-destructive Hermite / Exponential Snapshot Interpolation for Remote Players
+  const interpAlpha = 1 - Math.exp(-20 * dt);
+  for (const [slot, r] of remotePhys) {
+    if (slot === mySlot) continue;
+    // Project target ahead by at most 100ms using velocity decay
+    const ageSec = Math.min(0.10, Math.max(0, (now - r.pktTime) / 1000));
+    const projected = {
+      x: r.netX + r.netVx * ageSec * 0.85,
+      y: r.netY + r.netVy * ageSec * 0.85
+    };
+    resolveArenaCollisions(projected);
+
+    r.x += (projected.x - r.x) * interpAlpha;
+    r.y += (projected.y - r.y) * interpAlpha;
   }
+
+  // Update visual FX
+  for (const sw of shockwaves) {
+    sw.r += (sw.maxR - sw.r) * 10 * dt;
+    sw.alpha -= 2.2 * dt;
+  }
+  shockwaves = shockwaves.filter(s => s.alpha > 0);
+
+  for (const pl of passLines) {
+    pl.alpha -= 3.0 * dt;
+  }
+  passLines = passLines.filter(l => l.alpha > 0);
 }
 
-function drawGame() {
+function renderArena(now) {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.fillStyle = "#0f172a";
+  ctx.fillStyle = "#0b1120";
   ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
 
-  if (state.phase !== "play") return;
+  if (state.phase === "lobby" || state.phase === "over") return;
 
   ctx.setTransform(dpr * scale, 0, 0, dpr * scale, dpr * offX, dpr * offY);
 
-  ctx.fillStyle = "#1e293b";
+  // Arena Floor
+  ctx.fillStyle = "#162238";
   ctx.fillRect(0, 0, ARENA_W, ARENA_H);
-  ctx.strokeStyle = "#334155";
-  ctx.lineWidth = 4;
+
+  // Subtle Tactical Grid
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.04)";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  for (let x = 0; x <= ARENA_W; x += 60) {
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, ARENA_H);
+  }
+  for (let y = 0; y <= ARENA_H; y += 60) {
+    ctx.moveTo(0, y);
+    ctx.lineTo(ARENA_W, y);
+  }
+  ctx.stroke();
+
+  // Arena Border (pulses red if local player holds the bomb)
+  const iHaveBomb = (state.phase === "play" && state.holderSlot === mySlot);
+  ctx.strokeStyle = iHaveBomb ? "#ef4444" : "#334155";
+  ctx.lineWidth = iHaveBomb ? 6 : 4;
   ctx.strokeRect(0, 0, ARENA_W, ARENA_H);
 
-  const timeLeftSec = Math.max(0, Math.ceil((state.bombDuration - (performance.now() - bombTimerStart)) / 1000));
+  // Draw Pillars
+  for (const pil of PILLARS) {
+    ctx.beginPath();
+    ctx.arc(pil.x, pil.y + 5, pil.r, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(0, 0, 0, 0.35)";
+    ctx.fill();
 
-  for (const p of state.players) {
-    if (p.out) continue;
-    const pos = positions.get(p.id) || { x: ARENA_W / 2, y: ARENA_H / 2 };
-    const isHolder = state.holderId === p.id;
+    ctx.beginPath();
+    ctx.arc(pil.x, pil.y, pil.r, 0, Math.PI * 2);
+    ctx.fillStyle = "#334155";
+    ctx.fill();
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = "#475569";
+    ctx.stroke();
+  }
+
+  // Draw Pass Lines & Shockwaves
+  for (const pl of passLines) {
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, pl.alpha);
+    ctx.strokeStyle = "#facc15";
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.moveTo(pl.x1, pl.y1);
+    ctx.lineTo(pl.x2, pl.y2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  for (const sw of shockwaves) {
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, sw.alpha);
+    ctx.strokeStyle = sw.color;
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.arc(sw.x, sw.y, sw.r, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  const secLeft = Math.max(0, (bombEndTime - now) / 1000);
+  const isImmune = now < immuneUntil;
+
+  // Draw Players ( ghosts first, alive players on top )
+  const renderOrder = [...state.players].sort((a, b) => (b.out ? -1 : 1));
+
+  for (const p of renderOrder) {
+    const pos = getSlotPosition(p.slot);
+    const isHolder = (state.phase === "play" && state.holderSlot === p.slot && !p.out);
 
     ctx.save();
     ctx.translate(pos.x, pos.y);
+    ctx.globalAlpha = p.out ? 0.35 : 1;
 
+    // Shadow
+    ctx.beginPath();
+    ctx.ellipse(0, PLAYER_R - 2, 16, 6, 0, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(0,0,0,0.35)";
+    ctx.fill();
+
+    // Holder Danger Ring or Immunity Shield
     if (isHolder) {
       ctx.beginPath();
-      ctx.arc(0, 0, PLAYER_R + 8, 0, Math.PI * 2);
-      ctx.strokeStyle = "#ef4444";
+      ctx.arc(0, 0, PLAYER_R + 8 + Math.sin(now / 80) * 2, 0, Math.PI * 2);
+      ctx.strokeStyle = isImmune ? "#38bdf8" : "#ef4444";
       ctx.lineWidth = 4;
       ctx.stroke();
     }
 
+    // Player Body Circle
     ctx.beginPath();
     ctx.arc(0, 0, PLAYER_R, 0, Math.PI * 2);
-    ctx.fillStyle = p.color;
+    ctx.fillStyle = p.out ? "#475569" : p.color;
     ctx.fill();
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = p.id === myId ? "#ffffff" : "#0f172a";
+    ctx.lineWidth = p.slot === mySlot ? 4 : 3;
+    ctx.strokeStyle = p.slot === mySlot ? "#ffffff" : "#0f172a";
     ctx.stroke();
 
+    // Avatar Emoji
     ctx.font = "20px system-ui, sans-serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(p.emoji, 0, 1);
+    ctx.fillText(p.out ? "💀" : p.emoji, 0, 1);
 
-    ctx.font = "bold 13px system-ui, sans-serif";
+    // Name Tag
+    ctx.font = "bold 12px system-ui, sans-serif";
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = "#0b1120";
+    ctx.strokeText(p.name, 0, -PLAYER_R - 10);
     ctx.fillStyle = "#f8fafc";
     ctx.fillText(p.name, 0, -PLAYER_R - 10);
 
+    // Bomb Countdown Above Holder
     if (isHolder) {
-      ctx.font = "900 18px system-ui, sans-serif";
-      ctx.fillStyle = "#ef4444";
-      ctx.fillText(`💣 ${timeLeftSec}s`, 0, -PLAYER_R - 28);
+      const timerText = isImmune ? `🛡️ ${secLeft.toFixed(1)}s` : `💣 ${secLeft.toFixed(1)}s`;
+      ctx.font = "900 16px system-ui, sans-serif";
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = "#0b1120";
+      ctx.strokeText(timerText, 0, -PLAYER_R - 27);
+      ctx.fillStyle = secLeft < 3 ? "#ef4444" : "#facc15";
+      ctx.fillText(timerText, 0, -PLAYER_R - 27);
     }
 
     ctx.restore();
   }
 
+  // Draw Touch Joystick Overlay
   if (joy.active) {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.beginPath();
-    ctx.arc(joy.ox, joy.oy, 45, 0, Math.PI * 2);
-    ctx.strokeStyle = "rgba(255,255,255,0.25)";
+    ctx.arc(joy.ox, joy.oy, 48, 0, Math.PI * 2);
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.25)";
     ctx.lineWidth = 3;
     ctx.stroke();
 
-    let dx = joy.x - joy.ox, dy = joy.y - joy.oy;
+    let dx = joy.x - joy.ox;
+    let dy = joy.y - joy.oy;
     const dist = Math.hypot(dx, dy);
-    if (dist > 45) { dx = (dx / dist) * 45; dy = (dy / dist) * 45; }
+    if (dist > 48) {
+      dx = (dx / dist) * 48;
+      dy = (dy / dist) * 48;
+    }
     ctx.beginPath();
-    ctx.arc(joy.ox + dx, joy.oy + dy, 18, 0, Math.PI * 2);
+    ctx.arc(joy.ox + dx, joy.oy + dy, 20, 0, Math.PI * 2);
     ctx.fillStyle = "rgba(250, 204, 21, 0.45)";
     ctx.fill();
   }
 }
 
-let lastTime = performance.now();
-function loop(now) {
-  const dt = Math.min(0.05, (now - lastTime) / 1000);
-  lastTime = now;
-  updateGame(dt, now);
-  drawGame();
-  requestAnimationFrame(loop);
+let prevFrameTime = performance.now();
+function mainLoop(now) {
+  const dt = Math.min(0.05, (now - prevFrameTime) / 1000);
+  prevFrameTime = now;
+  updatePhysics(dt, now);
+  renderArena(now);
+  requestAnimationFrame(mainLoop);
 }
-requestAnimationFrame(loop);
+requestAnimationFrame(mainLoop);
 </script>
 </body>
 </html>
