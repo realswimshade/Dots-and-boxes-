@@ -3,15 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Quoridor 3D: Syria Mesh Edition</title>
-  <!-- Primary + Fallback CDN for MQTT.js (Resilient without VPN) -->
+  <title>Quoridor 3D</title>
   <script src="https://cdn.jsdelivr.net/npm/mqtt@5.10.3/dist/mqtt.min.js"
           onerror="var s=document.createElement('script');s.src='https://unpkg.com/mqtt/dist/mqtt.min.js';document.head.appendChild(s);"></script>
   <style>
     :root {
-      --bg: #0b0f19;
-      --panel: #151d2e;
-      --border: #2e3d59;
+      --bg: #0f172a;
+      --panel: #1e293b;
+      --border: #334155;
       --accent: #f59e0b;
       --blue: #38bdf8;
       --red: #f43f5e;
@@ -30,12 +29,13 @@
       width: 100%;
       height: 100%;
       overflow: hidden;
-      background: radial-gradient(circle at 50% 20%, #17223b 0%, #090d16 100%);
+      background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%);
       color: var(--text);
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      touch-action: manipulation;
+      touch-action: none;
     }
 
+    /* LOBBY / MENU SCREENS */
     .screen {
       position: absolute;
       inset: 0;
@@ -43,106 +43,106 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      padding: 14px;
+      padding: 16px;
       z-index: 20;
     }
     .hidden { display: none !important; }
 
     .card {
-      background: rgba(21, 29, 46, 0.96);
+      background: rgba(30, 41, 59, 0.96);
       border: 2px solid var(--border);
       border-radius: 18px;
-      padding: 18px;
+      padding: 22px;
       width: 100%;
-      max-width: 420px;
-      box-shadow: 0 20px 50px rgba(0,0,0,0.65);
+      max-width: 390px;
+      box-shadow: 0 20px 45px rgba(0,0,0,0.6);
       text-align: center;
     }
     h1 {
-      font-size: 1.65rem;
+      font-size: 1.7rem;
       font-weight: 900;
-      letter-spacing: 0.5px;
       color: var(--accent);
-      text-shadow: 0 2px 12px rgba(245, 158, 11, 0.35);
       margin-bottom: 4px;
     }
     .sub {
-      font-size: 0.8rem;
+      font-size: 0.82rem;
       color: #94a3b8;
-      margin-bottom: 14px;
+      margin-bottom: 16px;
     }
 
     input {
       width: 100%;
-      padding: 11px 14px;
+      padding: 12px 14px;
       border-radius: 10px;
-      border: 2px solid #334155;
-      background: #090d16;
+      border: 2px solid #475569;
+      background: #0f172a;
       color: #fff;
-      font-size: 0.98rem;
+      font-size: 1rem;
       font-weight: 700;
       text-align: center;
-      margin-bottom: 10px;
+      margin-bottom: 12px;
       outline: none;
     }
     input:focus { border-color: var(--accent); }
 
-    .skin-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 7px;
-      margin: 8px 0 14px;
-    }
-    .skin-btn {
-      background: #090d16;
-      border: 2px solid #2e3d59;
-      border-radius: 10px;
-      padding: 7px 6px;
-      color: #cbd5e1;
-      font-size: 0.76rem;
-      font-weight: 800;
-      cursor: pointer;
+    .divider {
       display: flex;
       align-items: center;
-      justify-content: center;
-      gap: 5px;
+      margin: 14px 0;
+      color: #64748b;
+      font-size: 0.75rem;
+      font-weight: 800;
     }
-    .skin-btn.active {
-      border-color: var(--accent);
-      background: rgba(245, 158, 11, 0.16);
-      color: #fff;
-    }
-    .swatch {
-      width: 14px;
-      height: 14px;
-      border-radius: 50%;
-      display: inline-block;
-      box-shadow: inset -2px -2px 4px rgba(0,0,0,0.6), inset 2px 2px 3px rgba(255,255,255,0.6);
+    .divider::before, .divider::after {
+      content: "";
+      flex: 1;
+      height: 1px;
+      background: #334155;
+      margin: 0 10px;
     }
 
-    .btn-row {
+    .join-row {
       display: flex;
       gap: 8px;
-      margin-top: 6px;
     }
+    .join-row input {
+      margin-bottom: 0;
+      flex: 1.2;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+
     .btn {
-      flex: 1;
-      padding: 12px;
-      border-radius: 11px;
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 10px;
       border: none;
       font-weight: 800;
-      font-size: 0.9rem;
+      font-size: 0.95rem;
       cursor: pointer;
       background: var(--accent);
-      color: #090d16;
-      transition: transform 0.1s, opacity 0.15s;
+      color: #0f172a;
+      transition: transform 0.1s;
     }
     .btn:active { transform: scale(0.96); }
     .btn-sec { background: #334155; color: #f8fafc; }
     .btn-green { background: var(--green); color: #052e16; }
-    .btn-red { background: var(--red); color: #fff; }
+    .btn-blue { background: var(--blue); color: #082f49; }
 
-    /* GAME LAYOUT */
+    .code-box {
+      background: #0f172a;
+      border: 2px dashed var(--accent);
+      border-radius: 12px;
+      padding: 14px;
+      font-size: 2rem;
+      font-weight: 900;
+      letter-spacing: 6px;
+      color: var(--accent);
+      margin: 12px 0;
+      cursor: pointer;
+    }
+
+    /* GAME SCREEN */
     #gameScreen {
       position: absolute;
       inset: 0;
@@ -153,41 +153,41 @@
       padding: 8px 10px 12px;
     }
 
-    .top-bar {
+    .top-hud {
       width: 100%;
       max-width: 500px;
       display: flex;
       flex-direction: column;
       gap: 6px;
     }
-    .status-strip {
+    .meta-bar {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      font-size: 0.75rem;
+      font-size: 0.76rem;
       color: #94a3b8;
       padding: 0 4px;
     }
-    .mesh-badge {
+    .badge {
       background: rgba(15, 23, 42, 0.9);
       border: 1px solid #334155;
-      padding: 3px 9px;
+      padding: 3px 10px;
       border-radius: 99px;
       font-weight: 700;
-      color: #cbd5e1;
+      color: #e2e8f0;
     }
 
-    .players-hud {
+    .score-strip {
       display: grid;
       grid-template-columns: 1fr auto 1fr;
       gap: 6px;
       align-items: center;
-      background: rgba(21, 29, 46, 0.92);
+      background: rgba(30, 41, 59, 0.92);
       border: 1.5px solid var(--border);
       border-radius: 14px;
       padding: 8px 10px;
     }
-    .p-box {
+    .p-card {
       display: flex;
       flex-direction: column;
       gap: 2px;
@@ -195,49 +195,49 @@
       border-radius: 10px;
       border: 2px solid transparent;
     }
-    .p-box.active-turn {
+    .p-card.active {
       border-color: var(--accent);
-      background: rgba(245, 158, 11, 0.12);
+      background: rgba(245, 158, 11, 0.14);
     }
-    .p-name {
+    .p-title {
       font-weight: 900;
       font-size: 0.88rem;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
-    .p-stats {
-      font-size: 0.75rem;
+    .p-sub {
+      font-size: 0.76rem;
       color: #cbd5e1;
       font-weight: 700;
     }
-    .vs-pill {
+    .turn-pill {
       font-weight: 900;
       font-size: 0.78rem;
       color: var(--accent);
+      padding: 0 6px;
       text-align: center;
-      padding: 0 4px;
     }
 
-    #canvasWrap {
+    #canvasContainer {
       position: relative;
-      display: flex;
-      align-items: center;
-      justify-content: center;
       flex: 1;
       width: 100%;
       max-width: 500px;
       min-height: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
     canvas {
       max-width: 100%;
       max-height: 100%;
       border-radius: 16px;
-      box-shadow: 0 18px 40px rgba(0,0,0,0.75);
+      box-shadow: 0 16px 38px rgba(0,0,0,0.75);
       touch-action: none;
     }
 
-    #toastBanner {
+    #toast {
       position: absolute;
       top: 10px;
       left: 50%;
@@ -254,104 +254,113 @@
       z-index: 15;
     }
 
-    .bottom-controls {
+    /* SIMPLIFIED BOTTOM CONTROLS */
+    .controls-wrap {
       width: 100%;
       max-width: 500px;
       display: flex;
       flex-direction: column;
       gap: 6px;
     }
-    .mode-bar {
-      display: flex;
-      gap: 7px;
+    .toggle-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
     }
-    .mode-btn {
-      flex: 1;
-      padding: 11px 8px;
-      border-radius: 11px;
+    .mode-tab {
+      padding: 12px;
+      border-radius: 12px;
       border: 2px solid #334155;
-      background: #151d2e;
-      color: #cbd5e1;
-      font-weight: 800;
-      font-size: 0.85rem;
+      background: #1e293b;
+      color: #94a3b8;
+      font-weight: 900;
+      font-size: 0.92rem;
       cursor: pointer;
     }
-    .mode-btn.selected {
+    .mode-tab.active {
       border-color: var(--accent);
       background: var(--accent);
-      color: #090d16;
+      color: #0f172a;
     }
-    .wall-confirm-bar {
-      display: flex;
-      gap: 7px;
+    .wall-actions {
+      display: grid;
+      grid-template-columns: 1fr 1.6fr;
+      gap: 8px;
     }
   </style>
 </head>
 <body>
 
-  <!-- SETUP / LOBBY SCREEN -->
-  <div id="setupScreen" class="screen">
+  <!-- 1. CLASSIC ROOM CREATE / JOIN SCREEN -->
+  <div id="menuScreen" class="screen">
     <div class="card">
       <h1>🏛️ QUORIDOR 3D</h1>
-      <div class="sub">Textured 3D Spheres & Extruded Walls • Syria Zero-VPN Mesh</div>
+      <div class="sub">3D Textured Spheres & Walls • Syria Direct Mesh</div>
 
-      <input id="nameInput" type="text" maxlength="12" placeholder="Your Name" value="" />
+      <input id="nameInput" type="text" maxlength="12" placeholder="Your Nickname" />
 
-      <div style="font-size:0.78rem; color:#cbd5e1; font-weight:700;">Select Your 3D Ball Texture</div>
-      <div class="skin-grid" id="skinGrid"></div>
+      <button class="btn" id="createRoomBtn">➕ CREATE NEW ROOM</button>
 
-      <input id="roomInput" type="text" maxlength="6" placeholder="Room Code (e.g. SY26)" style="text-transform:uppercase;" />
+      <div class="divider">OR JOIN WITH CODE</div>
 
-      <div class="btn-row">
-        <button class="btn" id="onlineBtn">🌐 ONLINE ROOM (NO VPN)</button>
-      </div>
-      <div class="btn-row">
-        <button class="btn btn-sec" id="localBtn">📱 PASS & PLAY (1 DEVICE OFFLINE)</button>
-      </div>
-
-      <div id="meshStatus" style="margin-top:10px; font-size:0.75rem; color:#94a3b8;">
-        Multi-Broker Port 443 + EU Mesh Ready
+      <div class="join-row">
+        <input id="codeInput" type="text" maxlength="4" placeholder="CODE" />
+        <button class="btn btn-blue" id="joinRoomBtn" style="flex:0.8;">JOIN ➡️</button>
       </div>
     </div>
   </div>
 
-  <!-- GAME SCREEN -->
+  <!-- 2. WAITING ROOM LOBBY -->
+  <div id="lobbyScreen" class="screen hidden">
+    <div class="card">
+      <h1>ROOM CREATED</h1>
+      <div class="sub">Tap the code to copy & send to your friend</div>
+
+      <div class="code-box" id="lobbyCodeDisplay">----</div>
+
+      <div id="lobbyWaitText" style="font-size:0.9rem; font-weight:700; color:#cbd5e1; margin: 12px 0;">
+        ⏳ Waiting for opponent to join (1/2)...
+      </div>
+
+      <button class="btn btn-sec" id="cancelLobbyBtn">CANCEL</button>
+    </div>
+  </div>
+
+  <!-- 3. GAMEPLAY SCREEN -->
   <div id="gameScreen" class="hidden">
-    <div class="top-bar">
-      <div class="status-strip">
-        <span class="mesh-badge" id="roomBadge">ROOM: ----</span>
-        <span class="mesh-badge" id="netBadge">🟢 Mesh Connected</span>
-        <button id="exitBtn" style="background:#334155;color:#fff;border:none;border-radius:8px;padding:3px 10px;font-weight:800;font-size:0.73rem;cursor:pointer;">EXIT</button>
+    <div class="top-hud">
+      <div class="meta-bar">
+        <span class="badge" id="roomTag">ROOM: ----</span>
+        <span class="badge" id="meshTag">🟢 Connecting...</span>
+        <button id="leaveGameBtn" style="background:#334155;color:#fff;border:none;border-radius:8px;padding:3px 10px;font-weight:800;font-size:0.74rem;cursor:pointer;">LEAVE</button>
       </div>
 
-      <div class="players-hud">
-        <div class="p-box" id="p1Box">
-          <div class="p-name" id="p1Name">🔵 Player 1</div>
-          <div class="p-stats" id="p1Stats">🧱 10  •  📏 8</div>
+      <div class="score-strip">
+        <div class="p-card" id="p1Card">
+          <div class="p-title" id="p1Title" style="color:#38bdf8;">🔵 Player 1</div>
+          <div class="p-sub" id="p1Sub">🧱 10  •  🏆 0</div>
         </div>
-        <div class="vs-pill" id="turnIndicator">YOUR TURN</div>
-        <div class="p-box" id="p2Box" style="text-align:right;">
-          <div class="p-name" id="p2Name">🔴 Player 2</div>
-          <div class="p-stats" id="p2Stats">🧱 10  •  📏 8</div>
+        <div class="turn-pill" id="turnText">YOUR TURN</div>
+        <div class="p-card" id="p2Card" style="text-align:right;">
+          <div class="p-title" id="p2Title" style="color:#fb7185;">🔴 Player 2</div>
+          <div class="p-sub" id="p2Sub">🧱 10  •  🏆 0</div>
         </div>
       </div>
     </div>
 
-    <div id="canvasWrap">
-      <div id="toastBanner" class="hidden"></div>
-      <canvas id="boardCanvas" width="540" height="580"></canvas>
+    <div id="canvasContainer">
+      <div id="toast" class="hidden"></div>
+      <canvas id="boardCanvas" width="540" height="560"></canvas>
     </div>
 
-    <div class="bottom-controls">
-      <div class="mode-bar">
-        <button class="mode-btn selected" id="moveModeBtn">🟢 MOVE BALL</button>
-        <button class="mode-btn" id="wallHBtn">➖ WALL (HORIZ)</button>
-        <button class="mode-btn" id="wallVBtn">➕ WALL (VERT)</button>
+    <div class="controls-wrap">
+      <div class="wall-actions hidden" id="wallActionRow">
+        <button class="btn btn-sec" id="rotateBtn">🔄 ROTATE (H/V)</button>
+        <button class="btn btn-green" id="placeWallBtn">✅ PLACE WALL</button>
       </div>
-      <div class="wall-confirm-bar hidden" id="confirmBar">
-        <button class="btn btn-sec" id="rotateWallBtn">🔄 ROTATE H/V</button>
-        <button class="btn btn-green" id="confirmWallBtn">✅ PLACE 3D WALL HERE</button>
-        <button class="btn btn-red" id="cancelWallBtn" style="flex:0.45;">✖</button>
+      <div class="toggle-row">
+        <button class="mode-tab active" id="tabMove">🏃 MOVE PAWN</button>
+        <button class="mode-tab" id="tabWall">🧱 WALL MODE</button>
       </div>
     </div>
   </div>
@@ -359,113 +368,86 @@
 <script>
 (() => {
   /* =========================================================
-     1. SYRIA ZERO-VPN MULTI-BROKER MESH CONFIGURATION
-     Connects simultaneously to Port 443 + EU brokers.
-     Even if an ISP blocks one port, surviving brokers deliver moves.
+     1. SYRIA ZERO-VPN MULTI-BROKER MESH
   ========================================================= */
-  const SYRIA_BROKER_MESH = [
+  const BROKERS = [
     { name: "Eclipse-443", url: "wss://mqtt.eclipseprojects.io:443/mqtt" },
     { name: "HiveMQ-EU",   url: "wss://broker.hivemq.com:8884/mqtt" },
     { name: "Mosquitto-EU",url: "wss://test.mosquitto.org:8081/mqtt" },
-    { name: "EMQX-Global", url: "wss://broker.emqx.io:8084/mqtt" }
+    { name: "EMQX",        url: "wss://broker.emqx.io:8084/mqtt" }
   ];
 
   /* =========================================================
-     2. PROCEDURAL 3D TEXTURE GENERATOR (BALLS, WOOD & STONE)
+     2. PROCEDURAL 3D TEXTURES (BALLS, WOOD WALLS, STONE TILES)
   ========================================================= */
-  const BALL_SKINS = [
-    { name: "Sapphire Marble", base: "#0284c7", hi: "#bae6fd", dark: "#0c4a6e", vein: "#ffffff", style: "marble" },
-    { name: "Crimson Magma",   base: "#e11d48", hi: "#fecdd3", dark: "#4c0519", vein: "#facc15", style: "magma" },
-    { name: "Emerald Jade",    base: "#10b981", hi: "#a7f3d0", dark: "#064e3b", vein: "#34d399", style: "marble" },
-    { name: "Royal Gold",      base: "#d97706", hi: "#fef08a", dark: "#451a03", vein: "#fde047", style: "metal" },
-    { name: "Damascus Steel",  base: "#64748b", hi: "#f1f5f9", dark: "#0f172a", vein: "#94a3b8", style: "damascus" },
-    { name: "Amethyst Plasma", base: "#9333ea", hi: "#f3e8ff", dark: "#3b0764", vein: "#e879f9", style: "magma" }
+  const BALL_STYLES = [
+    { base: "#0284c7", hi: "#bae6fd", dark: "#082f49", vein: "#ffffff" }, // P1 Sapphire Marble
+    { base: "#e11d48", hi: "#fecdd3", dark: "#4c0519", vein: "#facc15" }  // P2 Crimson Gold Marble
   ];
-
-  const skinPatterns = [];
-  let woodPatternH = null;
-  let woodPatternV = null;
+  const ballTextures = [];
+  let woodTexture = null;
   let tileTexture = null;
 
-  function build3DTextures() {
-    // 1. Generate Procedural 3D Ball Textures
-    BALL_SKINS.forEach((s, idx) => {
+  function generate3DAssets() {
+    // 1. 3D Marble Sphere Textures
+    BALL_STYLES.forEach((st, idx) => {
       const c = document.createElement("canvas");
-      c.width = 128;
-      c.height = 128;
+      c.width = 128; c.height = 128;
       const g = c.getContext("2d");
-
-      g.fillStyle = s.base;
+      g.fillStyle = st.base;
       g.fillRect(0, 0, 128, 128);
 
-      // Procedural veins / Damascus ripples / Magma cracks
-      for (let i = 0; i < 28; i++) {
+      for (let i = 0; i < 26; i++) {
         g.beginPath();
-        g.strokeStyle = i % 2 === 0 ? s.vein : s.dark;
-        g.globalAlpha = s.style === "damascus" ? 0.35 : 0.25;
-        g.lineWidth = s.style === "metal" ? 1.5 : 2.8;
-        let x = (i * 19) % 128;
-        let y = 0;
-        g.moveTo(x, y);
-        for (let yStep = 16; yStep <= 128; yStep += 16) {
-          const wave = Math.sin((yStep + i * 20) * 0.08) * 18;
-          g.lineTo(x + wave, yStep);
+        g.strokeStyle = i % 2 === 0 ? st.vein : st.dark;
+        g.globalAlpha = 0.28;
+        g.lineWidth = 2.4;
+        let x = (i * 17) % 128;
+        g.moveTo(x, 0);
+        for (let y = 16; y <= 128; y += 16) {
+          g.lineTo(x + Math.sin((y + i * 22) * 0.08) * 16, y);
         }
         g.stroke();
       }
-
-      // Specular micro-grain
-      g.globalAlpha = 0.12;
-      for (let i = 0; i < 180; i++) {
-        g.fillStyle = i % 2 ? "#ffffff" : "#000000";
-        g.fillRect((i * 73) % 128, (i * 41) % 128, 2, 2);
-      }
-      skinPatterns[idx] = c;
+      ballTextures[idx] = c;
     });
 
-    // 2. Generate 3D Mahogany / Cedar Wood Wall Grain Texture
+    // 2. 3D Mahogany Wood Plank Texture
     const wc = document.createElement("canvas");
-    wc.width = 128;
-    wc.height = 64;
+    wc.width = 128; wc.height = 64;
     const wg = wc.getContext("2d");
-    const wGrad = wg.createLinearGradient(0, 0, 0, 64);
-    wGrad.addColorStop(0, "#b45309");
-    wGrad.addColorStop(0.5, "#92400e");
-    wGrad.addColorStop(1, "#78350f");
-    wg.fillStyle = wGrad;
+    const grad = wg.createLinearGradient(0, 0, 0, 64);
+    grad.addColorStop(0, "#d97706");
+    grad.addColorStop(0.5, "#b45309");
+    grad.addColorStop(1, "#78350f");
+    wg.fillStyle = grad;
     wg.fillRect(0, 0, 128, 64);
-
-    wg.strokeStyle = "rgba(41, 16, 3, 0.35)";
+    wg.strokeStyle = "rgba(45, 18, 4, 0.35)";
     wg.lineWidth = 1.5;
-    for (let i = 0; i < 18; i++) {
+    for (let i = 0; i < 16; i++) {
       wg.beginPath();
       const y = (i * 4) % 64;
       wg.moveTo(0, y);
-      wg.bezierCurveTo(42, y + 3, 84, y - 3, 128, y);
+      wg.bezierCurveTo(40, y + 3, 85, y - 3, 128, y);
       wg.stroke();
     }
-    woodPatternH = wc;
+    woodTexture = wc;
 
-    // 3. Generate Carved Dark Basalt Tile Texture
+    // 3. Carved Basalt Tile Texture
     const tc = document.createElement("canvas");
-    tc.width = 64;
-    tc.height = 64;
+    tc.width = 64; tc.height = 64;
     const tg = tc.getContext("2d");
     const tGrad = tg.createLinearGradient(0, 0, 64, 64);
-    tGrad.addColorStop(0, "#26334d");
+    tGrad.addColorStop(0, "#27354f");
     tGrad.addColorStop(1, "#1b2538");
     tg.fillStyle = tGrad;
     tg.fillRect(0, 0, 64, 64);
-    tg.fillStyle = "rgba(255,255,255,0.03)";
-    for (let i = 0; i < 60; i++) {
-      tg.fillRect((i * 29) % 64, (i * 53) % 64, 2, 2);
-    }
     tileTexture = tc;
   }
-  build3DTextures();
+  generate3DAssets();
 
   /* =========================================================
-     3. SOUND SYNTHESIS (TACTILE 3D CLACK & ROLL SFX)
+     3. SOUND ENGINE
   ========================================================= */
   let audioCtx = null;
   function playSfx(type) {
@@ -480,262 +462,280 @@
 
       if (type === "move") {
         osc.type = "sine";
-        osc.frequency.setValueAtTime(240, now);
-        osc.frequency.exponentialRampToValueAtTime(520, now + 0.11);
-        gain.gain.setValueAtTime(0.22, now);
-        gain.gain.linearRampToValueAtTime(0.01, now + 0.12);
-        osc.start(now);
-        osc.stop(now + 0.12);
+        osc.frequency.setValueAtTime(260, now);
+        osc.frequency.exponentialRampToValueAtTime(520, now + 0.1);
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.11);
+        osc.start(now); osc.stop(now + 0.11);
       } else if (type === "wall") {
         osc.type = "triangle";
-        osc.frequency.setValueAtTime(150, now);
-        osc.frequency.exponentialRampToValueAtTime(65, now + 0.16);
-        gain.gain.setValueAtTime(0.32, now);
-        gain.gain.linearRampToValueAtTime(0.01, now + 0.17);
-        osc.start(now);
-        osc.stop(now + 0.17);
-      } else if (type === "win") {
-        osc.type = "triangle";
-        osc.frequency.setValueAtTime(330, now);
-        osc.frequency.setValueAtTime(440, now + 0.12);
-        osc.frequency.setValueAtTime(660, now + 0.25);
-        gain.gain.setValueAtTime(0.28, now);
-        gain.gain.linearRampToValueAtTime(0.01, now + 0.5);
-        osc.start(now);
-        osc.stop(now + 0.5);
+        osc.frequency.setValueAtTime(160, now);
+        osc.frequency.exponentialRampToValueAtTime(70, now + 0.15);
+        gain.gain.setValueAtTime(0.3, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.16);
+        osc.start(now); osc.stop(now + 0.16);
+      } else if (type === "snap") {
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(600, now);
+        gain.gain.setValueAtTime(0.06, now);
+        gain.gain.linearRampToValueAtTime(0.005, now + 0.04);
+        osc.start(now); osc.stop(now + 0.04);
       } else if (type === "err") {
         osc.type = "sawtooth";
         osc.frequency.setValueAtTime(130, now);
         gain.gain.setValueAtTime(0.18, now);
-        gain.gain.linearRampToValueAtTime(0.01, now + 0.15);
-        osc.start(now);
-        osc.stop(now + 0.15);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.14);
+        osc.start(now); osc.stop(now + 0.14);
+      } else if (type === "win") {
+        osc.type = "triangle";
+        osc.frequency.setValueAtTime(330, now);
+        osc.frequency.setValueAtTime(490, now + 0.12);
+        osc.frequency.setValueAtTime(660, now + 0.25);
+        gain.gain.setValueAtTime(0.28, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.48);
+        osc.start(now); osc.stop(now + 0.48);
       }
     } catch (_) {}
   }
 
   /* =========================================================
-     4. GAME STATE & GEOMETRY CONSTANTS
+     4. BOARD GEOMETRY & STATE
   ========================================================= */
   const canvas = document.getElementById("boardCanvas");
   const ctx = canvas.getContext("2d");
 
   const GRID = 9;
-  const BOARD_PAD_X = 34;
-  const BOARD_PAD_TOP = 54;
+  const PAD_X = 34;
+  const PAD_TOP = 44;
   const CELL = 44;
   const GAP = 10;
-  const STEP = CELL + GAP; // 54px per cell+groove
-  const WALL_EXTRUSION_H = 15; // 3D vertical height of walls
+  const STEP = CELL + GAP; // 54px
+  const WALL_H_3D = 14;
 
-  const myClientId = "q_" + Math.random().toString(36).substring(2, 8);
+  const myId = "q_" + Math.random().toString(36).substring(2, 8);
   let myName = "Shade";
-  let mySkin = 0;
-  let roomCode = "SY26";
-  let isLocalMode = false;
-  let myRole = 1; // 1 = Player 1 (Bottom -> Top), 2 = Player 2 (Top -> Bottom)
+  let roomCode = "";
+  let myRole = 1; // 1 = Host (Blue), 2 = Guest (Red)
 
-  // Mesh connections
-  let activeClients = [];
-  let connectedBrokerNames = [];
-  let seenPacketIds = new Set();
+  let clients = [];
+  let connectedBrokers = [];
+  let seenPackets = new Set();
 
-  // Official Quoridor State
   let state = {
     seq: 0,
-    turn: 1, // 1 or 2
+    turn: 1,
     winner: 0,
-    p1: { x: 4, y: 8, walls: 10, name: "Player 1", skin: 0, id: null, score: 0 },
-    p2: { x: 4, y: 0, walls: 10, name: "Waiting...", skin: 1, id: null, score: 0 },
-    walls: [] // Array of { gx: 0..7, gy: 0..7, dir: 'H' | 'V' }
+    p1: { x: 4, y: 8, walls: 10, name: "Player 1", id: null, score: 0 },
+    p2: { x: 4, y: 0, walls: 10, name: "Player 2", id: null, score: 0 },
+    walls: [] // { gx: 0..7, gy: 0..7, dir: 'H' | 'V' }
   };
 
-  // Visual Animation State for 3D Rolling Balls
   let anim = {
-    p1: { rx: 4, ry: 8, hop: 0, rollPhase: 0 },
-    p2: { rx: 4, ry: 0, hop: 0, rollPhase: 0 }
+    p1: { rx: 4, ry: 8, hop: 0, roll: 0 },
+    p2: { rx: 4, ry: 0, hop: 0, roll: 0 }
   };
 
-  // Controls Mode
-  let actionMode = "MOVE"; // "MOVE" | "WALL_H" | "WALL_V"
-  let ghostWall = null;    // { gx, gy, dir }
+  let mode = "MOVE"; // "MOVE" | "WALL"
+  let previewWall = null; // { gx, gy, dir }
 
-  /* =========================================================
-     5. UI SETUP & SKIN PICKER
-  ========================================================= */
-  const skinGrid = document.getElementById("skinGrid");
   const nameInput = document.getElementById("nameInput");
-  const roomInput = document.getElementById("roomInput");
+  const codeInput = document.getElementById("codeInput");
 
   if (window.Telegram?.WebApp?.initDataUnsafe?.user?.first_name) {
     nameInput.value = window.Telegram.WebApp.initDataUnsafe.user.first_name.slice(0, 12);
     window.Telegram.WebApp.expand();
   }
 
-  BALL_SKINS.forEach((sk, idx) => {
-    const btn = document.createElement("button");
-    btn.className = "skin-btn" + (idx === 0 ? " active" : "");
-    btn.innerHTML = `<span class="swatch" style="background:${sk.base}"></span><span>${sk.name.split(" ")[0]}</span>`;
-    btn.onclick = () => {
-      mySkin = idx;
-      document.querySelectorAll(".skin-btn").forEach((b, i) => b.classList.toggle("active", i === idx));
-    };
-    skinGrid.appendChild(btn);
-  });
+  /* =========================================================
+     5. ROOM CREATION & JOIN FLOW
+  ========================================================= */
+  function randomCode() {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    let out = "";
+    for (let i = 0; i < 4; i++) out += chars[Math.floor(Math.random() * chars.length)];
+    return out;
+  }
 
-  document.getElementById("onlineBtn").onclick = () => {
-    isLocalMode = false;
-    myName = (nameInput.value.trim() || "Player").slice(0, 12);
-    roomCode = (roomInput.value.trim() || "SY26").toUpperCase();
-    startOnlineSession();
-  };
-
-  document.getElementById("localBtn").onclick = () => {
-    isLocalMode = true;
+  document.getElementById("createRoomBtn").onclick = () => {
     myName = (nameInput.value.trim() || "Player 1").slice(0, 12);
-    startLocalSession();
+    roomCode = randomCode();
+    myRole = 1;
+
+    state.p1 = { x: 4, y: 8, walls: 10, name: myName, id: myId, score: 0 };
+    state.p2 = { x: 4, y: 0, walls: 10, name: "Waiting...", id: null, score: 0 };
+    resetBoard(false);
+
+    document.getElementById("menuScreen").classList.add("hidden");
+    document.getElementById("lobbyScreen").classList.remove("hidden");
+    document.getElementById("lobbyCodeDisplay").textContent = roomCode;
+    document.getElementById("lobbyWaitText").textContent = "⏳ Waiting for opponent to join (1/2)...";
+
+    connectMesh();
   };
 
-  document.getElementById("exitBtn").onclick = () => {
-    disconnectMesh();
+  document.getElementById("lobbyCodeDisplay").onclick = () => {
+    navigator.clipboard?.writeText(roomCode);
+    document.getElementById("lobbyWaitText").textContent = "✅ Room Code Copied! Waiting for friend...";
+  };
+
+  document.getElementById("cancelLobbyBtn").onclick = () => {
+    closeMesh();
+    document.getElementById("lobbyScreen").classList.add("hidden");
+    document.getElementById("menuScreen").classList.remove("hidden");
+  };
+
+  document.getElementById("joinRoomBtn").onclick = () => {
+    const code = codeInput.value.trim().toUpperCase();
+    if (code.length < 2) {
+      codeInput.focus();
+      return;
+    }
+    myName = (nameInput.value.trim() || "Player 2").slice(0, 12);
+    roomCode = code;
+    myRole = 2;
+
+    state.p1 = { x: 4, y: 8, walls: 10, name: "Host", id: null, score: 0 };
+    state.p2 = { x: 4, y: 0, walls: 10, name: myName, id: myId, score: 0 };
+    resetBoard(false);
+
+    document.getElementById("menuScreen").classList.add("hidden");
+    document.getElementById("gameScreen").classList.remove("hidden");
+    document.getElementById("roomTag").textContent = `ROOM: ${roomCode}`;
+
+    connectMesh();
+  };
+
+  document.getElementById("leaveGameBtn").onclick = () => {
+    closeMesh();
     document.getElementById("gameScreen").classList.add("hidden");
-    document.getElementById("setupScreen").classList.remove("hidden");
+    document.getElementById("menuScreen").classList.remove("hidden");
   };
 
   /* =========================================================
-     6. QUORIDOR GRAPH & BREADTH-FIRST SEARCH (BFS) ENGINE
+     6. MULTI-BROKER MESH NETWORKING
   ========================================================= */
-  function isEdgeBlocked(x1, y1, x2, y2, wallList) {
-    if (x2 < 0 || x2 >= GRID || y2 < 0 || y2 >= GRID) return true;
-
-    // Moving Vertically
-    if (x1 === x2 && Math.abs(y1 - y2) === 1) {
-      const minY = Math.min(y1, y2);
-      for (const w of wallList) {
-        if (w.dir === "H" && w.gy === minY && (w.gx === x1 || w.gx === x1 - 1)) {
-          return true;
-        }
-      }
-      return false;
-    }
-
-    // Moving Horizontally
-    if (y1 === y2 && Math.abs(x1 - x2) === 1) {
-      const minX = Math.min(x1, x2);
-      for (const w of wallList) {
-        if (w.dir === "V" && w.gx === minX && (w.gy === y1 || w.gy === y1 - 1)) {
-          return true;
-        }
-      }
-      return false;
-    }
-    return true;
+  function closeMesh() {
+    clients.forEach(c => { try { c.end(true); } catch (_) {} });
+    clients = [];
+    connectedBrokers = [];
   }
 
-  // Returns shortest steps to goalRow, or -1 if trapped
-  function shortestPathSteps(startX, startY, goalRow, wallList) {
-    const visited = new Uint8Array(81);
-    const queue = [{ x: startX, y: startY, d: 0 }];
-    visited[startY * 9 + startX] = 1;
+  function connectMesh() {
+    closeMesh();
+    seenPackets.clear();
+    const topic = `quoridor_2b_${roomCode}`;
 
-    let head = 0;
-    const dirs = [[0, -1], [0, 1], [-1, 0], [1, 0]];
+    BROKERS.forEach(b => {
+      try {
+        const c = mqtt.connect(b.url, {
+          clientId: `${myId}_${b.name}_${Math.floor(Math.random() * 999)}`,
+          keepalive: 25,
+          clean: true,
+          connectTimeout: 6000,
+          reconnectPeriod: 2500
+        });
 
-    while (head < queue.length) {
-      const cur = queue[head++];
-      if (cur.y === goalRow) return cur.d;
-
-      for (const [dx, dy] of dirs) {
-        const nx = cur.x + dx;
-        const ny = cur.y + dy;
-        if (nx >= 0 && nx < 9 && ny >= 0 && ny < 9) {
-          const idx = ny * 9 + nx;
-          if (!visited[idx] && !isEdgeBlocked(cur.x, cur.y, nx, ny, wallList)) {
-            visited[idx] = 1;
-            queue.push({ x: nx, y: ny, d: cur.d + 1 });
+        c.on("connect", () => {
+          if (!connectedBrokers.includes(b.name)) {
+            connectedBrokers.push(b.name);
+            updateMeshIndicator();
           }
-        }
-      }
-    }
-    return -1;
-  }
+          c.subscribe(topic, { qos: 0 }, () => {
+            sendPacket({ t: "join", role: myRole, id: myId, name: myName });
+          });
+        });
 
-  // Official Quoridor Valid Pawn Moves (Includes Straight & Diagonal Jumps)
-  function getValidPawnMoves(playerNum) {
-    const me = playerNum === 1 ? state.p1 : state.p2;
-    const opp = playerNum === 1 ? state.p2 : state.p1;
-    const moves = [];
-    const dirs = [[0, -1], [0, 1], [-1, 0], [1, 0]];
+        c.on("close", () => {
+          connectedBrokers = connectedBrokers.filter(n => n !== b.name);
+          updateMeshIndicator();
+        });
 
-    for (const [dx, dy] of dirs) {
-      const nx = me.x + dx;
-      const ny = me.y + dy;
-      if (isEdgeBlocked(me.x, me.y, nx, ny, state.walls)) continue;
+        c.on("message", (_, payload) => {
+          try {
+            handlePacket(JSON.parse(payload.toString()));
+          } catch (_) {}
+        });
 
-      if (nx === opp.x && ny === opp.y) {
-        // Opponent is adjacent -> Check straight jump
-        const jx = opp.x + dx;
-        const jy = opp.y + dy;
-        if (!isEdgeBlocked(opp.x, opp.y, jx, jy, state.walls)) {
-          moves.push({ x: jx, y: jy });
-        } else {
-          // Straight jump blocked -> Official Diagonal Jumps
-          const sideDirs = dx === 0 ? [[-1, 0], [1, 0]] : [[0, -1], [0, 1]];
-          for (const [sdx, sdy] of sideDirs) {
-            const sx = opp.x + sdx;
-            const sy = opp.y + sdy;
-            if (!isEdgeBlocked(opp.x, opp.y, sx, sy, state.walls)) {
-              moves.push({ x: sx, y: sy });
-            }
-          }
-        }
-      } else {
-        moves.push({ x: nx, y: ny });
-      }
-    }
-    return moves;
-  }
-
-  // Validates whether a new wall at (gx, gy, dir) is legal
-  function canPlaceWall(gx, gy, dir) {
-    if (gx < 0 || gx > 7 || gy < 0 || gy > 7) return { ok: false, reason: "Out of bounds" };
-    const activePlayer = state.turn === 1 ? state.p1 : state.p2;
-    if (activePlayer.walls <= 0) return { ok: false, reason: "No walls remaining!" };
-
-    for (const w of state.walls) {
-      if (w.gx === gx && w.gy === gy) {
-        return { ok: false, reason: "Intersects an existing wall!" };
-      }
-      if (dir === "H" && w.dir === "H" && w.gy === gy && Math.abs(w.gx - gx) <= 1) {
-        return { ok: false, reason: "Overlaps a horizontal wall!" };
-      }
-      if (dir === "V" && w.dir === "V" && w.gx === gx && Math.abs(w.gy - gy) <= 1) {
-        return { ok: false, reason: "Overlaps a vertical wall!" };
-      }
-    }
-
-    const testWalls = [...state.walls, { gx, gy, dir }];
-    const d1 = shortestPathSteps(state.p1.x, state.p1.y, 0, testWalls);
-    const d2 = shortestPathSteps(state.p2.x, state.p2.y, 8, testWalls);
-
-    if (d1 === -1 || d2 === -1) {
-      return { ok: false, reason: "Illegal: Cannot completely trap a player!" };
-    }
-    return { ok: true };
-  }
-
-  /* =========================================================
-     7. MULTI-BROKER MESH NETWORKING (NO VPN REQUIRED)
-  ========================================================= */
-  function disconnectMesh() {
-    activeClients.forEach(c => {
-      try { c.end(true); } catch (_) {}
+        clients.push(c);
+      } catch (_) {}
     });
-    activeClients = [];
-    connectedBrokerNames = [];
   }
 
-  function resetMatchBoard(keepScores = false) {
+  function updateMeshIndicator() {
+    const el = document.getElementById("meshTag");
+    if (connectedBrokers.length === 0) {
+      el.textContent = "🔴 Reconnecting...";
+    } else {
+      el.textContent = `🟢 Connected (${connectedBrokers[0]})`;
+    }
+  }
+
+  function sendPacket(pkt) {
+    pkt.uid = myId + "_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6);
+    seenPackets.add(pkt.uid);
+    const str = JSON.stringify(pkt);
+    const topic = `quoridor_2b_${roomCode}`;
+    clients.forEach(c => {
+      if (c && c.connected) {
+        try { c.publish(topic, str, { qos: 0 }); } catch (_) {}
+      }
+    });
+  }
+
+  function handlePacket(msg) {
+    if (!msg || !msg.uid || seenPackets.has(msg.uid)) return;
+    seenPackets.add(msg.uid);
+
+    if (msg.t === "join") {
+      if (msg.id === myId) return;
+
+      if (myRole === 1) {
+        state.p2.id = msg.id;
+        state.p2.name = msg.name;
+        // Move Host from Waiting Lobby into Game Screen automatically
+        document.getElementById("lobbyScreen").classList.add("hidden");
+        document.getElementById("gameScreen").classList.remove("hidden");
+        document.getElementById("roomTag").textContent = `ROOM: ${roomCode}`;
+        updateHud();
+        showToast(`⚔️ ${msg.name} joined! Your turn.`);
+        sendPacket({ t: "sync", state });
+      } else if (myRole === 2 && msg.role === 1) {
+        state.p1.id = msg.id;
+        state.p1.name = msg.name;
+        updateHud();
+        sendPacket({ t: "join", role: 2, id: myId, name: myName });
+      }
+      return;
+    }
+
+    if (msg.t === "sync" || msg.t === "state") {
+      const inc = msg.state;
+      if (!inc) return;
+      if (msg.t === "state" && inc.seq <= state.seq) return;
+
+      const moved = inc.p1.x !== state.p1.x || inc.p1.y !== state.p1.y ||
+                    inc.p2.x !== state.p2.x || inc.p2.y !== state.p2.y;
+      const walled = inc.walls.length > state.walls.length;
+
+      state = inc;
+      if (moved) {
+        anim.p1.hop = 1;
+        anim.p2.hop = 1;
+        playSfx("move");
+      } else if (walled) {
+        playSfx("wall");
+      }
+
+      if (state.winner) {
+        playSfx("win");
+        const wName = state.winner === 1 ? state.p1.name : state.p2.name;
+        showToast(`🏆 ${wName} WINS!`);
+      }
+      updateHud();
+    }
+  }
+
+  function resetBoard(keepScores) {
     const s1 = keepScores ? state.p1.score : 0;
     const s2 = keepScores ? state.p2.score : 0;
     state.seq = (state.seq || 0) + 1;
@@ -744,288 +744,259 @@
     state.p1.x = 4; state.p1.y = 8; state.p1.walls = 10; state.p1.score = s1;
     state.p2.x = 4; state.p2.y = 0; state.p2.walls = 10; state.p2.score = s2;
     state.walls = [];
-
     anim.p1.rx = 4; anim.p1.ry = 8;
     anim.p2.rx = 4; anim.p2.ry = 0;
-    ghostWall = null;
-    setActionMode("MOVE");
+    setMode("MOVE");
     updateHud();
   }
 
-  function startLocalSession() {
-    disconnectMesh();
-    myRole = 1;
-    state.p1 = { x: 4, y: 8, walls: 10, name: myName, skin: mySkin, id: "local1", score: 0 };
-    state.p2 = { x: 4, y: 0, walls: 10, name: "Player 2", skin: (mySkin + 1) % BALL_SKINS.length, id: "local2", score: 0 };
-    resetMatchBoard(false);
-
-    document.getElementById("setupScreen").classList.add("hidden");
-    document.getElementById("gameScreen").classList.remove("hidden");
-    document.getElementById("roomBadge").textContent = "MODE: PASS & PLAY";
-    document.getElementById("netBadge").textContent = "📱 Offline 1-Device";
-    showToast("📱 Pass & Play Started! Blue moves first.");
+  /* =========================================================
+     7. QUORIDOR RULES & BFS PATH VALIDATION
+  ========================================================= */
+  function isBlocked(x1, y1, x2, y2, wallList) {
+    if (x2 < 0 || x2 >= GRID || y2 < 0 || y2 >= GRID) return true;
+    if (x1 === x2 && Math.abs(y1 - y2) === 1) {
+      const minY = Math.min(y1, y2);
+      return wallList.some(w => w.dir === "H" && w.gy === minY && (w.gx === x1 || w.gx === x1 - 1));
+    }
+    if (y1 === y2 && Math.abs(x1 - x2) === 1) {
+      const minX = Math.min(x1, x2);
+      return wallList.some(w => w.dir === "V" && w.gx === minX && (w.gy === y1 || w.gy === y1 - 1));
+    }
+    return true;
   }
 
-  function startOnlineSession() {
-    disconnectMesh();
-    seenPacketIds.clear();
+  function hasPathToGoal(startX, startY, goalRow, wallList) {
+    const visited = new Uint8Array(81);
+    const q = [{ x: startX, y: startY }];
+    visited[startY * 9 + startX] = 1;
+    let head = 0;
+    const dirs = [[0, -1], [0, 1], [-1, 0], [1, 0]];
 
-    state.p1 = { x: 4, y: 8, walls: 10, name: myName, skin: mySkin, id: myClientId, score: 0 };
-    state.p2 = { x: 4, y: 0, walls: 10, name: "Waiting...", skin: (mySkin + 1) % BALL_SKINS.length, id: null, score: 0 };
-    myRole = 1;
-    resetMatchBoard(false);
-
-    document.getElementById("setupScreen").classList.add("hidden");
-    document.getElementById("gameScreen").classList.remove("hidden");
-    document.getElementById("roomBadge").textContent = `ROOM: ${roomCode}`;
-    document.getElementById("netBadge").textContent = "⏳ Connecting Mesh...";
-
-    const topic = `quoridor_2b_${roomCode}`;
-
-    SYRIA_BROKER_MESH.forEach(broker => {
-      try {
-        const client = mqtt.connect(broker.url, {
-          clientId: `${myClientId}_${broker.name}_${Math.floor(Math.random() * 999)}`,
-          keepalive: 25,
-          clean: true,
-          connectTimeout: 6000,
-          reconnectPeriod: 2500
-        });
-
-        client.on("connect", () => {
-          if (!connectedBrokerNames.includes(broker.name)) {
-            connectedBrokerNames.push(broker.name);
-            updateMeshBadge();
+    while (head < q.length) {
+      const cur = q[head++];
+      if (cur.y === goalRow) return true;
+      for (const [dx, dy] of dirs) {
+        const nx = cur.x + dx, ny = cur.y + dy;
+        if (nx >= 0 && nx < 9 && ny >= 0 && ny < 9) {
+          const idx = ny * 9 + nx;
+          if (!visited[idx] && !isBlocked(cur.x, cur.y, nx, ny, wallList)) {
+            visited[idx] = 1;
+            q.push({ x: nx, y: ny });
           }
-          client.subscribe(topic, { qos: 0 }, () => {
-            broadcastMesh({
-              t: "hello",
-              cid: myClientId,
-              name: myName,
-              skin: mySkin
-            });
-          });
-        });
-
-        client.on("close", () => {
-          connectedBrokerNames = connectedBrokerNames.filter(n => n !== broker.name);
-          updateMeshBadge();
-        });
-
-        client.on("message", (_, payload) => {
-          try {
-            const msg = JSON.parse(payload.toString());
-            onMeshPacket(msg);
-          } catch (_) {}
-        });
-
-        activeClients.push(client);
-      } catch (_) {}
-    });
-  }
-
-  function updateMeshBadge() {
-    const el = document.getElementById("netBadge");
-    if (connectedBrokerNames.length === 0) {
-      el.textContent = "🔴 Reconnecting Mesh...";
-    } else {
-      el.textContent = `🟢 ${connectedBrokerNames.length}x Mesh (${connectedBrokerNames[0]})`;
-    }
-  }
-
-  function broadcastMesh(packet) {
-    if (isLocalMode) return;
-    packet.uid = myClientId + "_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6);
-    seenPacketIds.add(packet.uid);
-    const raw = JSON.stringify(packet);
-    const topic = `quoridor_2b_${roomCode}`;
-
-    activeClients.forEach(c => {
-      if (c && c.connected) {
-        try { c.publish(topic, raw, { qos: 0 }); } catch (_) {}
-      }
-    });
-  }
-
-  function onMeshPacket(msg) {
-    if (!msg || !msg.uid || seenPacketIds.has(msg.uid)) return;
-    seenPacketIds.add(msg.uid);
-
-    if (msg.t === "hello") {
-      if (msg.cid === myClientId) return;
-
-      // Determine deterministic roles by clientId if joining simultaneously
-      if (!state.p2.id || state.p2.id === msg.cid) {
-        if (myClientId < msg.cid) {
-          myRole = 1;
-          state.p1.id = myClientId;
-          state.p1.name = myName;
-          state.p1.skin = mySkin;
-          state.p2.id = msg.cid;
-          state.p2.name = msg.name;
-          state.p2.skin = msg.skin === mySkin ? (msg.skin + 1) % BALL_SKINS.length : msg.skin;
-        } else {
-          myRole = 2;
-          state.p2.id = myClientId;
-          state.p2.name = myName;
-          state.p2.skin = mySkin;
-          state.p1.id = msg.cid;
-          state.p1.name = msg.name;
-          state.p1.skin = msg.skin === mySkin ? (msg.skin + 1) % BALL_SKINS.length : msg.skin;
         }
-        updateHud();
-        showToast(`⚔️ ${msg.name} connected! Match live.`);
-
-        // Send full state snapshot back
-        broadcastMesh({
-          t: "sync",
-          state: state
-        });
       }
-      return;
+    }
+    return false;
+  }
+
+  function getValidMoves(pNum) {
+    const me = pNum === 1 ? state.p1 : state.p2;
+    const opp = pNum === 1 ? state.p2 : state.p1;
+    const out = [];
+    const dirs = [[0, -1], [0, 1], [-1, 0], [1, 0]];
+
+    for (const [dx, dy] of dirs) {
+      const nx = me.x + dx, ny = me.y + dy;
+      if (isBlocked(me.x, me.y, nx, ny, state.walls)) continue;
+
+      if (nx === opp.x && ny === opp.y) {
+        const jx = opp.x + dx, jy = opp.y + dy;
+        if (!isBlocked(opp.x, opp.y, jx, jy, state.walls)) {
+          out.push({ x: jx, y: jy });
+        } else {
+          const sides = dx === 0 ? [[-1, 0], [1, 0]] : [[0, -1], [0, 1]];
+          for (const [sdx, sdy] of sides) {
+            const sx = opp.x + sdx, sy = opp.y + sdy;
+            if (!isBlocked(opp.x, opp.y, sx, sy, state.walls)) out.push({ x: sx, y: sy });
+          }
+        }
+      } else {
+        out.push({ x: nx, y: ny });
+      }
+    }
+    return out;
+  }
+
+  function validateWall(gx, gy, dir) {
+    if (gx < 0 || gx > 7 || gy < 0 || gy > 7) return { ok: false, msg: "Out of bounds" };
+    const me = state.turn === 1 ? state.p1 : state.p2;
+    if (me.walls <= 0) return { ok: false, msg: "You have 0 walls left!" };
+
+    for (const w of state.walls) {
+      if (w.gx === gx && w.gy === gy) return { ok: false, msg: "Wall intersection blocked!" };
+      if (dir === "H" && w.dir === "H" && w.gy === gy && Math.abs(w.gx - gx) <= 1) {
+        return { ok: false, msg: "Overlaps existing wall!" };
+      }
+      if (dir === "V" && w.dir === "V" && w.gx === gx && Math.abs(w.gy - gy) <= 1) {
+        return { ok: false, msg: "Overlaps existing wall!" };
+      }
     }
 
-    if (msg.t === "sync" || msg.t === "state") {
-      const incoming = msg.state;
-      if (!incoming) return;
-      if (msg.t === "state" && incoming.seq <= state.seq) return;
-
-      const movedPawn =
-        incoming.p1.x !== state.p1.x || incoming.p1.y !== state.p1.y ||
-        incoming.p2.x !== state.p2.x || incoming.p2.y !== state.p2.y;
-      const addedWall = incoming.walls.length > state.walls.length;
-
-      state = incoming;
-      if (state.p1.id === myClientId) myRole = 1;
-      if (state.p2.id === myClientId) myRole = 2;
-
-      if (movedPawn) {
-        anim.p1.hop = 1;
-        anim.p2.hop = 1;
-        playSfx("move");
-      } else if (addedWall) {
-        playSfx("wall");
-      }
-
-      if (state.winner) {
-        playSfx("win");
-        const wName = state.winner === 1 ? state.p1.name : state.p2.name;
-        showToast(`🏆 ${wName} WINS THE ROUND!`);
-      }
-
-      updateHud();
+    const nextWalls = [...state.walls, { gx, gy, dir }];
+    if (!hasPathToGoal(state.p1.x, state.p1.y, 0, nextWalls) ||
+        !hasPathToGoal(state.p2.x, state.p2.y, 8, nextWalls)) {
+      return { ok: false, msg: "Cannot completely trap a player!" };
     }
+    return { ok: true };
   }
 
   /* =========================================================
-     8. TURN EXECUTION & USER CONTROLS
+     8. SIMPLIFIED WALL & MOVE CONTROLS
   ========================================================= */
   function isMyTurn() {
-    if (state.winner) return false;
-    if (isLocalMode) return true;
-    if (!state.p2.id) return false;
-    return state.turn === myRole;
+    return !state.winner && state.p2.id && state.turn === myRole;
   }
 
-  function setActionMode(mode) {
-    actionMode = mode;
-    document.getElementById("moveModeBtn").classList.toggle("selected", mode === "MOVE");
-    document.getElementById("wallHBtn").classList.toggle("selected", mode === "WALL_H");
-    document.getElementById("wallVBtn").classList.toggle("selected", mode === "WALL_V");
+  function setMode(newMode) {
+    mode = newMode;
+    document.getElementById("tabMove").classList.toggle("active", mode === "MOVE");
+    document.getElementById("tabWall").classList.toggle("active", mode === "WALL");
+    document.getElementById("wallActionRow").classList.toggle("hidden", mode !== "WALL");
 
     if (mode === "MOVE") {
-      ghostWall = null;
-      document.getElementById("confirmBar").classList.add("hidden");
-    } else {
-      const dir = mode === "WALL_H" ? "H" : "V";
-      if (!ghostWall) {
-        ghostWall = { gx: 3, gy: 3, dir };
-      } else {
-        ghostWall.dir = dir;
-      }
-      document.getElementById("confirmBar").classList.remove("hidden");
+      previewWall = null;
+    } else if (!previewWall) {
+      previewWall = { gx: 3, gy: 3, dir: "H" };
     }
   }
 
-  document.getElementById("moveModeBtn").onclick = () => setActionMode("MOVE");
-  document.getElementById("wallHBtn").onclick = () => setActionMode("WALL_H");
-  document.getElementById("wallVBtn").onclick = () => setActionMode("WALL_V");
-
-  document.getElementById("rotateWallBtn").onclick = () => {
-    if (!ghostWall) return;
-    const nextMode = ghostWall.dir === "H" ? "WALL_V" : "WALL_H";
-    setActionMode(nextMode);
-  };
-
-  document.getElementById("cancelWallBtn").onclick = () => setActionMode("MOVE");
-
-  document.getElementById("confirmWallBtn").onclick = () => {
-    if (!ghostWall) return;
-    if (!isMyTurn()) {
+  document.getElementById("tabMove").onclick = () => setMode("MOVE");
+  document.getElementById("tabWall").onclick = () => {
+    const myWalls = myRole === 1 ? state.p1.walls : state.p2.walls;
+    if (myWalls <= 0) {
       playSfx("err");
-      showToast("⏳ Wait for your opponent's turn!");
+      showToast("⚠️ You have 0 walls remaining!");
       return;
     }
+    setMode("WALL");
+  };
 
-    const check = canPlaceWall(ghostWall.gx, ghostWall.gy, ghostWall.dir);
+  document.getElementById("rotateBtn").onclick = () => {
+    if (!previewWall) return;
+    previewWall.dir = previewWall.dir === "H" ? "V" : "H";
+    playSfx("snap");
+  };
+
+  document.getElementById("placeWallBtn").onclick = () => {
+    if (!previewWall) return;
+    if (!isMyTurn()) {
+      playSfx("err");
+      showToast("⏳ Wait for your turn!");
+      return;
+    }
+    const check = validateWall(previewWall.gx, previewWall.gy, previewWall.dir);
     if (!check.ok) {
       playSfx("err");
-      showToast(`⚠️ ${check.reason}`);
+      showToast(`⚠️ ${check.msg}`);
       return;
     }
 
     const activeP = state.turn === 1 ? state.p1 : state.p2;
     activeP.walls -= 1;
-    state.walls.push({ gx: ghostWall.gx, gy: ghostWall.gy, dir: ghostWall.dir });
+    state.walls.push({ ...previewWall });
     state.turn = state.turn === 1 ? 2 : 1;
     state.seq += 1;
 
     playSfx("wall");
-    setActionMode("MOVE");
+    setMode("MOVE");
     updateHud();
-    broadcastMesh({ t: "state", state });
+    sendPacket({ t: "state", state });
   };
 
-  function executePawnMove(targetX, targetY) {
+  // Smart Pointer Handling: Drag or Tap to Snap Wall to Groove Automatically
+  let isDraggingWall = false;
+
+  function getCanvasPoint(e) {
+    const r = canvas.getBoundingClientRect();
+    return {
+      cx: (e.clientX - r.left) * (canvas.width / r.width),
+      cy: (e.clientY - r.top) * (canvas.height / r.height)
+    };
+  }
+
+  function updateWallPreviewFromPoint(cx, cy, allowTapFlip) {
+    // Calculate fractional grid position relative to intersections
+    const rawX = (cx - PAD_X - CELL - GAP / 2) / STEP;
+    const rawY = (cy - PAD_TOP - CELL - GAP / 2) / STEP;
+    const gx = Math.max(0, Math.min(7, Math.round(rawX)));
+    const gy = Math.max(0, Math.min(7, Math.round(rawY)));
+
+    // Determine whether finger is in a horizontal groove or vertical groove
+    const ix = PAD_X + gx * STEP + CELL + GAP / 2;
+    const iy = PAD_TOP + gy * STEP + CELL + GAP / 2;
+    const dx = Math.abs(cx - ix);
+    const dy = Math.abs(cy - iy);
+
+    // If user tapped directly on the already-selected intersection, flip H <-> V
+    if (allowTapFlip && previewWall && previewWall.gx === gx && previewWall.gy === gy && dx < 22 && dy < 22) {
+      previewWall.dir = previewWall.dir === "H" ? "V" : "H";
+      playSfx("snap");
+      return;
+    }
+
+    // Auto-detect orientation from which groove the finger is sliding along
+    let autoDir = previewWall ? previewWall.dir : "H";
+    if (dx > dy + 8) autoDir = "H";
+    else if (dy > dx + 8) autoDir = "V";
+
+    if (!previewWall || previewWall.gx !== gx || previewWall.gy !== gy || previewWall.dir !== autoDir) {
+      previewWall = { gx, gy, dir: autoDir };
+      playSfx("snap");
+    }
+  }
+
+  canvas.addEventListener("pointerdown", e => {
+    e.preventDefault();
+    const { cx, cy } = getCanvasPoint(e);
+
+    if (mode === "MOVE") {
+      const col = Math.floor((cx - PAD_X) / STEP);
+      const row = Math.floor((cy - PAD_TOP) / STEP);
+      if (col >= 0 && col < 9 && row >= 0 && row < 9) {
+        tryMovePawn(col, row);
+      }
+    } else {
+      isDraggingWall = true;
+      updateWallPreviewFromPoint(cx, cy, true);
+    }
+  });
+
+  canvas.addEventListener("pointermove", e => {
+    if (!isDraggingWall || mode !== "WALL") return;
+    const { cx, cy } = getCanvasPoint(e);
+    updateWallPreviewFromPoint(cx, cy, false);
+  });
+
+  window.addEventListener("pointerup", () => { isDraggingWall = false; });
+
+  function tryMovePawn(col, row) {
     if (!isMyTurn()) {
       playSfx("err");
-      showToast(state.p2.id || isLocalMode ? "⏳ Opponent's Turn!" : "⏳ Waiting for friend to join room...");
+      showToast(state.p2.id ? "⏳ Opponent's turn!" : "⏳ Waiting for friend...");
       return;
     }
+    const moves = getValidMoves(state.turn);
+    if (!moves.some(m => m.x === col && m.y === row)) return;
 
-    const validMoves = getValidPawnMoves(state.turn);
-    const ok = validMoves.some(m => m.x === targetX && m.y === targetY);
-    if (!ok) {
-      playSfx("err");
-      return;
-    }
-
-    const activeP = state.turn === 1 ? state.p1 : state.p2;
-    activeP.x = targetX;
-    activeP.y = targetY;
+    const p = state.turn === 1 ? state.p1 : state.p2;
+    p.x = col; p.y = row;
 
     if (state.turn === 1) anim.p1.hop = 1;
     else anim.p2.hop = 1;
 
-    // Check Goal Row Win
-    if (state.turn === 1 && activeP.y === 0) {
+    if (state.turn === 1 && p.y === 0) {
       state.winner = 1;
       state.p1.score += 1;
       playSfx("win");
-      showToast(`🏆 ${state.p1.name} REACHED THE GOAL!`);
-      setTimeout(() => {
-        resetMatchBoard(true);
-        broadcastMesh({ t: "state", state });
-      }, 3200);
-    } else if (state.turn === 2 && activeP.y === 8) {
+      showToast(`🏆 ${state.p1.name} WINS THE ROUND!`);
+      setTimeout(() => { resetBoard(true); sendPacket({ t: "state", state }); }, 3000);
+    } else if (state.turn === 2 && p.y === 8) {
       state.winner = 2;
       state.p2.score += 1;
       playSfx("win");
-      showToast(`🏆 ${state.p2.name} REACHED THE GOAL!`);
-      setTimeout(() => {
-        resetMatchBoard(true);
-        broadcastMesh({ t: "state", state });
-      }, 3200);
+      showToast(`🏆 ${state.p2.name} WINS THE ROUND!`);
+      setTimeout(() => { resetBoard(true); sendPacket({ t: "state", state }); }, 3000);
     } else {
       state.turn = state.turn === 1 ? 2 : 1;
       playSfx("move");
@@ -1033,177 +1004,109 @@
 
     state.seq += 1;
     updateHud();
-    broadcastMesh({ t: "state", state });
+    sendPacket({ t: "state", state });
   }
-
-  /* =========================================================
-     9. TOUCH / POINTER INPUT MAPPING (WITH BOARD FLIP SUPPORT)
-  ========================================================= */
-  function toBoardCoords(clientX, clientY) {
-    const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-    const cx = (clientX - rect.left) * scaleX;
-    const cy = (clientY - rect.top) * scaleY;
-    return { cx, cy };
-  }
-
-  canvas.addEventListener("pointerdown", e => {
-    e.preventDefault();
-    const { cx, cy } = toBoardCoords(e.clientX, e.clientY);
-
-    if (actionMode === "MOVE") {
-      // Find clicked tile (0..8, 0..8)
-      const col = Math.floor((cx - BOARD_PAD_X) / STEP);
-      const row = Math.floor((cy - BOARD_PAD_TOP) / STEP);
-      if (col >= 0 && col < 9 && row >= 0 && row < 9) {
-        executePawnMove(col, row);
-      }
-    } else {
-      // Find nearest interior intersection (0..7, 0..7)
-      let gx = Math.round((cx - BOARD_PAD_X - CELL - GAP / 2) / STEP);
-      let gy = Math.round((cy - BOARD_PAD_TOP - CELL - GAP / 2) / STEP);
-      gx = Math.max(0, Math.min(7, gx));
-      gy = Math.max(0, Math.min(7, gy));
-      ghostWall = {
-        gx,
-        gy,
-        dir: actionMode === "WALL_H" ? "H" : "V"
-      };
-    }
-  });
 
   function updateHud() {
-    const d1 = Math.max(0, shortestPathSteps(state.p1.x, state.p1.y, 0, state.walls));
-    const d2 = Math.max(0, shortestPathSteps(state.p2.x, state.p2.y, 8, state.walls));
+    document.getElementById("p1Title").textContent = `🔵 ${state.p1.name} ${myRole === 1 ? "(You)" : ""}`;
+    document.getElementById("p2Title").textContent = `🔴 ${state.p2.name} ${myRole === 2 ? "(You)" : ""}`;
+    document.getElementById("p1Sub").textContent = `🧱 ${state.p1.walls}  •  🏆 ${state.p1.score}`;
+    document.getElementById("p2Sub").textContent = `🧱 ${state.p2.walls}  •  🏆 ${state.p2.score}`;
 
-    document.getElementById("p1Name").textContent =
-      `▲ ${state.p1.name} ${!isLocalMode && myRole === 1 ? "(You)" : ""}`;
-    document.getElementById("p2Name").textContent =
-      `▼ ${state.p2.name} ${!isLocalMode && myRole === 2 ? "(You)" : ""}`;
+    document.getElementById("p1Card").classList.toggle("active", state.turn === 1);
+    document.getElementById("p2Card").classList.toggle("active", state.turn === 2);
 
-    document.getElementById("p1Stats").textContent =
-      `🧱 ${state.p1.walls}  •  📏 ${d1}  •  🏆 ${state.p1.score}`;
-    document.getElementById("p2Stats").textContent =
-      `🧱 ${state.p2.walls}  •  📏 ${d2}  •  🏆 ${state.p2.score}`;
-
-    document.getElementById("p1Box").classList.toggle("active-turn", state.turn === 1);
-    document.getElementById("p2Box").classList.toggle("active-turn", state.turn === 2);
-
-    const ind = document.getElementById("turnIndicator");
-    if (state.winner) {
-      ind.textContent = "🏆 FINISHED";
-    } else if (isLocalMode) {
-      ind.textContent = state.turn === 1 ? "P1 TURN ▲" : "P2 TURN ▼";
-    } else if (!state.p2.id) {
-      ind.textContent = "WAITING...";
-    } else {
-      ind.textContent = state.turn === myRole ? "⚡ YOUR TURN" : "⏳ OPPONENT";
-    }
+    const t = document.getElementById("turnText");
+    if (state.winner) t.textContent = "🏆 ROUND OVER";
+    else if (!state.p2.id) t.textContent = "WAITING...";
+    else t.textContent = state.turn === myRole ? "⚡ YOUR TURN" : "⏳ OPPONENT";
   }
 
   let toastTimer = null;
-  function showToast(txt) {
-    const t = document.getElementById("toastBanner");
-    t.textContent = txt;
-    t.classList.remove("hidden");
+  function showToast(msg) {
+    const el = document.getElementById("toast");
+    el.textContent = msg;
+    el.classList.remove("hidden");
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => t.classList.add("hidden"), 2800);
+    toastTimer = setTimeout(() => el.classList.add("hidden"), 2500);
   }
 
   /* =========================================================
-     10. 3D TABLETOP RENDERING ENGINE (PAINTER'S DEPTH SORT)
+     9. 3D TABLETOP RENDER LOOP
   ========================================================= */
-  function renderLoop() {
-    // Smooth interpolation for rolling 3D balls
-    anim.p1.rx += (state.p1.x - anim.p1.rx) * 0.24;
-    anim.p1.ry += (state.p1.y - anim.p1.ry) * 0.24;
+  function loop() {
+    anim.p1.rx += (state.p1.x - anim.p1.rx) * 0.25;
+    anim.p1.ry += (state.p1.y - anim.p1.ry) * 0.25;
     anim.p1.hop *= 0.84;
-    anim.p1.rollPhase += Math.hypot(state.p1.x - anim.p1.rx, state.p1.y - anim.p1.ry) * 14;
+    anim.p1.roll += Math.hypot(state.p1.x - anim.p1.rx, state.p1.y - anim.p1.ry) * 14;
 
-    anim.p2.rx += (state.p2.x - anim.p2.rx) * 0.24;
-    anim.p2.ry += (state.p2.y - anim.p2.ry) * 0.24;
+    anim.p2.rx += (state.p2.x - anim.p2.rx) * 0.25;
+    anim.p2.ry += (state.p2.y - anim.p2.ry) * 0.25;
     anim.p2.hop *= 0.84;
-    anim.p2.rollPhase += Math.hypot(state.p2.x - anim.p2.rx, state.p2.y - anim.p2.ry) * 14;
+    anim.p2.roll += Math.hypot(state.p2.x - anim.p2.rx, state.p2.y - anim.p2.ry) * 14;
 
-    draw3DBoard();
-    requestAnimationFrame(renderLoop);
+    drawScene();
+    requestAnimationFrame(loop);
   }
-  requestAnimationFrame(renderLoop);
+  requestAnimationFrame(loop);
 
-  function draw3DBoard() {
+  function drawScene() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // 1. 3D Outer Mahogany Board Frame + Base Depth Lip
-    ctx.fillStyle = "#060911";
+    // 3D Outer Board Base
+    ctx.fillStyle = "#090d16";
     ctx.beginPath();
-    ctx.roundRect(14, 24, canvas.width - 28, canvas.height - 34, 18);
+    ctx.roundRect(14, 18, canvas.width - 28, canvas.height - 26, 18);
     ctx.fill();
 
-    // Extruded Bottom Rim of the Board
     ctx.fillStyle = "#1e293b";
     ctx.beginPath();
-    ctx.roundRect(14, 16, canvas.width - 28, canvas.height - 36, 18);
+    ctx.roundRect(14, 10, canvas.width - 28, canvas.height - 28, 18);
     ctx.fill();
     ctx.strokeStyle = "#475569";
     ctx.lineWidth = 2;
     ctx.stroke();
 
-    // 2. Goal Row Indicators (Top = P1 Goal, Bottom = P2 Goal)
-    const p1Skin = BALL_SKINS[state.p1.skin] || BALL_SKINS[0];
-    const p2Skin = BALL_SKINS[state.p2.skin] || BALL_SKINS[1];
-
+    // Goal Labels
     ctx.font = "bold 11px sans-serif";
     ctx.textAlign = "center";
-    ctx.fillStyle = p1Skin.hi;
-    ctx.fillText(`▲ ${state.p1.name.toUpperCase()} GOAL LINE ▲`, canvas.width / 2, 38);
+    ctx.fillStyle = "#38bdf8";
+    ctx.fillText(`▲ ${state.p1.name.toUpperCase()} GOAL ▲`, canvas.width / 2, 30);
+    ctx.fillStyle = "#fb7185";
+    ctx.fillText(`▼ ${state.p2.name.toUpperCase()} GOAL ▼`, canvas.width / 2, canvas.height - 22);
 
-    ctx.fillStyle = p2Skin.hi;
-    ctx.fillText(`▼ ${state.p2.name.toUpperCase()} GOAL LINE ▼`, canvas.width / 2, canvas.height - 26);
+    const validMoves = isMyTurn() && mode === "MOVE" ? getValidMoves(state.turn) : [];
 
-    // 3. Draw 9x9 Carved 3D Tiles
-    const validMoves = isMyTurn() && actionMode === "MOVE" ? getValidPawnMoves(state.turn) : [];
-
+    // Draw 9x9 Carved 3D Tiles
     for (let r = 0; r < GRID; r++) {
       for (let c = 0; c < GRID; c++) {
-        const tx = BOARD_PAD_X + c * STEP;
-        const ty = BOARD_PAD_TOP + r * STEP;
+        const tx = PAD_X + c * STEP;
+        const ty = PAD_TOP + r * STEP;
 
-        // Recessed Groove Trench Shadow
-        ctx.fillStyle = "#090d16";
-        ctx.fillRect(tx - 2, ty + 4, CELL + 4, CELL + 2);
+        ctx.fillStyle = "#0b0f19";
+        ctx.fillRect(tx - 1, ty + 4, CELL + 2, CELL + 2);
 
-        // 3D Tile Side Extrusion (Bevel Depth)
-        ctx.fillStyle = "#111827";
-        ctx.fillRect(tx, ty + 4, CELL, CELL);
-
-        // 3D Tile Top Surface (Textured Basalt)
         ctx.save();
         ctx.beginPath();
         ctx.roundRect(tx, ty, CELL, CELL, 6);
         ctx.clip();
         ctx.drawImage(tileTexture, tx, ty, CELL, CELL);
-
-        // Goal Row Tint
         if (r === 0) {
-          ctx.fillStyle = p1Skin.base + "28";
+          ctx.fillStyle = "rgba(56, 189, 248, 0.16)";
           ctx.fillRect(tx, ty, CELL, CELL);
         } else if (r === 8) {
-          ctx.fillStyle = p2Skin.base + "28";
+          ctx.fillStyle = "rgba(251, 113, 133, 0.16)";
           ctx.fillRect(tx, ty, CELL, CELL);
         }
         ctx.restore();
 
-        // Top Specular Bevel Edge
-        ctx.strokeStyle = r === 0 ? p1Skin.base : (r === 8 ? p2Skin.base : "rgba(148, 163, 184, 0.22)");
-        ctx.lineWidth = r === 0 || r === 8 ? 1.8 : 1;
+        ctx.strokeStyle = r === 0 ? "#38bdf8" : (r === 8 ? "#fb7185" : "rgba(148,163,184,0.2)");
+        ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.roundRect(tx, ty, CELL, CELL, 6);
         ctx.stroke();
 
-        // Highlight Valid Move Targets
         if (validMoves.some(m => m.x === c && m.y === r)) {
-          ctx.save();
           ctx.beginPath();
           ctx.arc(tx + CELL / 2, ty + CELL / 2, 11, 0, Math.PI * 2);
           ctx.fillStyle = "rgba(34, 197, 94, 0.35)";
@@ -1211,222 +1114,160 @@
           ctx.lineWidth = 2.5;
           ctx.strokeStyle = "#4ade80";
           ctx.stroke();
-          ctx.restore();
         }
       }
     }
 
-    // 4. Depth-Sorted 3D Render Queue (Balls + Extruded Walls sorted by Y)
-    const renderables = [];
-
-    // Add Placed Walls
-    state.walls.forEach(w => {
-      const sortY = w.dir === "H" ? (w.gy + 0.85) : (w.gy + 1.5);
-      renderables.push({ type: "wall", w, ghost: false, valid: true, sortY });
-    });
-
-    // Add Ghost Wall Preview
-    if (ghostWall) {
-      const check = canPlaceWall(ghostWall.gx, ghostWall.gy, ghostWall.dir);
-      const sortY = ghostWall.dir === "H" ? (ghostWall.gy + 0.85) : (ghostWall.gy + 1.5);
-      renderables.push({ type: "wall", w: ghostWall, ghost: true, valid: check.ok, sortY });
+    // Subtle Guide Dots in Grooves when in Wall Mode
+    if (mode === "WALL") {
+      ctx.fillStyle = "rgba(245, 158, 11, 0.35)";
+      for (let gy = 0; gy < 8; gy++) {
+        for (let gx = 0; gx < 8; gx++) {
+          const ix = PAD_X + gx * STEP + CELL + GAP / 2;
+          const iy = PAD_TOP + gy * STEP + CELL + GAP / 2;
+          ctx.beginPath();
+          ctx.arc(ix, iy, 3, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
     }
 
-    // Add Player 1 & Player 2 3D Balls
-    renderables.push({
-      type: "ball",
-      rx: anim.p1.rx,
-      ry: anim.p1.ry,
-      hop: anim.p1.hop,
-      phase: anim.p1.rollPhase,
-      skin: state.p1.skin,
-      isTurn: state.turn === 1 && !state.winner,
-      sortY: anim.p1.ry + 0.5
+    // Depth-Sorted 3D Render Queue
+    const items = [];
+    state.walls.forEach(w => {
+      items.push({ type: "wall", w, ghost: false, ok: true, y: w.dir === "H" ? w.gy + 0.85 : w.gy + 1.5 });
     });
 
-    renderables.push({
-      type: "ball",
-      rx: anim.p2.rx,
-      ry: anim.p2.ry,
-      hop: anim.p2.hop,
-      phase: anim.p2.rollPhase,
-      skin: state.p2.skin,
-      isTurn: state.turn === 2 && !state.winner,
-      sortY: anim.p2.ry + 0.5
+    if (mode === "WALL" && previewWall) {
+      const check = validateWall(previewWall.gx, previewWall.gy, previewWall.dir);
+      items.push({
+        type: "wall",
+        w: previewWall,
+        ghost: true,
+        ok: check.ok,
+        y: previewWall.dir === "H" ? previewWall.gy + 0.85 : previewWall.gy + 1.5
+      });
+    }
+
+    items.push({
+      type: "ball", rx: anim.p1.rx, ry: anim.p1.ry, hop: anim.p1.hop, roll: anim.p1.roll,
+      styleIdx: 0, active: state.turn === 1 && !state.winner, y: anim.p1.ry + 0.5
+    });
+    items.push({
+      type: "ball", rx: anim.p2.rx, ry: anim.p2.ry, hop: anim.p2.hop, roll: anim.p2.roll,
+      styleIdx: 1, active: state.turn === 2 && !state.winner, y: anim.p2.ry + 0.5
     });
 
-    // Painter's Algorithm: Sort back-to-front by Y coordinate
-    renderables.sort((a, b) => a.sortY - b.sortY);
+    items.sort((a, b) => a.y - b.y);
 
-    for (const item of renderables) {
-      if (item.type === "wall") {
-        draw3DExtrudedWall(item.w.gx, item.w.gy, item.w.dir, item.ghost, item.valid);
-      } else {
-        draw3DTexturedBall(item.rx, item.ry, item.hop, item.phase, item.skin, item.isTurn);
-      }
+    for (const it of items) {
+      if (it.type === "wall") draw3DWall(it.w.gx, it.w.gy, it.w.dir, it.ghost, it.ok);
+      else draw3DBall(it.rx, it.ry, it.hop, it.roll, it.styleIdx, it.active);
     }
   }
 
-  /* =========================================================
-     11. 3D EXTRUDED WALL RENDERER (WOOD GRAIN + BEVEL + SHADOW)
-  ========================================================= */
-  function draw3DExtrudedWall(gx, gy, dir, isGhost, isValid) {
+  function draw3DWall(gx, gy, dir, isGhost, isOk) {
     ctx.save();
+    const x = dir === "H" ? PAD_X + gx * STEP : PAD_X + gx * STEP + CELL;
+    const y = dir === "H" ? PAD_TOP + gy * STEP + CELL : PAD_TOP + gy * STEP;
+    const w = dir === "H" ? CELL * 2 + GAP : GAP;
+    const h = dir === "H" ? GAP : CELL * 2 + GAP;
+    const ext = WALL_H_3D;
 
-    let x, y, w, h;
-    if (dir === "H") {
-      x = BOARD_PAD_X + gx * STEP;
-      y = BOARD_PAD_TOP + gy * STEP + CELL;
-      w = CELL * 2 + GAP;
-      h = GAP;
-    } else {
-      x = BOARD_PAD_X + gx * STEP + CELL;
-      y = BOARD_PAD_TOP + gy * STEP;
-      w = GAP;
-      h = CELL * 2 + GAP;
-    }
+    if (isGhost) ctx.globalAlpha = 0.82;
 
-    const ext = WALL_EXTRUSION_H; // 3D Height upward
-
-    if (isGhost) {
-      ctx.globalAlpha = 0.78;
-    }
-
-    // 1. 45-Degree Cast Shadow on Board Floor
-    ctx.fillStyle = "rgba(0, 0, 0, 0.48)";
+    // Drop Shadow
+    ctx.fillStyle = "rgba(0,0,0,0.45)";
     ctx.beginPath();
     ctx.moveTo(x, y + h);
     ctx.lineTo(x + w, y + h);
-    ctx.lineTo(x + w + 9, y + h + 8);
-    ctx.lineTo(x + 9, y + h + 8);
+    ctx.lineTo(x + w + 8, y + h + 7);
+    ctx.lineTo(x + 8, y + h + 7);
     ctx.closePath();
     ctx.fill();
 
-    // 2. Front 3D Extruded Face (Vertical Wall Side Facing Viewer)
-    if (isGhost) {
-      ctx.fillStyle = isValid ? "#16a34a" : "#dc2626";
-      ctx.fillRect(x, y + h - ext, w, ext);
-    } else {
-      const frontGrad = ctx.createLinearGradient(x, y + h - ext, x, y + h);
-      frontGrad.addColorStop(0, "#92400e");
-      frontGrad.addColorStop(1, "#451a03");
-      ctx.fillStyle = frontGrad;
-      ctx.fillRect(x, y + h - ext, w, ext);
+    // Front Extruded Face
+    ctx.fillStyle = isGhost ? (isOk ? "#16a34a" : "#dc2626") : "#78350f";
+    ctx.fillRect(x, y + h - ext, w, ext);
 
-      // Vertical carved wood ribs on front face
-      ctx.strokeStyle = "rgba(0,0,0,0.3)";
-      ctx.lineWidth = 1;
-      for (let rx = x + 12; rx < x + w; rx += 16) {
-        ctx.beginPath();
-        ctx.moveTo(rx, y + h - ext);
-        ctx.lineTo(rx, y + h);
-        ctx.stroke();
-      }
-    }
-
-    // 3. Top 3D Bevel Face (Raised by 'ext' pixels)
+    // Top Plank Face
     const topY = y - ext;
     ctx.save();
     ctx.beginPath();
     ctx.rect(x, topY, w, h);
     ctx.clip();
-
     if (isGhost) {
-      ctx.fillStyle = isValid ? "#4ade80" : "#f87171";
+      ctx.fillStyle = isOk ? "#4ade80" : "#f87171";
       ctx.fillRect(x, topY, w, h);
     } else {
-      ctx.drawImage(woodPatternH, x, topY, w, h);
-      // Golden Brass End-Caps on 3D Wall
+      ctx.drawImage(woodTexture, x, topY, w, h);
       ctx.fillStyle = "#f59e0b";
       if (dir === "H") {
-        ctx.fillRect(x, topY, 6, h);
-        ctx.fillRect(x + w - 6, topY, 6, h);
+        ctx.fillRect(x, topY, 5, h);
+        ctx.fillRect(x + w - 5, topY, 5, h);
       } else {
-        ctx.fillRect(x, topY, w, 6);
-        ctx.fillRect(x, topY + h - 6, w, 6);
+        ctx.fillRect(x, topY, w, 5);
+        ctx.fillRect(x, topY + h - 5, w, 5);
       }
     }
     ctx.restore();
 
-    // 4. Crisp 3D Edge Outlines
-    ctx.strokeStyle = isGhost ? (isValid ? "#bbf7d0" : "#fecaca") : "#fbbf24";
-    ctx.lineWidth = 1.3;
+    ctx.strokeStyle = isGhost ? "#ffffff" : "#fbbf24";
+    ctx.lineWidth = 1.2;
     ctx.strokeRect(x, topY, w, h);
-
-    ctx.strokeStyle = "#290f02";
-    ctx.strokeRect(x, y + h - ext, w, ext);
-
     ctx.restore();
   }
 
-  /* =========================================================
-     12. 3D TEXTURED SPHERE RENDERER (ROTATING UV + SPECULAR)
-  ========================================================= */
-  function draw3DTexturedBall(gridX, gridY, hop, rollPhase, skinIdx, isTurn) {
-    const skin = BALL_SKINS[skinIdx] || BALL_SKINS[0];
-    const texCanvas = skinPatterns[skinIdx] || skinPatterns[0];
-
-    const cx = BOARD_PAD_X + gridX * STEP + CELL / 2;
-    const baseCy = BOARD_PAD_TOP + gridY * STEP + CELL / 2;
-    const jumpOffset = hop * 16;
-    const cy = baseCy - 6 - jumpOffset;
-    const radius = 17;
+  function draw3DBall(gx, gy, hop, roll, styleIdx, isTurn) {
+    const st = BALL_STYLES[styleIdx];
+    const tex = ballTextures[styleIdx];
+    const cx = PAD_X + gx * STEP + CELL / 2;
+    const baseCy = PAD_TOP + gy * STEP + CELL / 2;
+    const cy = baseCy - 5 - hop * 15;
+    const r = 17;
 
     ctx.save();
-
-    // 1. Active Turn Pulsing Floor Halo
     if (isTurn) {
       ctx.beginPath();
-      ctx.arc(cx, baseCy, radius + 5, 0, Math.PI * 2);
+      ctx.arc(cx, baseCy, r + 5, 0, Math.PI * 2);
       ctx.strokeStyle = "#facc15";
       ctx.lineWidth = 2.5;
       ctx.stroke();
     }
 
-    // 2. Soft Ambient Occlusion Drop Shadow on Tile
+    // Floor Shadow
     ctx.beginPath();
-    ctx.ellipse(cx + 3, baseCy + 5, radius * (0.95 - hop * 0.2), radius * 0.55, 0, 0, Math.PI * 2);
-    ctx.fillStyle = "rgba(0, 0, 0, 0.58)";
+    ctx.ellipse(cx + 3, baseCy + 5, r * 0.9, r * 0.55, 0, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(0,0,0,0.55)";
     ctx.fill();
 
-    // 3. Clip to Sphere & Map Rolling Procedural Texture
+    // Sphere Clip + Rolling Texture
     ctx.beginPath();
-    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
     ctx.clip();
 
-    const offset = Math.floor(rollPhase) % 64;
-    ctx.drawImage(
-      texCanvas,
-      offset, offset, 64, 64,
-      cx - radius, cy - radius, radius * 2, radius * 2
-    );
+    const off = Math.floor(roll) % 64;
+    ctx.drawImage(tex, off, off, 64, 64, cx - r, cy - r, r * 2, r * 2);
 
-    // 4. 3D Spherical Shadow Gradient (Core + Terminator Darkening)
-    const sphereShade = ctx.createRadialGradient(
-      cx - radius * 0.35, cy - radius * 0.38, radius * 0.1,
-      cx, cy, radius
-    );
-    sphereShade.addColorStop(0, "rgba(255, 255, 255, 0.45)");
-    sphereShade.addColorStop(0.45, "rgba(0, 0, 0, 0.0)");
-    sphereShade.addColorStop(0.82, "rgba(0, 0, 0, 0.55)");
-    sphereShade.addColorStop(1, "rgba(0, 0, 0, 0.82)");
+    // 3D Lighting Overlay
+    const shade = ctx.createRadialGradient(cx - r * 0.35, cy - r * 0.35, r * 0.1, cx, cy, r);
+    shade.addColorStop(0, "rgba(255,255,255,0.45)");
+    shade.addColorStop(0.5, "rgba(0,0,0,0)");
+    shade.addColorStop(1, "rgba(0,0,0,0.8)");
+    ctx.fillStyle = shade;
+    ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
 
-    ctx.fillStyle = sphereShade;
-    ctx.fillRect(cx - radius, cy - radius, radius * 2, radius * 2);
-
-    // 5. Crisp 3D Specular Gloss Highlight (Top-Left Glint)
+    // Specular Glint
     ctx.beginPath();
-    ctx.ellipse(cx - radius * 0.34, cy - radius * 0.36, radius * 0.28, radius * 0.16, -Math.PI / 4, 0, Math.PI * 2);
-    ctx.fillStyle = "rgba(255, 255, 255, 0.78)";
+    ctx.ellipse(cx - r * 0.33, cy - r * 0.35, r * 0.26, r * 0.15, -Math.PI / 4, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(255,255,255,0.8)";
     ctx.fill();
 
-    // 6. Fresnel Rim Light
-    ctx.strokeStyle = skin.hi;
-    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = st.hi;
+    ctx.lineWidth = 1.4;
     ctx.beginPath();
-    ctx.arc(cx, cy, radius - 0.8, 0, Math.PI * 2);
+    ctx.arc(cx, cy, r - 0.7, 0, Math.PI * 2);
     ctx.stroke();
-
     ctx.restore();
   }
 })();
