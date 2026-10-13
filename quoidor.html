@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Quoridor 3D</title>
+  <title>Quoridor 3D: 1v1 & 1v1v1v1</title>
   <script src="https://cdn.jsdelivr.net/npm/mqtt@5.10.3/dist/mqtt.min.js"
           onerror="var s=document.createElement('script');s.src='https://unpkg.com/mqtt/dist/mqtt.min.js';document.head.appendChild(s);"></script>
   <style>
@@ -12,9 +12,8 @@
       --panel: #1e293b;
       --border: #334155;
       --accent: #f59e0b;
-      --blue: #38bdf8;
-      --red: #f43f5e;
       --green: #22c55e;
+      --blue: #38bdf8;
       --text: #f8fafc;
     }
     * {
@@ -29,13 +28,12 @@
       width: 100%;
       height: 100%;
       overflow: hidden;
-      background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%);
+      background: radial-gradient(circle at center, #1e293b 0%, #090d16 100%);
       color: var(--text);
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       touch-action: none;
     }
 
-    /* LOBBY / MENU SCREENS */
     .screen {
       position: absolute;
       inset: 0;
@@ -43,7 +41,7 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      padding: 16px;
+      padding: 14px;
       z-index: 20;
     }
     .hidden { display: none !important; }
@@ -52,38 +50,90 @@
       background: rgba(30, 41, 59, 0.96);
       border: 2px solid var(--border);
       border-radius: 18px;
-      padding: 22px;
+      padding: 20px;
       width: 100%;
-      max-width: 390px;
-      box-shadow: 0 20px 45px rgba(0,0,0,0.6);
+      max-width: 400px;
+      box-shadow: 0 20px 45px rgba(0,0,0,0.65);
       text-align: center;
     }
     h1 {
-      font-size: 1.7rem;
+      font-size: 1.65rem;
       font-weight: 900;
       color: var(--accent);
       margin-bottom: 4px;
     }
     .sub {
-      font-size: 0.82rem;
+      font-size: 0.8rem;
       color: #94a3b8;
-      margin-bottom: 16px;
+      margin-bottom: 14px;
+    }
+    .section-label {
+      font-size: 0.76rem;
+      font-weight: 800;
+      color: #cbd5e1;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
     }
 
-    input {
-      width: 100%;
-      padding: 12px 14px;
-      border-radius: 10px;
-      border: 2px solid #475569;
-      background: #0f172a;
-      color: #fff;
-      font-size: 1rem;
-      font-weight: 700;
-      text-align: center;
-      margin-bottom: 12px;
-      outline: none;
+    /* COLOR SKIN SELECTOR */
+    .skin-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 7px;
+      margin-bottom: 14px;
     }
-    input:focus { border-color: var(--accent); }
+    .skin-btn {
+      background: #0f172a;
+      border: 2px solid #334155;
+      border-radius: 10px;
+      padding: 8px 6px;
+      color: #cbd5e1;
+      font-size: 0.78rem;
+      font-weight: 800;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: transform 0.1s, border-color 0.1s;
+    }
+    .skin-btn.active {
+      border-color: var(--accent);
+      background: rgba(245, 158, 11, 0.16);
+      color: #fff;
+      transform: scale(1.03);
+    }
+    .swatch {
+      width: 15px;
+      height: 15px;
+      border-radius: 50%;
+      display: inline-block;
+      box-shadow: inset -2px -2px 4px rgba(0,0,0,0.6), inset 2px 2px 3px rgba(255,255,255,0.65);
+    }
+
+    /* MODE PICKER (1v1 vs 1v1v1v1) */
+    .mode-select-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .mode-pill {
+      padding: 10px;
+      border-radius: 10px;
+      border: 2px solid #334155;
+      background: #0f172a;
+      color: #94a3b8;
+      font-weight: 900;
+      font-size: 0.86rem;
+      cursor: pointer;
+    }
+    .mode-pill.active {
+      border-color: var(--accent);
+      background: rgba(245, 158, 11, 0.18);
+      color: var(--accent);
+    }
 
     .divider {
       display: flex;
@@ -105,20 +155,29 @@
       display: flex;
       gap: 8px;
     }
-    .join-row input {
-      margin-bottom: 0;
-      flex: 1.2;
+    input {
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 10px;
+      border: 2px solid #475569;
+      background: #0f172a;
+      color: #fff;
+      font-size: 1.05rem;
+      font-weight: 800;
+      text-align: center;
+      outline: none;
       text-transform: uppercase;
       letter-spacing: 2px;
     }
+    input:focus { border-color: var(--accent); }
 
     .btn {
       width: 100%;
       padding: 12px 14px;
       border-radius: 10px;
       border: none;
-      font-weight: 800;
-      font-size: 0.95rem;
+      font-weight: 900;
+      font-size: 0.92rem;
       cursor: pointer;
       background: var(--accent);
       color: #0f172a;
@@ -129,20 +188,40 @@
     .btn-green { background: var(--green); color: #052e16; }
     .btn-blue { background: var(--blue); color: #082f49; }
 
+    /* LOBBY SCREEN */
     .code-box {
       background: #0f172a;
       border: 2px dashed var(--accent);
       border-radius: 12px;
-      padding: 14px;
-      font-size: 2rem;
+      padding: 12px;
+      font-size: 1.9rem;
       font-weight: 900;
       letter-spacing: 6px;
       color: var(--accent);
-      margin: 12px 0;
+      margin: 10px 0;
       cursor: pointer;
     }
+    .slot-list {
+      list-style: none;
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 8px;
+      margin: 10px 0 14px;
+      text-align: left;
+    }
+    .slot-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 10px;
+      border-bottom: 1px solid #1e293b;
+      font-weight: 800;
+      font-size: 0.88rem;
+    }
+    .slot-item:last-child { border-bottom: none; }
 
-    /* GAME SCREEN */
+    /* GAMEPLAY SCREEN */
     #gameScreen {
       position: absolute;
       inset: 0;
@@ -150,80 +229,74 @@
       flex-direction: column;
       align-items: center;
       justify-content: space-between;
-      padding: 8px 10px 12px;
+      padding: 6px 8px 10px;
     }
-
     .top-hud {
       width: 100%;
-      max-width: 500px;
+      max-width: 520px;
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      gap: 5px;
     }
     .meta-bar {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      font-size: 0.76rem;
+      font-size: 0.74rem;
       color: #94a3b8;
-      padding: 0 4px;
+      padding: 0 2px;
     }
     .badge {
       background: rgba(15, 23, 42, 0.9);
       border: 1px solid #334155;
-      padding: 3px 10px;
+      padding: 3px 9px;
       border-radius: 99px;
-      font-weight: 700;
+      font-weight: 800;
       color: #e2e8f0;
     }
 
-    .score-strip {
+    .score-grid {
       display: grid;
-      grid-template-columns: 1fr auto 1fr;
-      gap: 6px;
-      align-items: center;
-      background: rgba(30, 41, 59, 0.92);
+      gap: 5px;
+      background: rgba(30, 41, 59, 0.94);
       border: 1.5px solid var(--border);
-      border-radius: 14px;
-      padding: 8px 10px;
+      border-radius: 12px;
+      padding: 6px;
     }
+    .score-grid.cols-2 { grid-template-columns: 1fr 1fr; }
+    .score-grid.cols-4 { grid-template-columns: repeat(4, 1fr); }
+
     .p-card {
       display: flex;
       flex-direction: column;
-      gap: 2px;
-      padding: 4px 8px;
-      border-radius: 10px;
+      align-items: center;
+      padding: 4px 6px;
+      border-radius: 8px;
       border: 2px solid transparent;
+      background: rgba(15, 23, 42, 0.55);
     }
     .p-card.active {
       border-color: var(--accent);
-      background: rgba(245, 158, 11, 0.14);
+      background: rgba(245, 158, 11, 0.16);
     }
     .p-title {
       font-weight: 900;
-      font-size: 0.88rem;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      font-size: 0.82rem;
+      display: flex;
+      align-items: center;
+      gap: 4px;
     }
     .p-sub {
-      font-size: 0.76rem;
+      font-size: 0.72rem;
       color: #cbd5e1;
       font-weight: 700;
-    }
-    .turn-pill {
-      font-weight: 900;
-      font-size: 0.78rem;
-      color: var(--accent);
-      padding: 0 6px;
-      text-align: center;
     }
 
     #canvasContainer {
       position: relative;
       flex: 1;
       width: 100%;
-      max-width: 500px;
+      max-width: 520px;
       min-height: 0;
       display: flex;
       align-items: center;
@@ -242,7 +315,7 @@
       top: 10px;
       left: 50%;
       transform: translateX(-50%);
-      background: rgba(15, 23, 42, 0.95);
+      background: rgba(15, 23, 42, 0.96);
       border: 2px solid var(--accent);
       color: #fff;
       padding: 7px 14px;
@@ -254,10 +327,9 @@
       z-index: 15;
     }
 
-    /* SIMPLIFIED BOTTOM CONTROLS */
     .controls-wrap {
       width: 100%;
-      max-width: 500px;
+      max-width: 520px;
       display: flex;
       flex-direction: column;
       gap: 6px;
@@ -268,13 +340,13 @@
       gap: 8px;
     }
     .mode-tab {
-      padding: 12px;
-      border-radius: 12px;
+      padding: 11px;
+      border-radius: 11px;
       border: 2px solid #334155;
       background: #1e293b;
       color: #94a3b8;
       font-weight: 900;
-      font-size: 0.92rem;
+      font-size: 0.9rem;
       cursor: pointer;
     }
     .mode-tab.active {
@@ -291,66 +363,69 @@
 </head>
 <body>
 
-  <!-- 1. CLASSIC ROOM CREATE / JOIN SCREEN -->
+  <!-- 1. MENU SCREEN -->
   <div id="menuScreen" class="screen">
     <div class="card">
       <h1>🏛️ QUORIDOR 3D</h1>
-      <div class="sub">3D Textured Spheres & Walls • Syria Direct Mesh</div>
+      <div class="sub">Auto P1–P4 Naming • 3D Skins • 1v1 & 1v1v1v1</div>
 
-      <input id="nameInput" type="text" maxlength="12" placeholder="Your Nickname" />
+      <div class="section-label">1. Choose Your 3D Ball Color</div>
+      <div class="skin-grid" id="skinGrid"></div>
+
+      <div class="section-label">2. Select Room Mode (For Creating)</div>
+      <div class="mode-select-row">
+        <button class="mode-pill active" id="mode2Btn">⚔️ 1v1 (2 Players)</button>
+        <button class="mode-pill" id="mode4Btn">🔥 1v1v1v1 (4 Players)</button>
+      </div>
 
       <button class="btn" id="createRoomBtn">➕ CREATE NEW ROOM</button>
 
-      <div class="divider">OR JOIN WITH CODE</div>
+      <div class="divider">OR JOIN FRIEND'S CODE</div>
 
       <div class="join-row">
         <input id="codeInput" type="text" maxlength="4" placeholder="CODE" />
-        <button class="btn btn-blue" id="joinRoomBtn" style="flex:0.8;">JOIN ➡️</button>
+        <button class="btn btn-blue" id="joinRoomBtn" style="flex:0.75;">JOIN ➡️</button>
       </div>
     </div>
   </div>
 
-  <!-- 2. WAITING ROOM LOBBY -->
+  <!-- 2. SYNCED LOBBY SCREEN -->
   <div id="lobbyScreen" class="screen hidden">
     <div class="card">
-      <h1>ROOM CREATED</h1>
-      <div class="sub">Tap the code to copy & send to your friend</div>
+      <h1 id="lobbyTitle">ROOM LOBBY</h1>
+      <div class="sub">Tap code to copy • First to join = P1, P2, P3, P4</div>
 
-      <div class="code-box" id="lobbyCodeDisplay">----</div>
+      <div class="code-box" id="lobbyCodeBox">----</div>
 
-      <div id="lobbyWaitText" style="font-size:0.9rem; font-weight:700; color:#cbd5e1; margin: 12px 0;">
-        ⏳ Waiting for opponent to join (1/2)...
+      <ul class="slot-list" id="slotList"></ul>
+
+      <div id="lobbyNetInfo" style="font-size:0.78rem; color:#94a3b8; margin-bottom:10px;">
+        🟢 Syncing across Syria Multi-Broker Mesh...
       </div>
 
-      <button class="btn btn-sec" id="cancelLobbyBtn">CANCEL</button>
+      <div style="display:flex; gap:8px;">
+        <button class="btn btn-sec" id="leaveLobbyBtn">LEAVE</button>
+        <button class="btn btn-green hidden" id="hostStartBtn">START MATCH 🚀</button>
+      </div>
     </div>
   </div>
 
-  <!-- 3. GAMEPLAY SCREEN -->
+  <!-- 3. GAME SCREEN -->
   <div id="gameScreen" class="hidden">
     <div class="top-hud">
       <div class="meta-bar">
-        <span class="badge" id="roomTag">ROOM: ----</span>
-        <span class="badge" id="meshTag">🟢 Connecting...</span>
-        <button id="leaveGameBtn" style="background:#334155;color:#fff;border:none;border-radius:8px;padding:3px 10px;font-weight:800;font-size:0.74rem;cursor:pointer;">LEAVE</button>
+        <span class="badge" id="roomBadge">ROOM: ----</span>
+        <span class="badge" id="turnBadge" style="color:#facc15;">TURN: P1</span>
+        <span class="badge" id="meshBadge">🟢 Mesh OK</span>
+        <button id="exitGameBtn" style="background:#334155;color:#fff;border:none;border-radius:8px;padding:3px 9px;font-weight:800;font-size:0.72rem;cursor:pointer;">EXIT</button>
       </div>
 
-      <div class="score-strip">
-        <div class="p-card" id="p1Card">
-          <div class="p-title" id="p1Title" style="color:#38bdf8;">🔵 Player 1</div>
-          <div class="p-sub" id="p1Sub">🧱 10  •  🏆 0</div>
-        </div>
-        <div class="turn-pill" id="turnText">YOUR TURN</div>
-        <div class="p-card" id="p2Card" style="text-align:right;">
-          <div class="p-title" id="p2Title" style="color:#fb7185;">🔴 Player 2</div>
-          <div class="p-sub" id="p2Sub">🧱 10  •  🏆 0</div>
-        </div>
-      </div>
+      <div class="score-grid cols-2" id="scoreGrid"></div>
     </div>
 
     <div id="canvasContainer">
       <div id="toast" class="hidden"></div>
-      <canvas id="boardCanvas" width="540" height="560"></canvas>
+      <canvas id="boardCanvas" width="548" height="548"></canvas>
     </div>
 
     <div class="controls-wrap">
@@ -378,41 +453,52 @@
   ];
 
   /* =========================================================
-     2. PROCEDURAL 3D TEXTURES (BALLS, WOOD WALLS, STONE TILES)
+     2. 3D BALL TEXTURE SKINS & BOARD ASSETS
   ========================================================= */
-  const BALL_STYLES = [
-    { base: "#0284c7", hi: "#bae6fd", dark: "#082f49", vein: "#ffffff" }, // P1 Sapphire Marble
-    { base: "#e11d48", hi: "#fecdd3", dark: "#4c0519", vein: "#facc15" }  // P2 Crimson Gold Marble
+  const SKINS = [
+    { name: "Sapphire", base: "#0284c7", hi: "#7dd3fc", dark: "#082f49", vein: "#ffffff" },
+    { name: "Crimson",  base: "#e11d48", hi: "#fda4af", dark: "#4c0519", vein: "#fde047" },
+    { name: "Emerald",  base: "#10b981", hi: "#6ee7b7", dark: "#064e3b", vein: "#ecfdf5" },
+    { name: "Gold",     base: "#d97706", hi: "#fef08a", dark: "#451a03", vein: "#ffffff" },
+    { name: "Amethyst", base: "#9333ea", hi: "#e9d5ff", dark: "#3b0764", vein: "#f0abfc" },
+    { name: "Damascus", base: "#64748b", hi: "#f1f5f9", dark: "#0f172a", vein: "#cbd5e1" }
   ];
+
+  // Spawn & Goal definitions for P1..P4
+  const SLOT_CONFIG = [
+    { role: 1, name: "P1", startX: 4, startY: 8, goalType: "row", goalVal: 0, arrow: "▲" }, // Bottom -> Top
+    { role: 2, name: "P2", startX: 4, startY: 0, goalType: "row", goalVal: 8, arrow: "▼" }, // Top -> Bottom
+    { role: 3, name: "P3", startX: 0, startY: 4, goalType: "col", goalVal: 8, arrow: "▶" }, // Left -> Right
+    { role: 4, name: "P4", startX: 8, startY: 4, goalType: "col", goalVal: 0, arrow: "◀" }  // Right -> Left
+  ];
+
   const ballTextures = [];
   let woodTexture = null;
   let tileTexture = null;
 
-  function generate3DAssets() {
-    // 1. 3D Marble Sphere Textures
-    BALL_STYLES.forEach((st, idx) => {
+  function build3DAssets() {
+    SKINS.forEach((sk, idx) => {
       const c = document.createElement("canvas");
       c.width = 128; c.height = 128;
       const g = c.getContext("2d");
-      g.fillStyle = st.base;
+      g.fillStyle = sk.base;
       g.fillRect(0, 0, 128, 128);
 
-      for (let i = 0; i < 26; i++) {
+      for (let i = 0; i < 28; i++) {
         g.beginPath();
-        g.strokeStyle = i % 2 === 0 ? st.vein : st.dark;
+        g.strokeStyle = i % 2 === 0 ? sk.vein : sk.dark;
         g.globalAlpha = 0.28;
         g.lineWidth = 2.4;
-        let x = (i * 17) % 128;
+        let x = (i * 19) % 128;
         g.moveTo(x, 0);
         for (let y = 16; y <= 128; y += 16) {
-          g.lineTo(x + Math.sin((y + i * 22) * 0.08) * 16, y);
+          g.lineTo(x + Math.sin((y + i * 21) * 0.08) * 16, y);
         }
         g.stroke();
       }
       ballTextures[idx] = c;
     });
 
-    // 2. 3D Mahogany Wood Plank Texture
     const wc = document.createElement("canvas");
     wc.width = 128; wc.height = 64;
     const wg = wc.getContext("2d");
@@ -433,7 +519,6 @@
     }
     woodTexture = wc;
 
-    // 3. Carved Basalt Tile Texture
     const tc = document.createElement("canvas");
     tc.width = 64; tc.height = 64;
     const tg = tc.getContext("2d");
@@ -444,10 +529,10 @@
     tg.fillRect(0, 0, 64, 64);
     tileTexture = tc;
   }
-  generate3DAssets();
+  build3DAssets();
 
   /* =========================================================
-     3. SOUND ENGINE
+     3. SOUND SYNTHESIS
   ========================================================= */
   let audioCtx = null;
   function playSfx(type) {
@@ -499,131 +584,164 @@
   }
 
   /* =========================================================
-     4. BOARD GEOMETRY & STATE
+     4. STATE & GEOMETRY
   ========================================================= */
   const canvas = document.getElementById("boardCanvas");
   const ctx = canvas.getContext("2d");
 
   const GRID = 9;
-  const PAD_X = 34;
-  const PAD_TOP = 44;
+  const PAD = 36;
   const CELL = 44;
   const GAP = 10;
   const STEP = CELL + GAP; // 54px
   const WALL_H_3D = 14;
 
-  const myId = "q_" + Math.random().toString(36).substring(2, 8);
-  let myName = "Shade";
+  const myId = "u_" + Math.random().toString(36).substring(2, 9);
+  let mySkin = 0;
+  let createMaxPlayers = 2; // 2 (1v1) or 4 (1v1v1v1)
   let roomCode = "";
-  let myRole = 1; // 1 = Host (Blue), 2 = Guest (Red)
+  let isHost = false;
+  let myRole = 1; // 1..4
+  let currentScreen = "MENU"; // MENU | LOBBY | GAME
 
+  // Networking
   let clients = [];
   let connectedBrokers = [];
-  let seenPackets = new Set();
+  let seenUids = new Set();
+  let heartbeatTimer = null;
 
+  // Lobby Roster: Array of { id, skin, joinedAt }
+  let lobbyPeers = {};
+
+  // Match State
   let state = {
     seq: 0,
-    turn: 1,
-    winner: 0,
-    p1: { x: 4, y: 8, walls: 10, name: "Player 1", id: null, score: 0 },
-    p2: { x: 4, y: 0, walls: 10, name: "Player 2", id: null, score: 0 },
-    walls: [] // { gx: 0..7, gy: 0..7, dir: 'H' | 'V' }
+    maxPlayers: 2,
+    turnIndex: 0, // 0..(maxPlayers-1)
+    winnerRole: 0,
+    players: [], // [{ role, name, id, skin, x, y, walls, score, goalType, goalVal, arrow }]
+    walls: []    // [{ gx, gy, dir }]
   };
 
+  // Visual 3D Ball Interpolation per role (1..4)
   let anim = {
-    p1: { rx: 4, ry: 8, hop: 0, roll: 0 },
-    p2: { rx: 4, ry: 0, hop: 0, roll: 0 }
+    1: { rx: 4, ry: 8, hop: 0, roll: 0 },
+    2: { rx: 4, ry: 0, hop: 0, roll: 0 },
+    3: { rx: 0, ry: 4, hop: 0, roll: 0 },
+    4: { rx: 8, ry: 4, hop: 0, roll: 0 }
   };
 
-  let mode = "MOVE"; // "MOVE" | "WALL"
-  let previewWall = null; // { gx, gy, dir }
+  let mode = "MOVE";
+  let previewWall = null;
 
-  const nameInput = document.getElementById("nameInput");
-  const codeInput = document.getElementById("codeInput");
-
-  if (window.Telegram?.WebApp?.initDataUnsafe?.user?.first_name) {
-    nameInput.value = window.Telegram.WebApp.initDataUnsafe.user.first_name.slice(0, 12);
+  if (window.Telegram?.WebApp) {
     window.Telegram.WebApp.expand();
   }
 
   /* =========================================================
-     5. ROOM CREATION & JOIN FLOW
+     5. MENU UI (COLOR PICKER & MODE SELECTOR)
   ========================================================= */
-  function randomCode() {
+  const skinGrid = document.getElementById("skinGrid");
+  SKINS.forEach((sk, idx) => {
+    const btn = document.createElement("button");
+    btn.className = "skin-btn" + (idx === 0 ? " active" : "");
+    btn.innerHTML = `<span class="swatch" style="background:${sk.base}"></span><span>${sk.name}</span>`;
+    btn.onclick = () => {
+      mySkin = idx;
+      document.querySelectorAll(".skin-btn").forEach((b, i) => b.classList.toggle("active", i === idx));
+    };
+    skinGrid.appendChild(btn);
+  });
+
+  document.getElementById("mode2Btn").onclick = () => {
+    createMaxPlayers = 2;
+    document.getElementById("mode2Btn").classList.add("active");
+    document.getElementById("mode4Btn").classList.remove("active");
+  };
+  document.getElementById("mode4Btn").onclick = () => {
+    createMaxPlayers = 4;
+    document.getElementById("mode4Btn").classList.add("active");
+    document.getElementById("mode2Btn").classList.remove("active");
+  };
+
+  function generateCode() {
     const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-    let out = "";
-    for (let i = 0; i < 4; i++) out += chars[Math.floor(Math.random() * chars.length)];
-    return out;
+    let res = "";
+    for (let i = 0; i < 4; i++) res += chars[Math.floor(Math.random() * chars.length)];
+    return res;
   }
 
   document.getElementById("createRoomBtn").onclick = () => {
-    myName = (nameInput.value.trim() || "Player 1").slice(0, 12);
-    roomCode = randomCode();
-    myRole = 1;
-
-    state.p1 = { x: 4, y: 8, walls: 10, name: myName, id: myId, score: 0 };
-    state.p2 = { x: 4, y: 0, walls: 10, name: "Waiting...", id: null, score: 0 };
-    resetBoard(false);
-
-    document.getElementById("menuScreen").classList.add("hidden");
-    document.getElementById("lobbyScreen").classList.remove("hidden");
-    document.getElementById("lobbyCodeDisplay").textContent = roomCode;
-    document.getElementById("lobbyWaitText").textContent = "⏳ Waiting for opponent to join (1/2)...";
-
-    connectMesh();
-  };
-
-  document.getElementById("lobbyCodeDisplay").onclick = () => {
-    navigator.clipboard?.writeText(roomCode);
-    document.getElementById("lobbyWaitText").textContent = "✅ Room Code Copied! Waiting for friend...";
-  };
-
-  document.getElementById("cancelLobbyBtn").onclick = () => {
-    closeMesh();
-    document.getElementById("lobbyScreen").classList.add("hidden");
-    document.getElementById("menuScreen").classList.remove("hidden");
+    roomCode = generateCode();
+    isHost = true;
+    state.maxPlayers = createMaxPlayers;
+    lobbyPeers = {};
+    lobbyPeers[myId] = { id: myId, skin: mySkin, joinedAt: 1 }; // Host is always #1 (P1)
+    openLobby();
   };
 
   document.getElementById("joinRoomBtn").onclick = () => {
-    const code = codeInput.value.trim().toUpperCase();
+    const code = document.getElementById("codeInput").value.trim().toUpperCase();
     if (code.length < 2) {
-      codeInput.focus();
+      document.getElementById("codeInput").focus();
       return;
     }
-    myName = (nameInput.value.trim() || "Player 2").slice(0, 12);
     roomCode = code;
-    myRole = 2;
-
-    state.p1 = { x: 4, y: 8, walls: 10, name: "Host", id: null, score: 0 };
-    state.p2 = { x: 4, y: 0, walls: 10, name: myName, id: myId, score: 0 };
-    resetBoard(false);
-
-    document.getElementById("menuScreen").classList.add("hidden");
-    document.getElementById("gameScreen").classList.remove("hidden");
-    document.getElementById("roomTag").textContent = `ROOM: ${roomCode}`;
-
-    connectMesh();
+    isHost = false;
+    lobbyPeers = {};
+    lobbyPeers[myId] = { id: myId, skin: mySkin, joinedAt: Date.now() };
+    openLobby();
   };
 
-  document.getElementById("leaveGameBtn").onclick = () => {
-    closeMesh();
-    document.getElementById("gameScreen").classList.add("hidden");
-    document.getElementById("menuScreen").classList.remove("hidden");
+  document.getElementById("lobbyCodeBox").onclick = () => {
+    navigator.clipboard?.writeText(roomCode);
+    document.getElementById("lobbyNetInfo").textContent = "✅ Code copied to clipboard!";
   };
+
+  document.getElementById("leaveLobbyBtn").onclick = () => {
+    stopMesh();
+    showScreen("MENU");
+  };
+
+  document.getElementById("exitGameBtn").onclick = () => {
+    stopMesh();
+    showScreen("MENU");
+  };
+
+  document.getElementById("hostStartBtn").onclick = () => {
+    if (!isHost) return;
+    hostInitializeAndStartMatch();
+  };
+
+  function showScreen(name) {
+    currentScreen = name;
+    document.getElementById("menuScreen").classList.toggle("hidden", name !== "MENU");
+    document.getElementById("lobbyScreen").classList.toggle("hidden", name !== "LOBBY");
+    document.getElementById("gameScreen").classList.toggle("hidden", name !== "GAME");
+  }
 
   /* =========================================================
-     6. MULTI-BROKER MESH NETWORKING
+     6. BULLETPROOF ROOM CODE & LOBBY HEARTBEAT PROTOCOL
   ========================================================= */
-  function closeMesh() {
+  function openLobby() {
+    showScreen("LOBBY");
+    document.getElementById("lobbyCodeBox").textContent = roomCode;
+    renderLobbySlots();
+    startMesh();
+  }
+
+  function stopMesh() {
+    if (heartbeatTimer) clearInterval(heartbeatTimer);
+    heartbeatTimer = null;
     clients.forEach(c => { try { c.end(true); } catch (_) {} });
     clients = [];
     connectedBrokers = [];
   }
 
-  function connectMesh() {
-    closeMesh();
-    seenPackets.clear();
-    const topic = `quoridor_2b_${roomCode}`;
+  function startMesh() {
+    stopMesh();
+    seenUids.clear();
+    const topic = `quoridor_3d_v3_${roomCode}`;
 
     BROKERS.forEach(b => {
       try {
@@ -631,129 +749,284 @@
           clientId: `${myId}_${b.name}_${Math.floor(Math.random() * 999)}`,
           keepalive: 25,
           clean: true,
-          connectTimeout: 6000,
-          reconnectPeriod: 2500
+          connectTimeout: 5000,
+          reconnectPeriod: 2000
         });
 
         c.on("connect", () => {
           if (!connectedBrokers.includes(b.name)) {
             connectedBrokers.push(b.name);
-            updateMeshIndicator();
+            updateNetBadges();
           }
           c.subscribe(topic, { qos: 0 }, () => {
-            sendPacket({ t: "join", role: myRole, id: myId, name: myName });
+            broadcastLobbyPresence();
           });
         });
 
         c.on("close", () => {
-          connectedBrokers = connectedBrokers.filter(n => n !== b.name);
-          updateMeshIndicator();
+          connectedBrokers = connectedBrokers.filter(x => x !== b.name);
+          updateNetBadges();
         });
 
         c.on("message", (_, payload) => {
           try {
-            handlePacket(JSON.parse(payload.toString()));
+            onMeshMessage(JSON.parse(payload.toString()));
           } catch (_) {}
         });
 
         clients.push(c);
       } catch (_) {}
     });
+
+    // Continuous 1.0s Lobby Heartbeat so room codes NEVER fail or miss a joiner
+    heartbeatTimer = setInterval(() => {
+      if (currentScreen === "LOBBY") {
+        broadcastLobbyPresence();
+      } else if (currentScreen === "GAME" && isHost) {
+        // Host periodically broadcasts state snapshot so late packets self-heal
+        sendMesh({ t: "state", state });
+      }
+    }, 1000);
   }
 
-  function updateMeshIndicator() {
-    const el = document.getElementById("meshTag");
-    if (connectedBrokers.length === 0) {
-      el.textContent = "🔴 Reconnecting...";
-    } else {
-      el.textContent = `🟢 Connected (${connectedBrokers[0]})`;
-    }
+  function updateNetBadges() {
+    const txt = connectedBrokers.length > 0
+      ? `🟢 Connected (${connectedBrokers[0]})`
+      : `🔴 Reconnecting...`;
+    document.getElementById("lobbyNetInfo").textContent = txt;
+    document.getElementById("meshBadge").textContent = txt;
   }
 
-  function sendPacket(pkt) {
+  function sendMesh(pkt) {
     pkt.uid = myId + "_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6);
-    seenPackets.add(pkt.uid);
-    const str = JSON.stringify(pkt);
-    const topic = `quoridor_2b_${roomCode}`;
+    seenUids.add(pkt.uid);
+    const raw = JSON.stringify(pkt);
+    const topic = `quoridor_3d_v3_${roomCode}`;
     clients.forEach(c => {
       if (c && c.connected) {
-        try { c.publish(topic, str, { qos: 0 }); } catch (_) {}
+        try { c.publish(topic, raw, { qos: 0 }); } catch (_) {}
       }
     });
   }
 
-  function handlePacket(msg) {
-    if (!msg || !msg.uid || seenPackets.has(msg.uid)) return;
-    seenPackets.add(msg.uid);
+  function broadcastLobbyPresence() {
+    if (isHost) {
+      sendMesh({
+        t: "lobby_host",
+        hostId: myId,
+        maxPlayers: state.maxPlayers,
+        peers: lobbyPeers
+      });
+    } else {
+      sendMesh({
+        t: "lobby_join",
+        id: myId,
+        skin: mySkin,
+        joinedAt: lobbyPeers[myId]?.joinedAt || Date.now()
+      });
+    }
+  }
 
-    if (msg.t === "join") {
-      if (msg.id === myId) return;
+  function onMeshMessage(msg) {
+    if (!msg || !msg.uid || seenUids.has(msg.uid)) return;
+    seenUids.add(msg.uid);
 
-      if (myRole === 1) {
-        state.p2.id = msg.id;
-        state.p2.name = msg.name;
-        // Move Host from Waiting Lobby into Game Screen automatically
-        document.getElementById("lobbyScreen").classList.add("hidden");
-        document.getElementById("gameScreen").classList.remove("hidden");
-        document.getElementById("roomTag").textContent = `ROOM: ${roomCode}`;
-        updateHud();
-        showToast(`⚔️ ${msg.name} joined! Your turn.`);
-        sendPacket({ t: "sync", state });
-      } else if (myRole === 2 && msg.role === 1) {
-        state.p1.id = msg.id;
-        state.p1.name = msg.name;
-        updateHud();
-        sendPacket({ t: "join", role: 2, id: myId, name: myName });
+    // 1. Guest receives Host's authoritative lobby table
+    if (msg.t === "lobby_host") {
+      if (!isHost) {
+        state.maxPlayers = msg.maxPlayers;
+        const merged = { ...msg.peers };
+        if (!merged[myId]) {
+          merged[myId] = { id: myId, skin: mySkin, joinedAt: Date.now() };
+          broadcastLobbyPresence();
+        }
+        lobbyPeers = merged;
+        renderLobbySlots();
       }
       return;
     }
 
-    if (msg.t === "sync" || msg.t === "state") {
+    // 2. Host receives a Guest's join/heartbeat
+    if (msg.t === "lobby_join") {
+      if (isHost) {
+        const currentCount = Object.keys(lobbyPeers).length;
+        if (!lobbyPeers[msg.id] && currentCount < state.maxPlayers) {
+          lobbyPeers[msg.id] = {
+            id: msg.id,
+            skin: msg.skin,
+            joinedAt: Date.now()
+          };
+          renderLobbySlots();
+          broadcastLobbyPresence();
+
+          // Auto-start immediately when room hits full capacity (2/2 or 4/4)
+          if (Object.keys(lobbyPeers).length === state.maxPlayers && currentScreen === "LOBBY") {
+            setTimeout(() => {
+              if (currentScreen === "LOBBY") hostInitializeAndStartMatch();
+            }, 500);
+          }
+        } else if (lobbyPeers[msg.id]) {
+          lobbyPeers[msg.id].skin = msg.skin;
+          renderLobbySlots();
+        }
+      }
+      return;
+    }
+
+    // 3. Match State / Start Broadcast
+    if (msg.t === "state") {
       const inc = msg.state;
       if (!inc) return;
-      if (msg.t === "state" && inc.seq <= state.seq) return;
 
-      const moved = inc.p1.x !== state.p1.x || inc.p1.y !== state.p1.y ||
-                    inc.p2.x !== state.p2.x || inc.p2.y !== state.p2.y;
+      // Transition from Lobby to Game automatically when match starts
+      if (currentScreen === "LOBBY") {
+        state = inc;
+        assignMyRoleFromState();
+        resetAnimPositions();
+        showScreen("GAME");
+        document.getElementById("roomBadge").textContent = `ROOM: ${roomCode}`;
+        updateGameHud();
+        showToast(`🚀 Match Started! You are P${myRole}`);
+        return;
+      }
+
+      if (inc.seq <= state.seq) return;
+
+      const moved = inc.players.some((p, i) =>
+        !state.players[i] || p.x !== state.players[i].x || p.y !== state.players[i].y
+      );
       const walled = inc.walls.length > state.walls.length;
 
       state = inc;
+      assignMyRoleFromState();
+
       if (moved) {
-        anim.p1.hop = 1;
-        anim.p2.hop = 1;
+        state.players.forEach(p => { anim[p.role].hop = 1; });
         playSfx("move");
       } else if (walled) {
         playSfx("wall");
       }
 
-      if (state.winner) {
+      if (state.winnerRole) {
         playSfx("win");
-        const wName = state.winner === 1 ? state.p1.name : state.p2.name;
-        showToast(`🏆 ${wName} WINS!`);
+        showToast(`🏆 P${state.winnerRole} WINS THE ROUND!`);
       }
-      updateHud();
+      updateGameHud();
     }
   }
 
-  function resetBoard(keepScores) {
-    const s1 = keepScores ? state.p1.score : 0;
-    const s2 = keepScores ? state.p2.score : 0;
-    state.seq = (state.seq || 0) + 1;
-    state.turn = 1;
-    state.winner = 0;
-    state.p1.x = 4; state.p1.y = 8; state.p1.walls = 10; state.p1.score = s1;
-    state.p2.x = 4; state.p2.y = 0; state.p2.walls = 10; state.p2.score = s2;
-    state.walls = [];
-    anim.p1.rx = 4; anim.p1.ry = 8;
-    anim.p2.rx = 4; anim.p2.ry = 0;
+  function renderLobbySlots() {
+    const sorted = Object.values(lobbyPeers).sort((a, b) => a.joinedAt - b.joinedAt);
+    const listEl = document.getElementById("slotList");
+    listEl.innerHTML = "";
+
+    document.getElementById("lobbyTitle").textContent =
+      state.maxPlayers === 4 ? "1v1v1v1 LOBBY (4P)" : "1v1 LOBBY (2P)";
+
+    for (let i = 0; i < state.maxPlayers; i++) {
+      const peer = sorted[i];
+      const li = document.createElement("li");
+      li.className = "slot-item";
+      const pLabel = `P${i + 1}`;
+      const cfg = SLOT_CONFIG[i];
+
+      if (peer) {
+        const sk = SKINS[peer.skin] || SKINS[0];
+        const isMe = peer.id === myId;
+        li.innerHTML = `
+          <span style="display:flex;align-items:center;gap:8px;">
+            <span class="swatch" style="background:${sk.base}"></span>
+            <span>${pLabel} ${isMe ? "(You)" : ""}</span>
+          </span>
+          <span style="color:#4ade80;">Ready ${cfg.arrow}</span>
+        `;
+      } else {
+        li.innerHTML = `
+          <span style="color:#64748b;">⚪ ${pLabel} — Waiting...</span>
+          <span style="color:#64748b;">${cfg.arrow}</span>
+        `;
+      }
+      listEl.appendChild(li);
+    }
+
+    const startBtn = document.getElementById("hostStartBtn");
+    if (isHost && sorted.length === state.maxPlayers) {
+      startBtn.classList.remove("hidden");
+    } else {
+      startBtn.classList.add("hidden");
+    }
+  }
+
+  function hostInitializeAndStartMatch(keepScores = false) {
+    const sorted = Object.values(lobbyPeers).sort((a, b) => a.joinedAt - b.joinedAt);
+    const count = state.maxPlayers;
+    const wallsPerPlayer = count === 4 ? 5 : 10;
+
+    // Ensure distinct colors if two players picked the exact same swatch
+    const usedSkins = new Set();
+    const playersArr = [];
+
+    for (let i = 0; i < count; i++) {
+      const peer = sorted[i] || { id: "bot_" + i, skin: i };
+      let chosenSkin = peer.skin;
+      if (usedSkins.has(chosenSkin)) {
+        for (let s = 0; s < SKINS.length; s++) {
+          if (!usedSkins.has(s)) { chosenSkin = s; break; }
+        }
+      }
+      usedSkins.add(chosenSkin);
+
+      const cfg = SLOT_CONFIG[i];
+      const prevScore = keepScores && state.players[i] ? state.players[i].score : 0;
+
+      playersArr.push({
+        role: cfg.role,
+        name: cfg.name, // Strictly P1, P2, P3, P4 in join order
+        id: peer.id,
+        skin: chosenSkin,
+        x: cfg.startX,
+        y: cfg.startY,
+        walls: wallsPerPlayer,
+        score: prevScore,
+        goalType: cfg.goalType,
+        goalVal: cfg.goalVal,
+        arrow: cfg.arrow
+      });
+    }
+
+    state = {
+      seq: (state.seq || 0) + 1,
+      maxPlayers: count,
+      turnIndex: 0,
+      winnerRole: 0,
+      players: playersArr,
+      walls: []
+    };
+
+    assignMyRoleFromState();
+    resetAnimPositions();
     setMode("MOVE");
-    updateHud();
+    showScreen("GAME");
+    document.getElementById("roomBadge").textContent = `ROOM: ${roomCode}`;
+    updateGameHud();
+    sendMesh({ t: "state", state });
+  }
+
+  function assignMyRoleFromState() {
+    const me = state.players.find(p => p.id === myId);
+    if (me) myRole = me.role;
+  }
+
+  function resetAnimPositions() {
+    state.players.forEach(p => {
+      anim[p.role] = { rx: p.x, ry: p.y, hop: 0, roll: 0 };
+    });
   }
 
   /* =========================================================
-     7. QUORIDOR RULES & BFS PATH VALIDATION
+     7. QUORIDOR 2P & 4P RULES (MULTI-PAWN JUMP + 4-WAY BFS)
   ========================================================= */
-  function isBlocked(x1, y1, x2, y2, wallList) {
+  function isEdgeBlocked(x1, y1, x2, y2, wallList) {
     if (x2 < 0 || x2 >= GRID || y2 < 0 || y2 >= GRID) return true;
     if (x1 === x2 && Math.abs(y1 - y2) === 1) {
       const minY = Math.min(y1, y2);
@@ -766,21 +1039,27 @@
     return true;
   }
 
-  function hasPathToGoal(startX, startY, goalRow, wallList) {
+  function isCellOccupied(x, y, ignoreRole = 0) {
+    return state.players.some(p => p.role !== ignoreRole && p.x === x && p.y === y);
+  }
+
+  function playerHasPath(p, wallList) {
     const visited = new Uint8Array(81);
-    const q = [{ x: startX, y: startY }];
-    visited[startY * 9 + startX] = 1;
+    const q = [{ x: p.x, y: p.y }];
+    visited[p.y * 9 + p.x] = 1;
     let head = 0;
     const dirs = [[0, -1], [0, 1], [-1, 0], [1, 0]];
 
     while (head < q.length) {
       const cur = q[head++];
-      if (cur.y === goalRow) return true;
+      if (p.goalType === "row" && cur.y === p.goalVal) return true;
+      if (p.goalType === "col" && cur.x === p.goalVal) return true;
+
       for (const [dx, dy] of dirs) {
         const nx = cur.x + dx, ny = cur.y + dy;
         if (nx >= 0 && nx < 9 && ny >= 0 && ny < 9) {
           const idx = ny * 9 + nx;
-          if (!visited[idx] && !isBlocked(cur.x, cur.y, nx, ny, wallList)) {
+          if (!visited[idx] && !isEdgeBlocked(cur.x, cur.y, nx, ny, wallList)) {
             visited[idx] = 1;
             q.push({ x: nx, y: ny });
           }
@@ -790,29 +1069,32 @@
     return false;
   }
 
-  function getValidMoves(pNum) {
-    const me = pNum === 1 ? state.p1 : state.p2;
-    const opp = pNum === 1 ? state.p2 : state.p1;
+  function getValidPawnMoves(p) {
+    if (!p) return [];
     const out = [];
     const dirs = [[0, -1], [0, 1], [-1, 0], [1, 0]];
 
     for (const [dx, dy] of dirs) {
-      const nx = me.x + dx, ny = me.y + dy;
-      if (isBlocked(me.x, me.y, nx, ny, state.walls)) continue;
+      const nx = p.x + dx, ny = p.y + dy;
+      if (isEdgeBlocked(p.x, p.y, nx, ny, state.walls)) continue;
 
-      if (nx === opp.x && ny === opp.y) {
-        const jx = opp.x + dx, jy = opp.y + dy;
-        if (!isBlocked(opp.x, opp.y, jx, jy, state.walls)) {
+      if (!isCellOccupied(nx, ny, p.role)) {
+        out.push({ x: nx, y: ny });
+      } else {
+        // Neighbor has a pawn -> Try straight jump over it
+        const jx = nx + dx, jy = ny + dy;
+        if (!isEdgeBlocked(nx, ny, jx, jy, state.walls) && !isCellOccupied(jx, jy, p.role)) {
           out.push({ x: jx, y: jy });
         } else {
+          // Straight jump blocked by wall, board edge, or 3rd pawn -> Diagonal jumps
           const sides = dx === 0 ? [[-1, 0], [1, 0]] : [[0, -1], [0, 1]];
           for (const [sdx, sdy] of sides) {
-            const sx = opp.x + sdx, sy = opp.y + sdy;
-            if (!isBlocked(opp.x, opp.y, sx, sy, state.walls)) out.push({ x: sx, y: sy });
+            const sx = nx + sdx, sy = ny + sdy;
+            if (!isEdgeBlocked(nx, ny, sx, sy, state.walls) && !isCellOccupied(sx, sy, p.role)) {
+              out.push({ x: sx, y: sy });
+            }
           }
         }
-      } else {
-        out.push({ x: nx, y: ny });
       }
     }
     return out;
@@ -820,32 +1102,38 @@
 
   function validateWall(gx, gy, dir) {
     if (gx < 0 || gx > 7 || gy < 0 || gy > 7) return { ok: false, msg: "Out of bounds" };
-    const me = state.turn === 1 ? state.p1 : state.p2;
-    if (me.walls <= 0) return { ok: false, msg: "You have 0 walls left!" };
+    const activeP = state.players[state.turnIndex];
+    if (!activeP || activeP.walls <= 0) return { ok: false, msg: "0 walls remaining!" };
 
     for (const w of state.walls) {
-      if (w.gx === gx && w.gy === gy) return { ok: false, msg: "Wall intersection blocked!" };
+      if (w.gx === gx && w.gy === gy) return { ok: false, msg: "Intersects existing wall!" };
       if (dir === "H" && w.dir === "H" && w.gy === gy && Math.abs(w.gx - gx) <= 1) {
-        return { ok: false, msg: "Overlaps existing wall!" };
+        return { ok: false, msg: "Overlaps horizontal wall!" };
       }
       if (dir === "V" && w.dir === "V" && w.gx === gx && Math.abs(w.gy - gy) <= 1) {
-        return { ok: false, msg: "Overlaps existing wall!" };
+        return { ok: false, msg: "Overlaps vertical wall!" };
       }
     }
 
     const nextWalls = [...state.walls, { gx, gy, dir }];
-    if (!hasPathToGoal(state.p1.x, state.p1.y, 0, nextWalls) ||
-        !hasPathToGoal(state.p2.x, state.p2.y, 8, nextWalls)) {
-      return { ok: false, msg: "Cannot completely trap a player!" };
+    for (const p of state.players) {
+      if (!playerHasPath(p, nextWalls)) {
+        return { ok: false, msg: `Cannot completely block ${p.name}!` };
+      }
     }
     return { ok: true };
   }
 
   /* =========================================================
-     8. SIMPLIFIED WALL & MOVE CONTROLS
+     8. CONTROLS & TURN EXECUTION
   ========================================================= */
+  function getActivePlayer() {
+    return state.players[state.turnIndex] || null;
+  }
+
   function isMyTurn() {
-    return !state.winner && state.p2.id && state.turn === myRole;
+    const active = getActivePlayer();
+    return !state.winnerRole && active && active.role === myRole;
   }
 
   function setMode(newMode) {
@@ -863,10 +1151,10 @@
 
   document.getElementById("tabMove").onclick = () => setMode("MOVE");
   document.getElementById("tabWall").onclick = () => {
-    const myWalls = myRole === 1 ? state.p1.walls : state.p2.walls;
-    if (myWalls <= 0) {
+    const me = state.players.find(p => p.role === myRole);
+    if (!me || me.walls <= 0) {
       playSfx("err");
-      showToast("⚠️ You have 0 walls remaining!");
+      showToast("⚠️ You have 0 walls left!");
       return;
     }
     setMode("WALL");
@@ -882,9 +1170,10 @@
     if (!previewWall) return;
     if (!isMyTurn()) {
       playSfx("err");
-      showToast("⏳ Wait for your turn!");
+      showToast(`⏳ Wait for P${getActivePlayer()?.role}'s turn!`);
       return;
     }
+
     const check = validateWall(previewWall.gx, previewWall.gy, previewWall.dir);
     if (!check.ok) {
       playSfx("err");
@@ -892,22 +1181,21 @@
       return;
     }
 
-    const activeP = state.turn === 1 ? state.p1 : state.p2;
+    const activeP = getActivePlayer();
     activeP.walls -= 1;
     state.walls.push({ ...previewWall });
-    state.turn = state.turn === 1 ? 2 : 1;
+    state.turnIndex = (state.turnIndex + 1) % state.players.length;
     state.seq += 1;
 
     playSfx("wall");
     setMode("MOVE");
-    updateHud();
-    sendPacket({ t: "state", state });
+    updateGameHud();
+    sendMesh({ t: "state", state });
   };
 
-  // Smart Pointer Handling: Drag or Tap to Snap Wall to Groove Automatically
   let isDraggingWall = false;
 
-  function getCanvasPoint(e) {
+  function getCanvasCoords(e) {
     const r = canvas.getBoundingClientRect();
     return {
       cx: (e.clientX - r.left) * (canvas.width / r.width),
@@ -915,57 +1203,53 @@
     };
   }
 
-  function updateWallPreviewFromPoint(cx, cy, allowTapFlip) {
-    // Calculate fractional grid position relative to intersections
-    const rawX = (cx - PAD_X - CELL - GAP / 2) / STEP;
-    const rawY = (cy - PAD_TOP - CELL - GAP / 2) / STEP;
+  function updateWallPreview(cx, cy, allowFlip) {
+    const rawX = (cx - PAD - CELL - GAP / 2) / STEP;
+    const rawY = (cy - PAD - CELL - GAP / 2) / STEP;
     const gx = Math.max(0, Math.min(7, Math.round(rawX)));
     const gy = Math.max(0, Math.min(7, Math.round(rawY)));
 
-    // Determine whether finger is in a horizontal groove or vertical groove
-    const ix = PAD_X + gx * STEP + CELL + GAP / 2;
-    const iy = PAD_TOP + gy * STEP + CELL + GAP / 2;
+    const ix = PAD + gx * STEP + CELL + GAP / 2;
+    const iy = PAD + gy * STEP + CELL + GAP / 2;
     const dx = Math.abs(cx - ix);
     const dy = Math.abs(cy - iy);
 
-    // If user tapped directly on the already-selected intersection, flip H <-> V
-    if (allowTapFlip && previewWall && previewWall.gx === gx && previewWall.gy === gy && dx < 22 && dy < 22) {
+    if (allowFlip && previewWall && previewWall.gx === gx && previewWall.gy === gy && dx < 22 && dy < 22) {
       previewWall.dir = previewWall.dir === "H" ? "V" : "H";
       playSfx("snap");
       return;
     }
 
-    // Auto-detect orientation from which groove the finger is sliding along
-    let autoDir = previewWall ? previewWall.dir : "H";
-    if (dx > dy + 8) autoDir = "H";
-    else if (dy > dx + 8) autoDir = "V";
+    let dir = previewWall ? previewWall.dir : "H";
+    if (dx > dy + 8) dir = "H";
+    else if (dy > dx + 8) dir = "V";
 
-    if (!previewWall || previewWall.gx !== gx || previewWall.gy !== gy || previewWall.dir !== autoDir) {
-      previewWall = { gx, gy, dir: autoDir };
+    if (!previewWall || previewWall.gx !== gx || previewWall.gy !== gy || previewWall.dir !== dir) {
+      previewWall = { gx, gy, dir };
       playSfx("snap");
     }
   }
 
   canvas.addEventListener("pointerdown", e => {
     e.preventDefault();
-    const { cx, cy } = getCanvasPoint(e);
+    const { cx, cy } = getCanvasCoords(e);
 
     if (mode === "MOVE") {
-      const col = Math.floor((cx - PAD_X) / STEP);
-      const row = Math.floor((cy - PAD_TOP) / STEP);
+      const col = Math.floor((cx - PAD) / STEP);
+      const row = Math.floor((cy - PAD) / STEP);
       if (col >= 0 && col < 9 && row >= 0 && row < 9) {
         tryMovePawn(col, row);
       }
     } else {
       isDraggingWall = true;
-      updateWallPreviewFromPoint(cx, cy, true);
+      updateWallPreview(cx, cy, true);
     }
   });
 
   canvas.addEventListener("pointermove", e => {
     if (!isDraggingWall || mode !== "WALL") return;
-    const { cx, cy } = getCanvasPoint(e);
-    updateWallPreviewFromPoint(cx, cy, false);
+    const { cx, cy } = getCanvasCoords(e);
+    updateWallPreview(cx, cy, false);
   });
 
   window.addEventListener("pointerup", () => { isDraggingWall = false; });
@@ -973,53 +1257,69 @@
   function tryMovePawn(col, row) {
     if (!isMyTurn()) {
       playSfx("err");
-      showToast(state.p2.id ? "⏳ Opponent's turn!" : "⏳ Waiting for friend...");
+      showToast(`⏳ Wait for P${getActivePlayer()?.role}'s turn!`);
       return;
     }
-    const moves = getValidMoves(state.turn);
-    if (!moves.some(m => m.x === col && m.y === row)) return;
 
-    const p = state.turn === 1 ? state.p1 : state.p2;
-    p.x = col; p.y = row;
+    const activeP = getActivePlayer();
+    const valid = getValidPawnMoves(activeP);
+    if (!valid.some(m => m.x === col && m.y === row)) return;
 
-    if (state.turn === 1) anim.p1.hop = 1;
-    else anim.p2.hop = 1;
+    activeP.x = col;
+    activeP.y = row;
+    anim[activeP.role].hop = 1;
 
-    if (state.turn === 1 && p.y === 0) {
-      state.winner = 1;
-      state.p1.score += 1;
+    const reachedGoal =
+      (activeP.goalType === "row" && activeP.y === activeP.goalVal) ||
+      (activeP.goalType === "col" && activeP.x === activeP.goalVal);
+
+    if (reachedGoal) {
+      state.winnerRole = activeP.role;
+      activeP.score += 1;
       playSfx("win");
-      showToast(`🏆 ${state.p1.name} WINS THE ROUND!`);
-      setTimeout(() => { resetBoard(true); sendPacket({ t: "state", state }); }, 3000);
-    } else if (state.turn === 2 && p.y === 8) {
-      state.winner = 2;
-      state.p2.score += 1;
-      playSfx("win");
-      showToast(`🏆 ${state.p2.name} WINS THE ROUND!`);
-      setTimeout(() => { resetBoard(true); sendPacket({ t: "state", state }); }, 3000);
+      showToast(`🏆 ${activeP.name} WINS THE ROUND!`);
+      if (isHost) {
+        setTimeout(() => {
+          hostInitializeAndStartMatch(true);
+        }, 3200);
+      }
     } else {
-      state.turn = state.turn === 1 ? 2 : 1;
+      state.turnIndex = (state.turnIndex + 1) % state.players.length;
       playSfx("move");
     }
 
     state.seq += 1;
-    updateHud();
-    sendPacket({ t: "state", state });
+    updateGameHud();
+    sendMesh({ t: "state", state });
   }
 
-  function updateHud() {
-    document.getElementById("p1Title").textContent = `🔵 ${state.p1.name} ${myRole === 1 ? "(You)" : ""}`;
-    document.getElementById("p2Title").textContent = `🔴 ${state.p2.name} ${myRole === 2 ? "(You)" : ""}`;
-    document.getElementById("p1Sub").textContent = `🧱 ${state.p1.walls}  •  🏆 ${state.p1.score}`;
-    document.getElementById("p2Sub").textContent = `🧱 ${state.p2.walls}  •  🏆 ${state.p2.score}`;
+  function updateGameHud() {
+    const grid = document.getElementById("scoreGrid");
+    grid.className = "score-grid " + (state.players.length === 4 ? "cols-4" : "cols-2");
+    grid.innerHTML = "";
 
-    document.getElementById("p1Card").classList.toggle("active", state.turn === 1);
-    document.getElementById("p2Card").classList.toggle("active", state.turn === 2);
+    const activeP = getActivePlayer();
 
-    const t = document.getElementById("turnText");
-    if (state.winner) t.textContent = "🏆 ROUND OVER";
-    else if (!state.p2.id) t.textContent = "WAITING...";
-    else t.textContent = state.turn === myRole ? "⚡ YOUR TURN" : "⏳ OPPONENT";
+    state.players.forEach(p => {
+      const sk = SKINS[p.skin] || SKINS[0];
+      const div = document.createElement("div");
+      div.className = "p-card" + (activeP && activeP.role === p.role && !state.winnerRole ? " active" : "");
+      div.innerHTML = `
+        <div class="p-title" style="color:${sk.hi}">
+          <span class="swatch" style="width:10px;height:10px;background:${sk.base}"></span>
+          <span>${p.name}${p.role === myRole ? "*" : ""}${p.arrow}</span>
+        </div>
+        <div class="p-sub">🧱${p.walls} • 🏆${p.score}</div>
+      `;
+      grid.appendChild(div);
+    });
+
+    const tb = document.getElementById("turnBadge");
+    if (state.winnerRole) {
+      tb.textContent = `🏆 P${state.winnerRole} WON!`;
+    } else if (activeP) {
+      tb.textContent = activeP.role === myRole ? `⚡ YOUR TURN (P${myRole})` : `⏳ TURN: ${activeP.name}`;
+    }
   }
 
   let toastTimer = null;
@@ -1032,56 +1332,82 @@
   }
 
   /* =========================================================
-     9. 3D TABLETOP RENDER LOOP
+     9. 3D RENDERING ENGINE (4-SIDE GOALS + BALLS + WALLS)
   ========================================================= */
-  function loop() {
-    anim.p1.rx += (state.p1.x - anim.p1.rx) * 0.25;
-    anim.p1.ry += (state.p1.y - anim.p1.ry) * 0.25;
-    anim.p1.hop *= 0.84;
-    anim.p1.roll += Math.hypot(state.p1.x - anim.p1.rx, state.p1.y - anim.p1.ry) * 14;
-
-    anim.p2.rx += (state.p2.x - anim.p2.rx) * 0.25;
-    anim.p2.ry += (state.p2.y - anim.p2.ry) * 0.25;
-    anim.p2.hop *= 0.84;
-    anim.p2.roll += Math.hypot(state.p2.x - anim.p2.rx, state.p2.y - anim.p2.ry) * 14;
-
-    drawScene();
-    requestAnimationFrame(loop);
+  function renderLoop() {
+    if (currentScreen === "GAME") {
+      state.players.forEach(p => {
+        const a = anim[p.role];
+        if (!a) return;
+        a.rx += (p.x - a.rx) * 0.25;
+        a.ry += (p.y - a.ry) * 0.25;
+        a.hop *= 0.84;
+        a.roll += Math.hypot(p.x - a.rx, p.y - a.ry) * 14;
+      });
+      draw3DBoard();
+    }
+    requestAnimationFrame(renderLoop);
   }
-  requestAnimationFrame(loop);
+  requestAnimationFrame(renderLoop);
 
-  function drawScene() {
+  function draw3DBoard() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // 3D Outer Board Base
+    // 3D Outer Frame
     ctx.fillStyle = "#090d16";
     ctx.beginPath();
-    ctx.roundRect(14, 18, canvas.width - 28, canvas.height - 26, 18);
+    ctx.roundRect(12, 16, canvas.width - 24, canvas.height - 22, 18);
     ctx.fill();
 
     ctx.fillStyle = "#1e293b";
     ctx.beginPath();
-    ctx.roundRect(14, 10, canvas.width - 28, canvas.height - 28, 18);
+    ctx.roundRect(12, 10, canvas.width - 24, canvas.height - 24, 18);
     ctx.fill();
     ctx.strokeStyle = "#475569";
     ctx.lineWidth = 2;
     ctx.stroke();
 
-    // Goal Labels
+    // Goal Edge Labels for Active Players
     ctx.font = "bold 11px sans-serif";
     ctx.textAlign = "center";
-    ctx.fillStyle = "#38bdf8";
-    ctx.fillText(`▲ ${state.p1.name.toUpperCase()} GOAL ▲`, canvas.width / 2, 30);
-    ctx.fillStyle = "#fb7185";
-    ctx.fillText(`▼ ${state.p2.name.toUpperCase()} GOAL ▼`, canvas.width / 2, canvas.height - 22);
+    const p1 = state.players[0];
+    const p2 = state.players[1];
+    const p3 = state.players[2];
+    const p4 = state.players[3];
 
-    const validMoves = isMyTurn() && mode === "MOVE" ? getValidMoves(state.turn) : [];
+    if (p1) {
+      ctx.fillStyle = SKINS[p1.skin].hi;
+      ctx.fillText(`▲ P1 GOAL ▲`, canvas.width / 2, 26);
+    }
+    if (p2) {
+      ctx.fillStyle = SKINS[p2.skin].hi;
+      ctx.fillText(`▼ P2 GOAL ▼`, canvas.width / 2, canvas.height - 18);
+    }
+    if (p3) {
+      ctx.save();
+      ctx.translate(canvas.width - 20, canvas.height / 2);
+      ctx.rotate(Math.PI / 2);
+      ctx.fillStyle = SKINS[p3.skin].hi;
+      ctx.fillText(`▲ P3 GOAL ▲`, 0, 0);
+      ctx.restore();
+    }
+    if (p4) {
+      ctx.save();
+      ctx.translate(20, canvas.height / 2);
+      ctx.rotate(-Math.PI / 2);
+      ctx.fillStyle = SKINS[p4.skin].hi;
+      ctx.fillText(`▲ P4 GOAL ▲`, 0, 0);
+      ctx.restore();
+    }
+
+    const activeP = getActivePlayer();
+    const validMoves = isMyTurn() && mode === "MOVE" ? getValidPawnMoves(activeP) : [];
 
     // Draw 9x9 Carved 3D Tiles
     for (let r = 0; r < GRID; r++) {
       for (let c = 0; c < GRID; c++) {
-        const tx = PAD_X + c * STEP;
-        const ty = PAD_TOP + r * STEP;
+        const tx = PAD + c * STEP;
+        const ty = PAD + r * STEP;
 
         ctx.fillStyle = "#0b0f19";
         ctx.fillRect(tx - 1, ty + 4, CELL + 2, CELL + 2);
@@ -1091,16 +1417,27 @@
         ctx.roundRect(tx, ty, CELL, CELL, 6);
         ctx.clip();
         ctx.drawImage(tileTexture, tx, ty, CELL, CELL);
-        if (r === 0) {
-          ctx.fillStyle = "rgba(56, 189, 248, 0.16)";
+
+        // Goal Tile Tints
+        if (r === 0 && p1) {
+          ctx.fillStyle = SKINS[p1.skin].base + "28";
           ctx.fillRect(tx, ty, CELL, CELL);
-        } else if (r === 8) {
-          ctx.fillStyle = "rgba(251, 113, 133, 0.16)";
+        }
+        if (r === 8 && p2) {
+          ctx.fillStyle = SKINS[p2.skin].base + "28";
+          ctx.fillRect(tx, ty, CELL, CELL);
+        }
+        if (c === 8 && p3) {
+          ctx.fillStyle = SKINS[p3.skin].base + "28";
+          ctx.fillRect(tx, ty, CELL, CELL);
+        }
+        if (c === 0 && p4) {
+          ctx.fillStyle = SKINS[p4.skin].base + "28";
           ctx.fillRect(tx, ty, CELL, CELL);
         }
         ctx.restore();
 
-        ctx.strokeStyle = r === 0 ? "#38bdf8" : (r === 8 ? "#fb7185" : "rgba(148,163,184,0.2)");
+        ctx.strokeStyle = "rgba(148,163,184,0.22)";
         ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.roundRect(tx, ty, CELL, CELL, 6);
@@ -1118,21 +1455,19 @@
       }
     }
 
-    // Subtle Guide Dots in Grooves when in Wall Mode
+    // Groove Intersection Dots in Wall Mode
     if (mode === "WALL") {
       ctx.fillStyle = "rgba(245, 158, 11, 0.35)";
       for (let gy = 0; gy < 8; gy++) {
         for (let gx = 0; gx < 8; gx++) {
-          const ix = PAD_X + gx * STEP + CELL + GAP / 2;
-          const iy = PAD_TOP + gy * STEP + CELL + GAP / 2;
           ctx.beginPath();
-          ctx.arc(ix, iy, 3, 0, Math.PI * 2);
+          ctx.arc(PAD + gx * STEP + CELL + GAP / 2, PAD + gy * STEP + CELL + GAP / 2, 3, 0, Math.PI * 2);
           ctx.fill();
         }
       }
     }
 
-    // Depth-Sorted 3D Render Queue
+    // Depth-Sorted Render Queue
     const items = [];
     state.walls.forEach(w => {
       items.push({ type: "wall", w, ghost: false, ok: true, y: w.dir === "H" ? w.gy + 0.85 : w.gy + 1.5 });
@@ -1149,34 +1484,38 @@
       });
     }
 
-    items.push({
-      type: "ball", rx: anim.p1.rx, ry: anim.p1.ry, hop: anim.p1.hop, roll: anim.p1.roll,
-      styleIdx: 0, active: state.turn === 1 && !state.winner, y: anim.p1.ry + 0.5
-    });
-    items.push({
-      type: "ball", rx: anim.p2.rx, ry: anim.p2.ry, hop: anim.p2.hop, roll: anim.p2.roll,
-      styleIdx: 1, active: state.turn === 2 && !state.winner, y: anim.p2.ry + 0.5
+    state.players.forEach(p => {
+      const a = anim[p.role] || { rx: p.x, ry: p.y, hop: 0, roll: 0 };
+      items.push({
+        type: "ball",
+        p,
+        rx: a.rx,
+        ry: a.ry,
+        hop: a.hop,
+        roll: a.roll,
+        active: activeP && activeP.role === p.role && !state.winnerRole,
+        y: a.ry + 0.5
+      });
     });
 
     items.sort((a, b) => a.y - b.y);
 
     for (const it of items) {
       if (it.type === "wall") draw3DWall(it.w.gx, it.w.gy, it.w.dir, it.ghost, it.ok);
-      else draw3DBall(it.rx, it.ry, it.hop, it.roll, it.styleIdx, it.active);
+      else draw3DBall(it.p, it.rx, it.ry, it.hop, it.roll, it.active);
     }
   }
 
   function draw3DWall(gx, gy, dir, isGhost, isOk) {
     ctx.save();
-    const x = dir === "H" ? PAD_X + gx * STEP : PAD_X + gx * STEP + CELL;
-    const y = dir === "H" ? PAD_TOP + gy * STEP + CELL : PAD_TOP + gy * STEP;
+    const x = dir === "H" ? PAD + gx * STEP : PAD + gx * STEP + CELL;
+    const y = dir === "H" ? PAD + gy * STEP + CELL : PAD + gy * STEP;
     const w = dir === "H" ? CELL * 2 + GAP : GAP;
     const h = dir === "H" ? GAP : CELL * 2 + GAP;
     const ext = WALL_H_3D;
 
     if (isGhost) ctx.globalAlpha = 0.82;
 
-    // Drop Shadow
     ctx.fillStyle = "rgba(0,0,0,0.45)";
     ctx.beginPath();
     ctx.moveTo(x, y + h);
@@ -1186,11 +1525,9 @@
     ctx.closePath();
     ctx.fill();
 
-    // Front Extruded Face
     ctx.fillStyle = isGhost ? (isOk ? "#16a34a" : "#dc2626") : "#78350f";
     ctx.fillRect(x, y + h - ext, w, ext);
 
-    // Top Plank Face
     const topY = y - ext;
     ctx.save();
     ctx.beginPath();
@@ -1218,11 +1555,11 @@
     ctx.restore();
   }
 
-  function draw3DBall(gx, gy, hop, roll, styleIdx, isTurn) {
-    const st = BALL_STYLES[styleIdx];
-    const tex = ballTextures[styleIdx];
-    const cx = PAD_X + gx * STEP + CELL / 2;
-    const baseCy = PAD_TOP + gy * STEP + CELL / 2;
+  function draw3DBall(p, gx, gy, hop, roll, isTurn) {
+    const sk = SKINS[p.skin] || SKINS[0];
+    const tex = ballTextures[p.skin] || ballTextures[0];
+    const cx = PAD + gx * STEP + CELL / 2;
+    const baseCy = PAD + gy * STEP + CELL / 2;
     const cy = baseCy - 5 - hop * 15;
     const r = 17;
 
@@ -1241,7 +1578,7 @@
     ctx.fillStyle = "rgba(0,0,0,0.55)";
     ctx.fill();
 
-    // Sphere Clip + Rolling Texture
+    // 3D Sphere Clip + Texture
     ctx.beginPath();
     ctx.arc(cx, cy, r, 0, Math.PI * 2);
     ctx.clip();
@@ -1249,26 +1586,35 @@
     const off = Math.floor(roll) % 64;
     ctx.drawImage(tex, off, off, 64, 64, cx - r, cy - r, r * 2, r * 2);
 
-    // 3D Lighting Overlay
+    // 3D Lighting
     const shade = ctx.createRadialGradient(cx - r * 0.35, cy - r * 0.35, r * 0.1, cx, cy, r);
     shade.addColorStop(0, "rgba(255,255,255,0.45)");
     shade.addColorStop(0.5, "rgba(0,0,0,0)");
-    shade.addColorStop(1, "rgba(0,0,0,0.8)");
+    shade.addColorStop(1, "rgba(0,0,0,0.82)");
     ctx.fillStyle = shade;
     ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
 
-    // Specular Glint
+    // Specular Highlight
     ctx.beginPath();
     ctx.ellipse(cx - r * 0.33, cy - r * 0.35, r * 0.26, r * 0.15, -Math.PI / 4, 0, Math.PI * 2);
     ctx.fillStyle = "rgba(255,255,255,0.8)";
     ctx.fill();
 
-    ctx.strokeStyle = st.hi;
+    ctx.strokeStyle = sk.hi;
     ctx.lineWidth = 1.4;
     ctx.beginPath();
     ctx.arc(cx, cy, r - 0.7, 0, Math.PI * 2);
     ctx.stroke();
     ctx.restore();
+
+    // Crisp P1/P2/P3/P4 Tag on Ball
+    ctx.font = "bold 10px sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#ffffff";
+    ctx.shadowColor = "rgba(0,0,0,0.9)";
+    ctx.shadowBlur = 4;
+    ctx.fillText(p.name, cx, cy + 4);
+    ctx.shadowBlur = 0;
   }
 })();
 </script>
