@@ -1,1388 +1,1472 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<title>💣 Potato Panic</title>
-<script src="https://telegram.org/js/telegram-web-app.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/mqtt@5.10.3/dist/mqtt.min.js"></script>
-<style>
-  * {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-    -webkit-tap-highlight-color: transparent;
-    user-select: none;
-    -webkit-user-select: none;
-  }
-  html, body {
-    width: 100%;
-    height: 100%;
-    overflow: hidden;
-    background: #0b1120;
-    color: #f8fafc;
-    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    touch-action: none;
-  }
-  .hidden { display: none !important; }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Potato Panic: Maze Mayhem</title>
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #1e293b;
+      --accent: #f59e0b;
+      --danger: #ef4444;
+      --success: #22c55e;
+      --text: #f8fafc;
+    }
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+      margin: 0;
+      padding: 0;
+    }
+    body, html {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      touch-action: none;
+    }
 
-  /* OVERLAYS & CARDS */
-  .overlay {
-    position: fixed;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 16px;
-    background: radial-gradient(circle at 50% 20%, #1e293b 0%, #0b1120 80%);
-    z-index: 20;
-    overflow-y: auto;
-  }
-  .card {
-    background: rgba(30, 41, 59, 0.96);
-    border: 1px solid #334155;
-    border-radius: 20px;
-    padding: 22px;
-    width: min(94vw, 390px);
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    text-align: center;
-    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.65);
-  }
-  h1 {
-    font-size: 28px;
-    font-weight: 900;
-    color: #facc15;
-    letter-spacing: 0.5px;
-    text-shadow: 0 3px 0 #854d0e;
-  }
-  .sub {
-    font-size: 13px;
-    color: #94a3b8;
-    line-height: 1.4;
-  }
-  .divider {
-    height: 1px;
-    background: #334155;
-    margin: 4px 0;
-  }
+    /* SCREENS */
+    .screen {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      z-index: 20;
+      background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%);
+    }
+    .hidden { display: none !important; }
 
-  /* INPUTS & BUTTONS */
-  input {
-    width: 100%;
-    padding: 12px 14px;
-    border-radius: 12px;
-    border: 2px solid #475569;
-    background: #0f172a;
-    color: #f8fafc;
-    font-size: 16px;
-    font-weight: 700;
-    text-align: center;
-    outline: none;
-    transition: border-color 0.15s;
-  }
-  input:focus { border-color: #facc15; }
+    .card {
+      background: rgba(30, 41, 59, 0.95);
+      border: 2px solid #334155;
+      border-radius: 18px;
+      padding: 20px;
+      width: 100%;
+      max-width: 430px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+      text-align: center;
+    }
+    h1 {
+      font-size: 1.75rem;
+      font-weight: 900;
+      color: var(--accent);
+      text-shadow: 0 2px 10px rgba(245, 158, 11, 0.4);
+      margin-bottom: 4px;
+    }
+    .subtitle {
+      font-size: 0.85rem;
+      color: #94a3b8;
+      margin-bottom: 14px;
+    }
 
-  button {
-    width: 100%;
-    padding: 13px 16px;
-    border-radius: 12px;
-    border: none;
-    font-size: 16px;
-    font-weight: 800;
-    cursor: pointer;
-    transition: transform 0.06s, opacity 0.15s;
-  }
-  button:active { transform: translateY(3px); }
-  button:disabled { opacity: 0.45; cursor: not-allowed; }
+    input {
+      width: 100%;
+      padding: 11px 14px;
+      border-radius: 10px;
+      border: 2px solid #475569;
+      background: #0f172a;
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 700;
+      text-align: center;
+      margin-bottom: 10px;
+      outline: none;
+    }
+    input:focus { border-color: var(--accent); }
 
-  .btn-primary {
-    background: #facc15;
-    color: #0f172a;
-    box-shadow: 0 4px 0 #a16207;
-  }
-  .btn-accent {
-    background: #38bdf8;
-    color: #0f172a;
-    box-shadow: 0 4px 0 #0369a1;
-  }
-  .btn-secondary {
-    background: #334155;
-    color: #f8fafc;
-    box-shadow: 0 4px 0 #0f172a;
-  }
+    .avatar-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 6px;
+      margin: 10px 0 14px;
+    }
+    .avatar-btn {
+      background: #0f172a;
+      border: 2px solid #334155;
+      border-radius: 10px;
+      padding: 8px 0;
+      font-size: 1.35rem;
+      cursor: pointer;
+      transition: transform 0.12s, border-color 0.12s;
+    }
+    .avatar-btn.selected {
+      border-color: var(--accent);
+      background: rgba(245, 158, 11, 0.2);
+      transform: scale(1.1);
+    }
 
-  .avatar-grid {
-    display: flex;
-    gap: 6px;
-    justify-content: center;
-    flex-wrap: wrap;
-  }
-  .avatar-btn {
-    width: 44px;
-    height: 44px;
-    padding: 0;
-    font-size: 22px;
-    background: #0f172a;
-    border: 2px solid #334155;
-    border-radius: 10px;
-    box-shadow: none;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .avatar-btn.selected {
-    border-color: #facc15;
-    background: rgba(250, 204, 21, 0.2);
-  }
+    .row {
+      display: flex;
+      gap: 8px;
+      margin-top: 6px;
+    }
+    .btn {
+      flex: 1;
+      padding: 12px;
+      border-radius: 10px;
+      border: none;
+      font-size: 0.95rem;
+      font-weight: 800;
+      cursor: pointer;
+      transition: transform 0.1s, opacity 0.15s;
+      color: #0f172a;
+      background: var(--accent);
+    }
+    .btn:active { transform: scale(0.96); }
+    .btn-secondary {
+      background: #334155;
+      color: #f8fafc;
+    }
+    .btn-success {
+      background: var(--success);
+      color: #052e16;
+    }
+    .btn-danger {
+      background: var(--danger);
+      color: #fff;
+    }
 
-  .join-row {
-    display: flex;
-    gap: 8px;
-  }
-  .join-row input {
-    flex: 1;
-    text-transform: uppercase;
-    letter-spacing: 3px;
-  }
-  .join-row button {
-    width: auto;
-    padding: 0 24px;
-  }
+    .player-list {
+      list-style: none;
+      margin: 12px 0;
+      max-height: 170px;
+      overflow-y: auto;
+      background: #0f172a;
+      border-radius: 10px;
+      padding: 8px;
+      border: 1px solid #334155;
+    }
+    .player-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 10px;
+      border-bottom: 1px solid #1e293b;
+      font-weight: 700;
+      font-size: 0.9rem;
+    }
+    .player-item:last-child { border-bottom: none; }
 
-  .code-box {
-    background: #0f172a;
-    border: 2px dashed #facc15;
-    border-radius: 14px;
-    padding: 10px;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-  .code-box span {
-    font-size: 11px;
-    color: #94a3b8;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    font-weight: 700;
-  }
-  .code-box strong {
-    font-size: 30px;
-    color: #facc15;
-    letter-spacing: 6px;
-  }
+    .map-selector {
+      display: flex;
+      gap: 6px;
+      margin: 10px 0;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .map-chip {
+      padding: 6px 10px;
+      border-radius: 8px;
+      background: #0f172a;
+      border: 1px solid #475569;
+      color: #cbd5e1;
+      font-size: 0.78rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .map-chip.active {
+      background: var(--accent);
+      color: #0f172a;
+      border-color: var(--accent);
+    }
 
-  .status-pill {
-    font-size: 12px;
-    font-weight: 700;
-    color: #facc15;
-  }
+    /* HUD & GAMEPORT */
+    #gameContainer {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #090d16;
+    }
+    canvas {
+      background: #131c2e;
+      border: 2px solid #334155;
+      border-radius: 12px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.7);
+      max-width: 100%;
+      max-height: 100%;
+    }
 
-  .player-list {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    max-height: 210px;
-    overflow-y: auto;
-  }
-  .player-item {
-    background: #0f172a;
-    border: 1px solid #334155;
-    border-radius: 10px;
-    padding: 9px 12px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-weight: 700;
-    font-size: 14px;
-  }
+    #hudTop {
+      position: absolute;
+      top: 8px;
+      left: 12px;
+      right: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      pointer-events: none;
+      z-index: 10;
+    }
+    .hud-pill {
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid #334155;
+      padding: 6px 12px;
+      border-radius: 999px;
+      font-weight: 800;
+      font-size: 0.85rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      backdrop-filter: blur(4px);
+    }
+    #timerPill {
+      font-size: 1.1rem;
+      color: #facc15;
+      border-color: #f59e0b;
+    }
+    #timerPill.critical {
+      background: rgba(239, 68, 68, 0.9);
+      color: #fff;
+      animation: pulse 0.3s infinite alternate;
+    }
+    @keyframes pulse {
+      from { transform: scale(1); }
+      to { transform: scale(1.08); }
+    }
 
-  /* GAMEPLAY HUD & CANVAS */
-  #gameCanvas {
-    position: fixed;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    display: block;
-    z-index: 1;
-  }
+    #killFeed {
+      position: absolute;
+      top: 48px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(15, 23, 42, 0.92);
+      border: 2px solid var(--accent);
+      color: #fff;
+      padding: 7px 16px;
+      border-radius: 99px;
+      font-weight: 800;
+      font-size: 0.9rem;
+      pointer-events: none;
+      z-index: 12;
+      white-space: nowrap;
+      transition: opacity 0.25s;
+    }
 
-  #hudTop {
-    position: fixed;
-    top: 10px;
-    left: 10px;
-    right: 10px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    pointer-events: none;
-    z-index: 5;
-    gap: 8px;
-  }
-  .hud-group {
-    display: flex;
-    gap: 6px;
-    align-items: center;
-    flex-wrap: wrap;
-  }
-  .hud-chip {
-    background: rgba(15, 23, 42, 0.9);
-    border: 1px solid #334155;
-    border-radius: 10px;
-    padding: 6px 10px;
-    font-size: 12px;
-    font-weight: 800;
-    color: #f8fafc;
-  }
+    /* TOUCH CONTROLS */
+    #joystickZone {
+      position: absolute;
+      bottom: 18px;
+      left: 18px;
+      width: 130px;
+      height: 130px;
+      z-index: 15;
+    }
+    .joy-base {
+      position: absolute;
+      width: 110px;
+      height: 110px;
+      left: 10px;
+      top: 10px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.08);
+      border: 2px solid rgba(255, 255, 255, 0.22);
+    }
+    .joy-stick {
+      position: absolute;
+      width: 48px;
+      height: 48px;
+      left: 41px;
+      top: 41px;
+      border-radius: 50%;
+      background: rgba(245, 158, 11, 0.85);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+      pointer-events: none;
+    }
 
-  #banner {
-    position: fixed;
-    top: 52px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: rgba(15, 23, 42, 0.92);
-    border: 1px solid #475569;
-    padding: 6px 16px;
-    border-radius: 999px;
-    font-size: 13px;
-    font-weight: 800;
-    z-index: 5;
-    pointer-events: none;
-    white-space: nowrap;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-  }
-
-  #centerAnnouncement {
-    position: fixed;
-    top: 42%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    font-size: clamp(28px, 7vw, 54px);
-    font-weight: 900;
-    color: #facc15;
-    text-shadow: 0 5px 0 #000, 0 0 24px rgba(0,0,0,0.8);
-    z-index: 8;
-    pointer-events: none;
-    text-align: center;
-    white-space: nowrap;
-  }
-
-  /* DASH BUTTON FOR MOBILE/TOUCH */
-  #dashBtn {
-    position: fixed;
-    right: 22px;
-    bottom: 24px;
-    width: 78px;
-    height: 78px;
-    border-radius: 50%;
-    background: #38bdf8;
-    color: #0f172a;
-    border: 4px solid #bae6fd;
-    box-shadow: 0 6px 0 #0284c7, 0 8px 20px rgba(0,0,0,0.5);
-    font-size: 14px;
-    font-weight: 900;
-    z-index: 6;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 2px;
-    touch-action: manipulation;
-  }
-  #dashBtn:active {
-    transform: translateY(3px);
-    box-shadow: 0 3px 0 #0284c7;
-  }
-  #dashBtn.cooldown {
-    background: #334155;
-    color: #94a3b8;
-    border-color: #475569;
-    box-shadow: 0 4px 0 #1e293b;
-  }
-</style>
+    #actionButtons {
+      position: absolute;
+      bottom: 24px;
+      right: 20px;
+      display: flex;
+      gap: 12px;
+      z-index: 15;
+    }
+    .act-btn {
+      width: 68px;
+      height: 68px;
+      border-radius: 50%;
+      border: 3px solid rgba(255,255,255,0.3);
+      font-weight: 900;
+      font-size: 0.75rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: #fff;
+      box-shadow: 0 6px 16px rgba(0,0,0,0.5);
+      pointer-events: auto;
+    }
+    #dashBtn { background: linear-gradient(135deg, #3b82f6, #1d4ed8); }
+    #dashBtn.cooldown { opacity: 0.45; filter: grayscale(1); }
+    #tauntBtn {
+      width: 54px;
+      height: 54px;
+      align-self: flex-end;
+      background: linear-gradient(135deg, #a855f7, #6b21a8);
+    }
+  </style>
 </head>
 <body>
 
-<!-- 1. MAIN MENU OVERLAY -->
-<div id="menuScreen" class="overlay">
-  <div class="card">
-    <h1>💣 Potato Panic</h1>
-    <p class="sub">Tag another player to pass the bomb before it explodes! First to 3 round wins takes the crown.</p>
-    <input id="nameInput" placeholder="Your Name" maxlength="12">
-    <div class="sub" style="font-weight:700;font-size:12px">CHOOSE AVATAR</div>
-    <div id="avatarGrid" class="avatar-grid"></div>
-    <div class="divider"></div>
-    <button id="createBtn" class="btn-primary">➕ Create New Room</button>
-    <div class="sub" style="font-weight:700;font-size:12px">OR JOIN ROOM CODE</div>
-    <div class="join-row">
-      <input id="codeInput" placeholder="CODE" maxlength="4">
-      <button id="joinBtn" class="btn-accent">Join</button>
+  <!-- 1. SETUP SCREEN -->
+  <div id="setupScreen" class="screen">
+    <div class="card">
+      <h1>🥔 POTATO PANIC</h1>
+      <div class="subtitle">Maze Edition • Timer Resets on Pass • Zero-Lag Engine</div>
+
+      <input id="nameInput" type="text" maxlength="12" placeholder="Your Nickname" value="" />
+
+      <div style="font-size:0.8rem; color:#cbd5e1; font-weight:700;">Pick Your Fighter</div>
+      <div id="avatarGrid" class="avatar-grid"></div>
+
+      <input id="roomInput" type="text" maxlength="6" placeholder="4-Digit Room Code (e.g. 2B26)" style="text-transform:uppercase;" />
+
+      <div class="row">
+        <button class="btn" id="joinBtn">JOIN / CREATE ROOM</button>
+      </div>
+      <div id="connStatus" style="margin-top:10px; font-size:0.78rem; color:#94a3b8;">Ready to connect</div>
     </div>
   </div>
-</div>
 
-<!-- 2. ROOM LOBBY OVERLAY -->
-<div id="lobbyScreen" class="overlay hidden">
-  <div class="card">
-    <h1 id="lobbyTitle">💣 Room Lobby</h1>
-    <div class="code-box">
-      <span>Room Code</span>
-      <strong id="lobbyCode">----</strong>
+  <!-- 2. LOBBY SCREEN -->
+  <div id="lobbyScreen" class="screen hidden">
+    <div class="card">
+      <h1 id="lobbyRoomTitle">ROOM: ----</h1>
+      <div class="subtitle" id="lobbyStatusText">Waiting for players (2–7)...</div>
+
+      <div style="font-size:0.78rem; color:#94a3b8; font-weight:700;">Select Maze Map</div>
+      <div class="map-selector" id="mapSelector">
+        <div class="map-chip active" data-map="0">0. Random Rotate</div>
+        <div class="map-chip" data-map="1">1. Fryer Labyrinth</div>
+        <div class="map-chip" data-map="2">2. Bunker Crossfire</div>
+        <div class="map-chip" data-map="3">3. Pillar Panic</div>
+        <div class="map-chip" data-map="4">4. Zig-Zag Gauntlet</div>
+      </div>
+
+      <ul id="lobbyPlayerList" class="player-list"></ul>
+
+      <div class="row">
+        <button class="btn btn-secondary" id="leaveLobbyBtn">LEAVE</button>
+        <button class="btn btn-success" id="startGameBtn">START MATCH</button>
+      </div>
     </div>
-    <button id="copyBtn" class="btn-secondary" style="padding:8px;font-size:13px">📋 Copy Room Code</button>
-    <div id="connStatus" class="status-pill">🟡 Connecting to server...</div>
-    <div id="playerList" class="player-list"></div>
-    <button id="startBtn" class="btn-primary" disabled>Waiting for players (2–7)...</button>
-    <button class="btn-secondary" onclick="location.reload()">🚪 Leave Room</button>
   </div>
-</div>
 
-<!-- 3. GAMEPLAY HUD & ARENA -->
-<canvas id="gameCanvas"></canvas>
+  <!-- 3. GAMEPLAY SCREEN -->
+  <div id="gameContainer" class="hidden">
+    <div id="hudTop">
+      <div class="hud-pill" id="scorePill">🏆 Scores</div>
+      <div class="hud-pill" id="timerPill">💣 12.0s</div>
+      <div class="hud-pill" id="pingPill">🟢 24ms</div>
+    </div>
 
-<div id="hudTop" class="hidden">
-  <div class="hud-group">
-    <div class="hud-chip" id="roundChip">Round 1 (First to 3 🏆)</div>
-    <div class="hud-chip" id="scoreChip"></div>
+    <div id="killFeed" class="hidden"></div>
+
+    <canvas id="gameCanvas" width="800" height="500"></canvas>
+
+    <div id="joystickZone">
+      <div class="joy-base"></div>
+      <div class="joy-stick" id="joyStick"></div>
+    </div>
+
+    <div id="actionButtons">
+      <button class="act-btn" id="tauntBtn">
+        <span style="font-size:1.2rem;">😂</span>
+        <span>TAUNT</span>
+      </button>
+      <button class="act-btn" id="dashBtn">
+        <span style="font-size:1.3rem;">⚡</span>
+        <span id="dashLabel">DASH</span>
+      </button>
+    </div>
   </div>
-  <div class="hud-group">
-    <div class="hud-chip" id="pingChip" style="color:#4ade80">🟢 24ms</div>
-  </div>
-</div>
-
-<div id="banner" class="hidden">Get ready!</div>
-<div id="centerAnnouncement" class="hidden"></div>
-
-<button id="dashBtn" class="hidden">
-  <span style="font-size:20px">⚡</span>
-  <span id="dashLabel">DASH</span>
-</button>
 
 <script>
-/* ============================================================================
- * 1. INITIALIZATION & CONSTANTS
- * ============================================================================ */
-const tg = window.Telegram?.WebApp;
-if (tg) {
-  try { tg.ready(); tg.expand(); } catch (e) {}
-}
+(() => {
+  /* =========================================================
+     1. CONSTANTS, AVATARS & MAZE DEFINITIONS
+  ========================================================= */
+  const W = 800;
+  const H = 500;
+  const PLAYER_RADIUS = 19;
+  const BASE_SPEED = 225;         // px per second
+  const HOLDER_SPEED_MULT = 1.22; // Bomb holder gets panic speed boost
+  const DASH_SPEED_MULT = 2.15;
+  const DASH_DURATION = 220;      // ms
+  const DASH_COOLDOWN = 2800;     // ms
+  const BOMB_RESET_MS = 12000;    // Resets to 12.0s on every pass!
+  const TAG_IMMUNITY_MS = 1200;   // 1.2s immunity after passing bomb
+  const NET_TICK_MS = 75;         // 13.3Hz network broadcast cap (fixes MQTT lag)
 
-const cleanStr = (s) => String(s || "").replace(/[&<>"']/g, "").trim().slice(0, 12);
-const myId = "u_" + Math.random().toString(36).slice(2, 9);
-let myName = cleanStr(tg?.initDataUnsafe?.user?.first_name) || "Player";
+  const AVATARS = [
+    { emoji: "🥔", name: "Potato",  color: "#facc15" },
+    { emoji: "🐸", name: "Frog",    color: "#4ade80" },
+    { emoji: "🦊", name: "Fox",     color: "#fb923c" },
+    { emoji: "🐙", name: "Octopus", color: "#f472b6" },
+    { emoji: "🤖", name: "Robot",   color: "#60a5fa" },
+    { emoji: "👾", name: "Monster", color: "#c084fc" },
+    { emoji: "🦖", name: "Dino",    color: "#f87171" }
+  ];
 
-const BROKER = "wss://broker.emqx.io:8084/mqtt";
-const MAX_PLAYERS = 7;
-const WIN_ROUNDS = 3;
-const ARENA_W = 860;
-const ARENA_H = 520;
-const PLAYER_R = 22;
+  const PANIC_QUOTES = [
+    "TAKE IT!! 😭", "NOT ME! 🔥", "I'M COOKED 💀",
+    "HOT! HOT! 🌶️", "MAMA HELP!", "STAY STILL! 😈", "AAAAHHH! 💦"
+  ];
+  const TAUNT_QUOTES = [
+    "TOO SLOW! 😜", "CATCH ME! 🏃", "BYE BYE 👋",
+    "ANKI TIME? 📚", "EZ JUKE ⚡", "SKILL ISSUE 🤡"
+  ];
+  const ROAST_MESSAGES = [
+    "{name} was deep-fried into Crispy French Fries! 🍟",
+    "{name} became Mashed Potatoes! 🥣",
+    "{name} forgot how to pass the bomb! 💀",
+    "{name} got baked at 400°C! 🔥"
+  ];
 
-const BASE_SPEED = 245;
-const HOLDER_SPEED = 185;
-const GHOST_SPEED = 260;
-const DASH_MULTIPLIER = 1.85;
-const DASH_DURATION_MS = 220;
-const DASH_COOLDOWN_MS = 2800;
-const TAG_IMMUNITY_MS = 1150;
+  // 4 Symmetrical Mazes (Walls + Speed Pads + Teleporters)
+  const MAZES = [
+    {
+      name: "Fryer Labyrinth",
+      walls: [
+        { x: 140, y: 80,  w: 24,  h: 140 },
+        { x: 140, y: 280, w: 24,  h: 140 },
+        { x: 636, y: 80,  w: 24,  h: 140 },
+        { x: 636, y: 280, w: 24,  h: 140 },
+        { x: 270, y: 110, w: 260, h: 24 },
+        { x: 270, y: 366, w: 260, h: 24 },
+        { x: 388, y: 195, w: 24,  h: 110 }
+      ],
+      pads: [{ x: 400, y: 50 }, { x: 400, y: 450 }],
+      teleporters: [{ x: 60, y: 250, toX: 740, toY: 250 }, { x: 740, y: 250, toX: 60, toY: 250 }]
+    },
+    {
+      name: "Bunker Crossfire",
+      walls: [
+        { x: 120, y: 100, w: 130, h: 24 },
+        { x: 120, y: 100, w: 24,  h: 110 },
+        { x: 550, y: 100, w: 130, h: 24 },
+        { x: 656, y: 100, w: 24,  h: 110 },
+        { x: 120, y: 376, w: 130, h: 24 },
+        { x: 120, y: 290, w: 24,  h: 110 },
+        { x: 550, y: 376, w: 130, h: 24 },
+        { x: 656, y: 290, w: 24,  h: 110 },
+        { x: 330, y: 238, w: 140, h: 24 }
+      ],
+      pads: [{ x: 200, y: 250 }, { x: 600, y: 250 }],
+      teleporters: [{ x: 400, y: 55, toX: 400, toY: 445 }, { x: 400, y: 445, toX: 400, toY: 55 }]
+    },
+    {
+      name: "Pillar Panic",
+      walls: [
+        { x: 170, y: 115, w: 46, h: 46 },
+        { x: 377, y: 115, w: 46, h: 46 },
+        { x: 584, y: 115, w: 46, h: 46 },
+        { x: 270, y: 227, w: 46, h: 46 },
+        { x: 484, y: 227, w: 46, h: 46 },
+        { x: 170, y: 339, w: 46, h: 46 },
+        { x: 377, y: 339, w: 46, h: 46 },
+        { x: 584, y: 339, w: 46, h: 46 }
+      ],
+      pads: [{ x: 400, y: 250 }, { x: 90, y: 250 }, { x: 710, y: 250 }],
+      teleporters: [{ x: 70, y: 70, toX: 730, toY: 430 }, { x: 730, y: 430, toX: 70, toY: 70 }]
+    },
+    {
+      name: "Zig-Zag Gauntlet",
+      walls: [
+        { x: 190, y: 0,   w: 24, h: 310 },
+        { x: 388, y: 190, w: 24, h: 310 },
+        { x: 586, y: 0,   w: 24, h: 310 }
+      ],
+      pads: [{ x: 295, y: 120 }, { x: 495, y: 380 }],
+      teleporters: [{ x: 95, y: 90, toX: 705, toY: 410 }, { x: 705, y: 410, toX: 95, toY: 90 }]
+    }
+  ];
 
-const AVATARS = [
-  { emoji: "🥔", color: "#facc15" },
-  { emoji: "🐸", color: "#4ade80" },
-  { emoji: "🦊", color: "#fb923c" },
-  { emoji: "🐙", color: "#f472b6" },
-  { emoji: "🤖", color: "#38bdf8" },
-  { emoji: "👾", color: "#c084fc" },
-  { emoji: "🦖", color: "#f87171" }
-];
+  const SPAWN_POINTS = [
+    { x: 75,  y: 75 },
+    { x: 725, y: 75 },
+    { x: 75,  y: 425 },
+    { x: 725, y: 425 },
+    { x: 400, y: 75 },
+    { x: 400, y: 425 },
+    { x: 75,  y: 250 }
+  ];
 
-// Arena obstacles for cover and juking
-const PILLARS = [
-  { x: 430, y: 260, r: 44 },
-  { x: 220, y: 150, r: 28 },
-  { x: 640, y: 150, r: 28 },
-  { x: 220, y: 370, r: 28 },
-  { x: 640, y: 370, r: 28 }
-];
+  /* =========================================================
+     2. PROCEDURAL SOUND ENGINE (WebAudio API - Zero External Files)
+  ========================================================= */
+  let audioCtx = null;
+  function playSfx(type) {
+    try {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === "suspended") audioCtx.resume();
+      const now = audioCtx.currentTime;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
 
-const $ = (id) => document.getElementById(id);
-$('nameInput').value = myName;
+      if (type === "pass") {
+        osc.type = "triangle";
+        osc.frequency.setValueAtTime(300, now);
+        osc.frequency.exponentialRampToValueAtTime(780, now + 0.16);
+        gain.gain.setValueAtTime(0.25, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.18);
+        osc.start(now);
+        osc.stop(now + 0.18);
+      } else if (type === "dash") {
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(520, now);
+        osc.frequency.exponentialRampToValueAtTime(180, now + 0.12);
+        gain.gain.setValueAtTime(0.18, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.12);
+        osc.start(now);
+        osc.stop(now + 0.12);
+      } else if (type === "tick") {
+        osc.type = "square";
+        osc.frequency.setValueAtTime(880, now);
+        gain.gain.setValueAtTime(0.08, now);
+        gain.gain.linearRampToValueAtTime(0.001, now + 0.05);
+        osc.start(now);
+        osc.stop(now + 0.05);
+      } else if (type === "boom") {
+        osc.type = "sawtooth";
+        osc.frequency.setValueAtTime(140, now);
+        osc.frequency.exponentialRampToValueAtTime(28, now + 0.45);
+        gain.gain.setValueAtTime(0.35, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.45);
+        osc.start(now);
+        osc.stop(now + 0.45);
+      }
+    } catch (_) {}
+  }
 
-let selectedAvatarIdx = 0;
-AVATARS.forEach((av, idx) => {
-  const btn = document.createElement("button");
-  btn.className = "avatar-btn" + (idx === 0 ? " selected" : "");
-  btn.textContent = av.emoji;
-  btn.onclick = () => {
-    selectedAvatarIdx = idx;
-    document.querySelectorAll(".avatar-btn").forEach(b => b.classList.remove("selected"));
-    btn.classList.add("selected");
+  /* =========================================================
+     3. GAME STATE
+  ========================================================= */
+  const myId = "p_" + Math.random().toString(36).substring(2, 8);
+  let myName = "Shade";
+  let myAvatar = 0;
+  let roomCode = "";
+  let mqttClient = null;
+  let topic = "";
+
+  let players = {}; // id -> player object
+  let gameState = "SETUP"; // SETUP | LOBBY | PLAYING
+  let selectedMapOption = 0; // 0 = random rotate, 1..4 = specific
+  let activeMazeIdx = 0;
+
+  // Bomb State
+  let bombHolderId = null;
+  let bombTimerMs = BOMB_RESET_MS;
+  let passSeq = 0;
+  let immunityUntil = 0;
+  let lastPassFromId = null;
+
+  // Local Input & Movement
+  const keys = {};
+  let joyVec = { x: 0, y: 0 };
+  let dashActiveUntil = 0;
+  let dashCooldownUntil = 0;
+  let speedPadUntil = 0;
+  let teleportCooldownUntil = 0;
+
+  // FX & Particles
+  let particles = [];
+  let fryGraves = []; // {x, y, name}
+  let screenShake = 0;
+  let lastTickSecond = 12;
+
+  // Network timing
+  let lastNetSend = 0;
+  let lastSentX = 0;
+  let lastSentY = 0;
+  let pingMs = 24;
+  let lastPingSent = 0;
+
+  /* =========================================================
+     4. UI INITIALIZATION
+  ========================================================= */
+  const setupScreen = document.getElementById("setupScreen");
+  const lobbyScreen = document.getElementById("lobbyScreen");
+  const gameContainer = document.getElementById("gameContainer");
+  const avatarGrid = document.getElementById("avatarGrid");
+  const nameInput = document.getElementById("nameInput");
+  const roomInput = document.getElementById("roomInput");
+  const connStatus = document.getElementById("connStatus");
+  const canvas = document.getElementById("gameCanvas");
+  const ctx = canvas.getContext("2d");
+
+  // Populate Telegram WebApp username if available
+  if (window.Telegram?.WebApp?.initDataUnsafe?.user?.first_name) {
+    nameInput.value = window.Telegram.WebApp.initDataUnsafe.user.first_name.slice(0, 12);
+    window.Telegram.WebApp.expand();
+  }
+
+  AVATARS.forEach((av, idx) => {
+    const btn = document.createElement("button");
+    btn.className = "avatar-btn" + (idx === 0 ? " selected" : "");
+    btn.textContent = av.emoji;
+    btn.onclick = () => {
+      myAvatar = idx;
+      document.querySelectorAll(".avatar-btn").forEach((b, i) => {
+        b.classList.toggle("selected", i === idx);
+      });
+    };
+    avatarGrid.appendChild(btn);
+  });
+
+  document.querySelectorAll(".map-chip").forEach(chip => {
+    chip.onclick = () => {
+      selectedMapOption = parseInt(chip.dataset.map, 10);
+      document.querySelectorAll(".map-chip").forEach(c => c.classList.toggle("active", c === chip));
+      if (isHost()) publish({ t: "mapOpt", m: selectedMapOption });
+    };
+  });
+
+  /* =========================================================
+     5. MQTT NETWORKING (COMPACT, LOW-LATENCY PROTOCOL)
+  ========================================================= */
+  document.getElementById("joinBtn").onclick = () => {
+    myName = (nameInput.value.trim() || "Player").slice(0, 12);
+    roomCode = (roomInput.value.trim() || "2B26").toUpperCase();
+    connectMQTT();
   };
-  $('avatarGrid').appendChild(btn);
-});
 
-/* ============================================================================
- * 2. GAME & NETWORK STATE
- * ============================================================================ */
-let client = null;
-let roomCode = "";
-let topic = "";
-let isHost = false;
-let mySlot = -1;
+  function connectMQTT() {
+    connStatus.textContent = "Connecting to low-latency broker...";
+    topic = `potato_panic_2b_${roomCode}`;
 
-let joinRetryTimer = null;
-let hostLoopTimer = null;
-let pingTimer = null;
-let announceTimer = null;
-let lastPingSent = 0;
-let currentPingMs = 30;
+    if (mqttClient) {
+      try { mqttClient.end(true); } catch (_) {}
+    }
 
-// Authoritative state
-let state = {
-  phase: "lobby",      // 'lobby' | 'play' | 'between' | 'over'
-  round: 0,
-  holderSlot: -1,
-  championSlot: -1,
-  players: []          // [{ id, slot, name, emoji, color, wins, out }]
-};
-
-// Local timing & physics
-let bombEndTime = 0;
-let immuneUntil = 0;
-let freezeUntil = 0;
-let hostNextRoundAt = 0;
-
-// Local player physics state
-const localPhys = {
-  x: 430,
-  y: 260,
-  vx: 0,
-  vy: 0,
-  kx: 0, // knockback velocity X
-  ky: 0, // knockback velocity Y
-  dashUntil: 0,
-  dashReadyAt: 0
-};
-
-// Remote interpolation map: slot -> { x, y, netX, netY, netVx, netVy, pktTime }
-const remotePhys = new Map();
-
-// Visual FX
-let shockwaves = []; // { x, y, r, maxR, color, alpha }
-let passLines = [];  // { x1, y1, x2, y2, alpha }
-
-let lastNetSend = 0;
-let wasMovingLastFrame = false;
-
-// Input state
-const keys = {};
-const joy = { active: false, pointerId: null, ox: 0, oy: 0, x: 0, y: 0 };
-
-/* ============================================================================
- * 3. LOBBY & MQTT CONNECTION
- * ============================================================================ */
-function genCode() {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  let out = "";
-  for (let i = 0; i < 4; i++) out += chars[Math.floor(Math.random() * chars.length)];
-  return out;
-}
-
-$('createBtn').onclick = () => {
-  myName = cleanStr($('nameInput').value) || "Player";
-  const av = AVATARS[selectedAvatarIdx];
-  isHost = true;
-  mySlot = 0;
-  roomCode = genCode();
-  state.players = [{
-    id: myId,
-    slot: 0,
-    name: myName,
-    emoji: av.emoji,
-    color: av.color,
-    wins: 0,
-    out: false
-  }];
-  openLobby();
-};
-
-$('joinBtn').onclick = () => {
-  myName = cleanStr($('nameInput').value) || "Player";
-  const code = $('codeInput').value.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
-  if (code.length < 3) {
-    alert("Please enter a valid 4-character room code.");
-    return;
-  }
-  isHost = false;
-  roomCode = code;
-  openLobby();
-};
-
-$('copyBtn').onclick = () => {
-  navigator.clipboard?.writeText(roomCode);
-  $('copyBtn').textContent = "✅ Copied: " + roomCode;
-  setTimeout(() => { $('copyBtn').textContent = "📋 Copy Room Code"; }, 1500);
-};
-
-$('startBtn').onclick = () => {
-  if (!isHost || state.players.length < 2) return;
-  if (state.phase === "over") {
-    state.players.forEach(p => { p.wins = 0; p.out = false; });
-    state.round = 0;
-    state.championSlot = -1;
-  }
-  hostStartNextRound();
-};
-
-function openLobby() {
-  $('menuScreen').classList.add('hidden');
-  $('lobbyScreen').classList.remove('hidden');$('lobbyCode').textContent = roomCode;
-  renderLobbyUI();
-  connectMQTT();
-}
-
-function connectMQTT() {
-  topic = `pp2b_v3_${roomCode}`;
-  client = mqtt.connect(BROKER, {
-    clientId: `pp_${myId}_${Math.random().toString(16).slice(2, 6)}`,
-    clean: true,
-    keepalive: 45,
-    reconnectPeriod: 1500
-  });
-
-  client.on('connect', () => {
-    $('connStatus').textContent = "🟢 Connected";
-    $('connStatus').style.color = "#4ade80";
-    client.subscribe(topic, { qos: 0 }, () => {
-      if (isHost) {
-        broadcastLobbyState();
-        if (!hostLoopTimer) hostLoopTimer = setInterval(hostAuthoritativeTick, 50);
-      } else {
-        sendJoinRequest();
-        if (!joinRetryTimer) joinRetryTimer = setInterval(sendJoinRequest, 1800);
-      }
-      if (!pingTimer) {
-        pingTimer = setInterval(() => {
-          lastPingSent = performance.now();
-          publishRaw({ t: "PING", id: myId });
-        }, 3000);
-      }
+    mqttClient = mqtt.connect("wss://broker.emqx.io:8084/mqtt", {
+      clientId: "pp_" + myId + "_" + Math.floor(Math.random() * 9999),
+      keepalive: 30,
+      clean: true,
+      reconnectPeriod: 1500
     });
-  });
 
-  client.on('reconnect', () => {
-    $('connStatus').textContent = "🟡 Reconnecting...";
-    $('connStatus').style.color = "#facc15";
-  });
+    mqttClient.on("connect", () => {
+      mqttClient.subscribe(topic, { qos: 0 }, () => {
+        enterLobby();
+      });
+    });
 
-  client.on('message', (t, payload) => {
-    if (t !== topic) return;
-    let msg;
-    try { msg = JSON.parse(payload.toString()); } catch (e) { return; }
-    if (!msg) return;
+    mqttClient.on("message", (_, payload) => {
+      try {
+        const msg = JSON.parse(payload.toString());
+        handleNetworkMessage(msg);
+      } catch (_) {}
+    });
+  }
 
-    // Measure own round-trip ping
-    if (msg.t === "PING") {
-      if (msg.id === myId) {
-        currentPingMs = Math.max(8, Math.round(performance.now() - lastPingSent));
-        const chip = $('pingChip');
-        chip.textContent = `${currentPingMs < 120 ? "🟢" : "🟡"} ${currentPingMs}ms`;
-        chip.style.color = currentPingMs < 120 ? "#4ade80" : "#facc15";
+  function publish(obj) {
+    if (!mqttClient || !mqttClient.connected) return;
+    mqttClient.publish(topic, JSON.stringify(obj), { qos: 0 });
+  }
+
+  function isHost() {
+    const ids = Object.keys(players).sort();
+    return ids.length > 0 && ids[0] === myId;
+  }
+
+  function enterLobby() {
+    gameState = "LOBBY";
+    setupScreen.classList.add("hidden");
+    gameContainer.classList.add("hidden");
+    lobbyScreen.classList.remove("hidden");
+    document.getElementById("lobbyRoomTitle").textContent = `ROOM: ${roomCode}`;
+
+    players[myId] = {
+      id: myId,
+      name: myName,
+      avatar: myAvatar,
+      x: 400, y: 250,
+      tx: 400, ty: 250,
+      vx: 0, vy: 0,
+      alive: true,
+      score: players[myId]?.score || 0,
+      dash: 0,
+      bubble: "",
+      bubbleUntil: 0,
+      lastSeen: performance.now()
+    };
+
+    publish({ t: "join", id: myId, n: myName, av: myAvatar, sc: players[myId].score });
+    updateLobbyUI();
+  }
+
+  document.getElementById("leaveLobbyBtn").onclick = () => {
+    publish({ t: "leave", id: myId });
+    if (mqttClient) mqttClient.end(true);
+    players = {};
+    lobbyScreen.classList.add("hidden");
+    setupScreen.classList.remove("hidden");
+    connStatus.textContent = "Disconnected";
+  };
+
+  document.getElementById("startGameBtn").onclick = () => {
+    const count = Object.keys(players).length;
+    if (count < 2) {
+      showFeed("⚠️ Need at least 2 players in the room to start!");
+      document.getElementById("lobbyStatusText").textContent = "⚠️ Ask a friend to join room " + roomCode + " first!";
+      return;
+    }
+    startNewRoundAsHost();
+  };
+
+  function startNewRoundAsHost() {
+    const ids = Object.keys(players).sort();
+    if (ids.length < 2) return;
+
+    const chosenMaze = selectedMapOption === 0
+      ? Math.floor(Math.random() * MAZES.length)
+      : (selectedMapOption - 1);
+
+    const firstHolder = ids[Math.floor(Math.random() * ids.length)];
+    const spawns = {};
+    ids.forEach((id, idx) => {
+      const sp = SPAWN_POINTS[idx % SPAWN_POINTS.length];
+      spawns[id] = { x: sp.x, y: sp.y };
+    });
+
+    publish({
+      t: "start",
+      maze: chosenMaze,
+      holder: firstHolder,
+      spawns: spawns,
+      seq: passSeq + 1
+    });
+  }
+
+  function handleNetworkMessage(m) {
+    const now = performance.now();
+
+    // 1. Compact Position Array Packet: { t: "p", d: [id, x, y, vx, vy, dash] }
+    if (m.t === "p") {
+      const [id, x, y, vx, vy, dash] = m.d;
+      if (id === myId || !players[id]) return;
+      const p = players[id];
+      p.tx = x;
+      p.ty = y;
+      p.vx = vx;
+      p.vy = vy;
+      p.dash = dash;
+      p.lastSeen = now;
+      // Snap if extreme distance
+      if (Math.hypot(p.tx - p.x, p.ty - p.y) > 140) {
+        p.x = p.tx;
+        p.y = p.ty;
       }
       return;
     }
 
-    // Ignore other packets sent by self
-    if (msg.s === myId) return;
-
-    switch (msg.t) {
-      case "P":
-        onRemotePositionPacket(msg);
-        break;
-      case "TAG_REQ":
-        if (isHost) hostProcessTag(msg.f, msg.to);
-        break;
-      case "TAG_SYNC":
-        onTagSyncPacket(msg);
-        break;
-      case "BOOM":
-        onBoomPacket(msg);
-        break;
-      case "ROUND_START":
-        onRoundStartPacket(msg);
-        break;
-      case "ROUND_WIN":
-        onRoundWinPacket(msg);
-        break;
-      case "JOIN_REQ":
-        if (isHost) hostHandleJoin(msg);
-        break;
-      case "LOBBY_SYNC":
-        onLobbySyncPacket(msg);
-        break;
+    // 2. Player Join / Presence Sync
+    if (m.t === "join" || m.t === "sync") {
+      const isNew = !players[m.id];
+      players[m.id] = {
+        id: m.id,
+        name: m.n,
+        avatar: m.av,
+        x: players[m.id]?.x || 400,
+        y: players[m.id]?.y || 250,
+        tx: players[m.id]?.tx || 400,
+        ty: players[m.id]?.ty || 250,
+        vx: 0, vy: 0,
+        alive: players[m.id]?.alive ?? true,
+        score: m.sc || 0,
+        dash: 0,
+        bubble: "",
+        bubbleUntil: 0,
+        lastSeen: now
+      };
+      if (m.t === "join" && m.id !== myId && players[myId]) {
+        publish({ t: "sync", id: myId, n: myName, av: myAvatar, sc: players[myId].score });
+      }
+      if (isNew) updateLobbyUI();
+      return;
     }
-  });
-}
 
-function publishRaw(obj) {
-  if (!client || !client.connected) return;
-  obj.s = myId;
-  client.publish(topic, JSON.stringify(obj));
-}
+    if (m.t === "leave") {
+      delete players[m.id];
+      updateLobbyUI();
+      return;
+    }
 
-function sendJoinRequest() {
-  if (mySlot !== -1) {
-    clearInterval(joinRetryTimer);
-    return;
-  }
-  const av = AVATARS[selectedAvatarIdx];
-  publishRaw({
-    t: "JOIN_REQ",
-    id: myId,
-    name: myName,
-    emoji: av.emoji,
-    color: av.color
-  });
-}
-
-function hostHandleJoin(msg) {
-  let existing = state.players.find(p => p.id === msg.id);
-  if (!existing) {
-    if (state.players.length >= MAX_PLAYERS || state.phase !== "lobby") return;
-    const slot = state.players.length;
-    state.players.push({
-      id: msg.id,
-      slot,
-      name: cleanStr(msg.name) || "Player",
-      emoji: msg.emoji || AVATARS[slot % AVATARS.length].emoji,
-      color: msg.color || AVATARS[slot % AVATARS.length].color,
-      wins: 0,
-      out: false
-    });
-  }
-  broadcastLobbyState();
-}
-
-function broadcastLobbyState() {
-  syncScreenVisibility();
-  renderLobbyUI();
-  publishRaw({
-    t: "LOBBY_SYNC",
-    phase: state.phase,
-    championSlot: state.championSlot,
-    players: state.players
-  });
-}
-
-function onLobbySyncPacket(msg) {
-  state.phase = msg.phase;
-  state.championSlot = msg.championSlot;
-  state.players = msg.players;
-  const me = state.players.find(p => p.id === myId);
-  if (me) {
-    mySlot = me.slot;
-    clearInterval(joinRetryTimer);
-  }
-  syncScreenVisibility();
-  renderLobbyUI();
-}
-
-/* ============================================================================
- * 4. AUTHORITATIVE ROUND, TAG & EXPLOSION LOGIC (ZERO TELEPORT)
- * ============================================================================ */
-function hostStartNextRound() {
-  state.round += 1;
-  state.phase = "play";
-  state.players.forEach(p => { p.out = false; });
-
-  const count = state.players.length;
-  const spawns = [];
-  for (let i = 0; i < count; i++) {
-    const angle = (i / count) * Math.PI * 2;
-    spawns.push({
-      slot: i,
-      x: Math.round(ARENA_W / 2 + Math.cos(angle) * 260),
-      y: Math.round(ARENA_H / 2 + Math.sin(angle) * 165)
-    });
-  }
-
-  const holderSlot = Math.floor(Math.random() * count);
-  const dur = 10000 + Math.floor(Math.random() * 3500);
-
-  const pkt = {
-    t: "ROUND_START",
-    round: state.round,
-    holderSlot,
-    dur,
-    spawns,
-    wins: state.players.map(p => p.wins)
-  };
-
-  onRoundStartPacket(pkt);
-  publishRaw(pkt);
-}
-
-function onRoundStartPacket(msg) {
-  state.phase = "play";
-  state.round = msg.round;
-  state.holderSlot = msg.holderSlot;
-  state.players.forEach((p, idx) => {
-    p.out = false;
-    if (msg.wins && msg.wins[idx] !== undefined) p.wins = msg.wins[idx];
-  });
-
-  const now = performance.now();
-  // 1.5s countdown grace period at the start of a round
-  freezeUntil = now + 1500;
-  bombEndTime = now + 1500 + msg.dur;
-  immuneUntil = now + 2200;
-
-  // Apply initial spawn coordinates ONLY on ROUND_START
-  remotePhys.clear();
-  for (const sp of msg.spawns) {
-    if (sp.slot === mySlot) {
-      localPhys.x = sp.x;
-      localPhys.y = sp.y;
-      localPhys.vx = 0;
-      localPhys.vy = 0;
-      localPhys.kx = 0;
-      localPhys.ky = 0;
-    } else {
-      remotePhys.set(sp.slot, {
-        x: sp.x, y: sp.y,
-        netX: sp.x, netY: sp.y,
-        netVx: 0, netVy: 0,
-        pktTime: now
+    if (m.t === "mapOpt") {
+      selectedMapOption = m.m;
+      document.querySelectorAll(".map-chip").forEach(c => {
+        c.classList.toggle("active", parseInt(c.dataset.map, 10) === selectedMapOption);
       });
+      return;
+    }
+
+    // 3. Start Round
+    if (m.t === "start") {
+      activeMazeIdx = m.maze || 0;
+      bombHolderId = m.holder;
+      bombTimerMs = BOMB_RESET_MS;
+      passSeq = m.seq || 1;
+      immunityUntil = now + 800;
+      lastPassFromId = null;
+      fryGraves = [];
+      particles = [];
+
+      Object.keys(players).forEach(id => {
+        const sp = m.spawns?.[id] || { x: 400, y: 250 };
+        players[id].x = sp.x;
+        players[id].y = sp.y;
+        players[id].tx = sp.x;
+        players[id].ty = sp.y;
+        players[id].vx = 0;
+        players[id].vy = 0;
+        players[id].alive = true;
+      });
+
+      lobbyScreen.classList.add("hidden");
+      gameContainer.classList.remove("hidden");
+      gameState = "PLAYING";
+      updateScoreHud();
+      showFeed(`🗺️ ${MAZES[activeMazeIdx].name} — ${players[bombHolderId]?.name || "Someone"} has the Potato!`);
+      playSfx("pass");
+      return;
+    }
+
+    // 4. Bomb Pass -> RESET TIMER TO 12.0s!
+    if (m.t === "pass") {
+      if (m.seq <= passSeq) return; // Ignore duplicate packets
+      passSeq = m.seq;
+      lastPassFromId = m.from;
+      bombHolderId = m.to;
+      bombTimerMs = BOMB_RESET_MS; // FULL TIMER RESET ON PASS
+      immunityUntil = now + TAG_IMMUNITY_MS;
+      screenShake = 9;
+      playSfx("pass");
+
+      const victim = players[bombHolderId];
+      if (victim) {
+        victim.bubble = PANIC_QUOTES[Math.floor(Math.random() * PANIC_QUOTES.length)];
+        victim.bubbleUntil = now + 2000;
+        spawnBurst(victim.x, victim.y, "#f59e0b", 18);
+        showFeed(`💣 PASSED! Timer reset to 12s! ${victim.name} is IT!`);
+      }
+      return;
+    }
+
+    // 5. Taunt Bubble
+    if (m.t === "taunt" && players[m.id]) {
+      players[m.id].bubble = m.txt;
+      players[m.id].bubbleUntil = now + 1800;
+      return;
+    }
+
+    // 6. Player Exploded
+    if (m.t === "boom") {
+      const deadP = players[m.who];
+      if (deadP && deadP.alive) {
+        deadP.alive = false;
+        fryGraves.push({ x: deadP.x, y: deadP.y, name: deadP.name });
+        spawnBurst(deadP.x, deadP.y, "#ef4444", 38);
+        screenShake = 18;
+        playSfx("boom");
+      }
+
+      const roast = ROAST_MESSAGES[Math.floor(Math.random() * ROAST_MESSAGES.length)]
+        .replace("{name}", deadP ? deadP.name : "A potato");
+
+      if (m.winner) {
+        if (players[m.winner]) players[m.winner].score += 1;
+        updateScoreHud();
+        showFeed(`🏆 ${players[m.winner]?.name || "Winner"} WINS! (${roast})`);
+        bombHolderId = null;
+        if (isHost()) {
+          setTimeout(() => {
+            if (gameState === "PLAYING") startNewRoundAsHost();
+          }, 3600);
+        }
+      } else if (m.nextHolder) {
+        // Multi-player survival continues!
+        bombHolderId = m.nextHolder;
+        bombTimerMs = BOMB_RESET_MS;
+        immunityUntil = now + 1200;
+        showFeed(`💥 ${roast} Now ${players[m.nextHolder]?.name} has the fresh bomb!`);
+      }
+      return;
+    }
+
+    // 7. Ping Measurement
+    if (m.t === "ping" && m.id === myId) {
+      pingMs = Math.max(8, Math.round(now - m.ts));
+      document.getElementById("pingPill").textContent =
+        `${pingMs < 90 ? "🟢" : "🟡"} ${pingMs}ms`;
     }
   }
 
-  syncScreenVisibility();
-  updateHudText(`Round ${state.round} — ${getPlayerName(state.holderSlot)} starts with the bomb!`);
-  showAnnouncement(`ROUND ${state.round}`, 1400);
-}
-
-function hostProcessTag(fromSlot, toSlot) {
-  if (state.phase !== "play") return;
-  if (state.holderSlot !== fromSlot) return;
-  const now = performance.now();
-  if (now < immuneUntil) return;
-
-  const target = state.players[toSlot];
-  if (!target || target.out) return;
-
-  // Add a 1.2s fuse buffer when passed so latency never causes instant unfair death
-  const remaining = Math.max(2200, Math.min(12000, (bombEndTime - now) + 1200));
-
-  const pkt = {
-    t: "TAG_SYNC",
-    f: fromSlot,
-    to: toSlot,
-    rem: Math.round(remaining)
-  };
-
-  onTagSyncPacket(pkt);
-  publishRaw(pkt);
-}
-
-function onTagSyncPacket(msg) {
-  const now = performance.now();
-  state.holderSlot = msg.to;
-  immuneUntil = now + TAG_IMMUNITY_MS;
-  bombEndTime = now + msg.rem;
-
-  const fromPos = getSlotPosition(msg.f);
-  const toPos = getSlotPosition(msg.to);
-
-  // Visual pass beam + shockwave
-  passLines.push({ x1: fromPos.x, y1: fromPos.y, x2: toPos.x, y2: toPos.y, alpha: 1 });
-  shockwaves.push({ x: toPos.x, y: toPos.y, r: 15, maxR: 65, color: "#facc15", alpha: 1 });
-
-  // Apply gentle separation impulse so players don't stay stacked on top of each other
-  if (mySlot === msg.f || mySlot === msg.to) {
-    const otherPos = (mySlot === msg.f) ? toPos : fromPos;
-    let dx = localPhys.x - otherPos.x;
-    let dy = localPhys.y - otherPos.y;
-    const dist = Math.hypot(dx, dy) || 1;
-    localPhys.kx = (dx / dist) * 260;
-    localPhys.ky = (dy / dist) * 260;
+  function updateLobbyUI() {
+    const list = document.getElementById("lobbyPlayerList");
+    list.innerHTML = "";
+    const ids = Object.keys(players).sort();
+    ids.forEach((id, idx) => {
+      const p = players[id];
+      const li = document.createElement("li");
+      li.className = "player-item";
+      const av = AVATARS[p.avatar] || AVATARS[0];
+      li.innerHTML = `
+        <span>${av.emoji} ${p.name} ${id === myId ? "(You)" : ""}</span>
+        <span style="color:#facc15">${idx === 0 ? "👑 HOST" : `🏆 ${p.score}`}</span>
+      `;
+      list.appendChild(li);
+    });
+    document.getElementById("lobbyStatusText").textContent =
+      `${ids.length}/7 Players Connected`;
   }
 
-  updateHudText(`🔥 ${getPlayerName(msg.to)} has the bomb!`);
-}
-
-function hostAuthoritativeTick() {
-  if (!isHost) return;
-  const now = performance.now();
-
-  if (state.phase === "between") {
-    if (now >= hostNextRoundAt) {
-      hostStartNextRound();
-    }
-    return;
+  function updateScoreHud() {
+    const sorted = Object.values(players).sort((a, b) => b.score - a.score);
+    const txt = sorted.map(p => `${AVATARS[p.avatar].emoji}${p.score}`).join("  ");
+    document.getElementById("scorePill").textContent = txt || "🏆 0";
   }
 
-  if (state.phase !== "play") return;
-  if (now < bombEndTime) return;
-
-  // Bomb explodes on current holder
-  const explodedSlot = state.holderSlot;
-  if (state.players[explodedSlot]) {
-    state.players[explodedSlot].out = true;
+  let feedTimeout = null;
+  function showFeed(text) {
+    const el = document.getElementById("killFeed");
+    el.textContent = text;
+    el.classList.remove("hidden");
+    clearTimeout(feedTimeout);
+    feedTimeout = setTimeout(() => el.classList.add("hidden"), 3000);
   }
 
-  const alive = state.players.filter(p => !p.out);
+  /* =========================================================
+     6. CONTROLS (TOUCH JOYSTICK + KEYBOARD + DASH / TAUNT)
+  ========================================================= */
+  window.addEventListener("keydown", e => {
+    keys[e.code] = true;
+    if (e.code === "Space" || e.code === "ShiftLeft") triggerDash();
+    if (e.code === "KeyE") triggerTaunt();
+  });
+  window.addEventListener("keyup", e => { keys[e.code] = false; });
 
-  if (alive.length <= 1) {
-    const winner = alive[0];
-    let isChamp = false;
-    if (winner) {
-      winner.wins += 1;
-      if (winner.wins >= WIN_ROUNDS) {
-        isChamp = true;
-        state.championSlot = winner.slot;
+  const joyZone = document.getElementById("joystickZone");
+  const joyStick = document.getElementById("joyStick");
+  let joyTouchId = null;
+
+  joyZone.addEventListener("touchstart", e => {
+    e.preventDefault();
+    const t = e.changedTouches[0];
+    joyTouchId = t.identifier;
+    updateJoystick(t);
+  }, { passive: false });
+
+  joyZone.addEventListener("touchmove", e => {
+    e.preventDefault();
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      if (e.changedTouches[i].identifier === joyTouchId) {
+        updateJoystick(e.changedTouches[i]);
       }
     }
+  }, { passive: false });
 
-    const pkt = {
-      t: "ROUND_WIN",
-      outSlot: explodedSlot,
-      winSlot: winner ? winner.slot : -1,
-      wins: state.players.map(p => p.wins),
-      isChamp
-    };
-
-    onRoundWinPacket(pkt);
-    publishRaw(pkt);
-
-    if (!isChamp) {
-      state.phase = "between";
-      hostNextRoundAt = now + 3000;
-    }
-  } else {
-    // Mid-round explosion: pick next holder WITHOUT resetting positions!
-    const nextPlayer = alive[Math.floor(Math.random() * alive.length)];
-    const dur = 8500 + Math.floor(Math.random() * 3000);
-    const pkt = {
-      t: "BOOM",
-      outSlot: explodedSlot,
-      nextHolder: nextPlayer.slot,
-      dur
-    };
-    onBoomPacket(pkt);
-    publishRaw(pkt);
+  function resetJoystick() {
+    joyTouchId = null;
+    joyVec.x = 0;
+    joyVec.y = 0;
+    joyStick.style.transform = `translate(0px, 0px)`;
   }
-}
+  joyZone.addEventListener("touchend", resetJoystick);
+  joyZone.addEventListener("touchcancel", resetJoystick);
 
-function onBoomPacket(msg) {
-  const now = performance.now();
-  if (state.players[msg.outSlot]) {
-    state.players[msg.outSlot].out = true;
-  }
-  state.holderSlot = msg.nextHolder;
-  bombEndTime = now + msg.dur;
-  immuneUntil = now + TAG_IMMUNITY_MS;
-
-  const boomPos = getSlotPosition(msg.outSlot);
-  shockwaves.push({ x: boomPos.x, y: boomPos.y, r: 10, maxR: 120, color: "#ef4444", alpha: 1 });
-
-  const deadName = getPlayerName(msg.outSlot);
-  const nextName = getPlayerName(msg.nextHolder);
-  updateHudText(`💥 ${deadName} exploded! Bomb is now on ${nextName}!`);
-  showAnnouncement(`💥 ${deadName} OUT!`, 1200);
-}
-
-function onRoundWinPacket(msg) {
-  if (state.players[msg.outSlot]) {
-    state.players[msg.outSlot].out = true;
-  }
-  msg.wins.forEach((w, idx) => {
-    if (state.players[idx]) state.players[idx].wins = w;
-  });
-
-  const boomPos = getSlotPosition(msg.outSlot);
-  shockwaves.push({ x: boomPos.x, y: boomPos.y, r: 10, maxR: 130, color: "#ef4444", alpha: 1 });
-
-  state.holderSlot = -1;
-  const winName = msg.winSlot >= 0 ? getPlayerName(msg.winSlot) : "Nobody";
-
-  if (msg.isChamp) {
-    state.championSlot = msg.winSlot;
-    showAnnouncement(`👑 ${winName} WINS THE MATCH!`, 2600);
-    setTimeout(() => {
-      state.phase = "over";
-      syncScreenVisibility();
-      renderLobbyUI();
-    }, 2600);
-  } else {
-    state.phase = "between";
-    updateHudText(`🏆 ${winName} survives Round ${state.round}! Next round starting...`);
-    showAnnouncement(`🏆 ${winName} WINS ROUND!`, 2400);
-  }
-}
-
-/* ============================================================================
- * 5. POSITION SYNC & NON-DESTRUCTIVE SNAPSHOT INTERPOLATION
- * ============================================================================ */
-function onRemotePositionPacket(msg) {
-  const slot = msg.i;
-  if (slot === mySlot || slot === undefined) return;
-  const now = performance.now();
-  let r = remotePhys.get(slot);
-  if (!r) {
-    r = { x: msg.x, y: msg.y, netX: msg.x, netY: msg.y, netVx: msg.vx, netVy: msg.vy, pktTime: now };
-    remotePhys.set(slot, r);
-  } else {
-    r.netX = msg.x;
-    r.netY = msg.y;
-    r.netVx = msg.vx;
-    r.netVy = msg.vy;
-    r.pktTime = now;
-  }
-}
-
-function getSlotPosition(slot) {
-  if (slot === mySlot) return { x: localPhys.x, y: localPhys.y };
-  const r = remotePhys.get(slot);
-  return r ? { x: r.x, y: r.y } : { x: ARENA_W / 2, y: ARENA_H / 2 };
-}
-
-function resolveArenaCollisions(entity) {
-  entity.x = Math.max(PLAYER_R, Math.min(ARENA_W - PLAYER_R, entity.x));
-  entity.y = Math.max(PLAYER_R, Math.min(ARENA_H - PLAYER_R, entity.y));
-
-  for (const pil of PILLARS) {
-    const dx = entity.x - pil.x;
-    const dy = entity.y - pil.y;
+  function updateJoystick(touch) {
+    const rect = joyZone.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    let dx = touch.clientX - cx;
+    let dy = touch.clientY - cy;
+    const maxR = 42;
     const dist = Math.hypot(dx, dy);
-    const minDist = pil.r + PLAYER_R;
-    if (dist < minDist && dist > 0.001) {
-      entity.x = pil.x + (dx / dist) * minDist;
-      entity.y = pil.y + (dy / dist) * minDist;
+    if (dist > maxR) {
+      dx = (dx / dist) * maxR;
+      dy = (dy / dist) * maxR;
     }
+    joyStick.style.transform = `translate(${dx}px, ${dy}px)`;
+    joyVec.x = dx / maxR;
+    joyVec.y = dy / maxR;
   }
-}
 
-/* ============================================================================
- * 6. UI HELPERS & CONTROLS
- * ============================================================================ */
-function getPlayerName(slot) {
-  return state.players[slot]?.name || "Player";
-}
+  function triggerDash() {
+    const now = performance.now();
+    if (now < dashCooldownUntil || gameState !== "PLAYING") return;
+    const me = players[myId];
+    if (!me || !me.alive) return;
 
-function showAnnouncement(text, ms = 1400) {
-  const el = $('centerAnnouncement');
-  el.textContent = text;
-  el.classList.remove('hidden');
-  clearTimeout(announceTimer);
-  announceTimer = setTimeout(() => el.classList.add('hidden'), ms);
-}
-
-function updateHudText(bannerText) {
-  $('roundChip').textContent = `Round ${state.round} · First to ${WIN_ROUNDS} 🏆`;
-  $('scoreChip').textContent = state.players.map(p => `${p.emoji}${p.wins}`).join("  ");
-  if (bannerText) $('banner').textContent = bannerText;
-}
-
-function syncScreenVisibility() {
-  const inLobby = (state.phase === "lobby" || state.phase === "over");
-  $('lobbyScreen').classList.toggle('hidden', !inLobby);$('hudTop').classList.toggle('hidden', inLobby);
-  $('banner').classList.toggle('hidden', inLobby);$('dashBtn').classList.toggle('hidden', inLobby);
-}
-
-function renderLobbyUI() {
-  const isOver = state.phase === "over";
-  $('lobbyTitle').textContent = isOver
-    ? `👑 ${getPlayerName(state.championSlot)} Wins!`
-    : "💣 Room Lobby";
-
-  $('playerList').innerHTML = state.players.map((p, idx) => `
-    <div class="player-item">
-      <span>${p.emoji} ${p.name} ${p.slot === mySlot ? "(You)" : ""} ${idx === 0 ? "👑" : ""}</span>
-      <span style="color:#facc15">🏆 ${p.wins}</span>
-    </div>
-  `).join("");
-
-  if (isHost) {
-    const ok = state.players.length >= 2;
-    $('startBtn').disabled = !ok;
-    $('startBtn').textContent = ok
-      ? (isOver ? "🔁 Start New Match" : `🔥 Start Match (${state.players.length} Players)`)
-      : "Waiting for at least 2 players...";
-  } else {
-    $('startBtn').disabled = true;
-    $('startBtn').textContent = mySlot !== -1
-      ? "Waiting for Host to start..."
-      : "Joining room...";
+    dashActiveUntil = now + DASH_DURATION;
+    dashCooldownUntil = now + DASH_COOLDOWN;
+    playSfx("dash");
+    spawnBurst(me.x, me.y, "#38bdf8", 10);
   }
-}
 
-function triggerDash() {
-  if (state.phase !== "play") return;
-  const now = performance.now();
-  if (now < localPhys.dashReadyAt) return;
-  localPhys.dashUntil = now + DASH_DURATION_MS;
-  localPhys.dashReadyAt = now + DASH_COOLDOWN_MS;
-  shockwaves.push({ x: localPhys.x, y: localPhys.y, r: 8, maxR: 42, color: "#38bdf8", alpha: 0.85 });
-}
+  function triggerTaunt() {
+    if (gameState !== "PLAYING") return;
+    const txt = TAUNT_QUOTES[Math.floor(Math.random() * TAUNT_QUOTES.length)];
+    if (players[myId]) {
+      players[myId].bubble = txt;
+      players[myId].bubbleUntil = performance.now() + 1800;
+    }
+    publish({ t: "taunt", id: myId, txt: txt });
+  }
 
-$('dashBtn').addEventListener('pointerdown', (e) => {
-  e.stopPropagation();
-  triggerDash();
-});
-
-window.addEventListener('keydown', (e) => {
-  const k = e.key.toLowerCase();
-  keys[k] = true;
-  if (k === " " || k === "shift") {
+  document.getElementById("dashBtn").addEventListener("touchstart", e => {
     e.preventDefault();
     triggerDash();
-  }
-});
-window.addEventListener('keyup', (e) => {
-  keys[e.key.toLowerCase()] = false;
-});
+  });
+  document.getElementById("dashBtn").onclick = triggerDash;
 
-/* ============================================================================
- * 7. CANVAS SETUP, JOYSTICK & MAIN GAME LOOP
- * ============================================================================ */
-const cv = $('gameCanvas');
-const ctx = cv.getContext('2d');
-let dpr = 1, scale = 1, offX = 0, offY = 0;
+  document.getElementById("tauntBtn").addEventListener("touchstart", e => {
+    e.preventDefault();
+    triggerTaunt();
+  });
+  document.getElementById("tauntBtn").onclick = triggerTaunt;
 
-function resizeCanvas() {
-  dpr = Math.min(window.devicePixelRatio || 1, 2);
-  cv.width = window.innerWidth * dpr;
-  cv.height = window.innerHeight * dpr;
-  scale = Math.min(window.innerWidth / ARENA_W, window.innerHeight / ARENA_H) * 0.94;
-  offX = (window.innerWidth - ARENA_W * scale) / 2;
-  offY = (window.innerHeight - ARENA_H * scale) / 2;
-}
-window.addEventListener('resize', resizeCanvas);
-resizeCanvas();
+  /* =========================================================
+     7. MAZE COLLISION WITH CORNER-SLIDE ASSIST
+  ========================================================= */
+  function moveWithMazeCollision(p, vx, vy, dt) {
+    const maze = MAZES[activeMazeIdx] || MAZES[0];
+    const walls = maze.walls;
 
-cv.addEventListener('pointerdown', (e) => {
-  if (state.phase !== "play" && state.phase !== "between") return;
-  joy.active = true;
-  joy.pointerId = e.pointerId;
-  joy.ox = joy.x = e.clientX;
-  joy.oy = joy.y = e.clientY;
-});
+    // Move X then resolve
+    p.x += vx * dt;
+    p.x = Math.max(PLAYER_RADIUS, Math.min(W - PLAYER_RADIUS, p.x));
+    for (let i = 0; i < walls.length; i++) {
+      resolveCircleRect(p, walls[i], vx, 0, dt);
+    }
 
-cv.addEventListener('pointermove', (e) => {
-  if (joy.active && e.pointerId === joy.pointerId) {
-    joy.x = e.clientX;
-    joy.y = e.clientY;
-  }
-});
-
-const releaseJoystick = (e) => {
-  if (joy.active && (!e || e.pointerId === joy.pointerId)) {
-    joy.active = false;
-    joy.pointerId = null;
-  }
-};
-cv.addEventListener('pointerup', releaseJoystick);
-cv.addEventListener('pointercancel', releaseJoystick);
-
-function updatePhysics(dt, now) {
-  if (state.phase !== "play" && state.phase !== "between") return;
-
-  // Update Dash Button UI
-  const dashWait = Math.max(0, localPhys.dashReadyAt - now);
-  if (dashWait > 0) {
-    $('dashBtn').classList.add('cooldown');$('dashLabel').textContent = (dashWait / 1000).toFixed(1) + "s";
-  } else {
-    $('dashBtn').classList.remove('cooldown');$('dashLabel').textContent = "DASH";
+    // Move Y then resolve
+    p.y += vy * dt;
+    p.y = Math.max(PLAYER_RADIUS, Math.min(H - PLAYER_RADIUS, p.y));
+    for (let i = 0; i < walls.length; i++) {
+      resolveCircleRect(p, walls[i], 0, vy, dt);
+    }
   }
 
-  const me = state.players[mySlot];
-  if (me && now >= freezeUntil) {
-    let ix = (keys['d'] || keys['arrowright'] ? 1 : 0) - (keys['a'] || keys['arrowleft'] ? 1 : 0);
-    let iy = (keys['s'] || keys['arrowdown'] ? 1 : 0) - (keys['w'] || keys['arrowup'] ? 1 : 0);
+  function resolveCircleRect(p, rect, vx, vy, dt) {
+    const closestX = Math.max(rect.x, Math.min(p.x, rect.x + rect.w));
+    const closestY = Math.max(rect.y, Math.min(p.y, rect.y + rect.h));
+    const dx = p.x - closestX;
+    const dy = p.y - closestY;
+    const distSq = dx * dx + dy * dy;
 
-    if (joy.active) {
-      const dx = joy.x - joy.ox;
-      const dy = joy.y - joy.oy;
-      const dist = Math.hypot(dx, dy);
-      if (dist > 6) {
-        const strength = Math.min(1, dist / 50);
-        ix = (dx / dist) * strength;
-        iy = (dy / dist) * strength;
+    if (distSq < PLAYER_RADIUS * PLAYER_RADIUS) {
+      const dist = Math.sqrt(distSq) || 0.001;
+      const overlap = PLAYER_RADIUS - dist;
+      p.x += (dx / dist) * overlap;
+      p.y += (dy / dist) * overlap;
+
+      // Corner-Slide Assist: Gently nudge around corners if grazing an edge
+      const cornerAssist = 95 * dt;
+      if (Math.abs(vx) > 20 && Math.abs(dy) > PLAYER_RADIUS * 0.45) {
+        p.y += Math.sign(dy) * cornerAssist;
+      }
+      if (Math.abs(vy) > 20 && Math.abs(dx) > PLAYER_RADIUS * 0.45) {
+        p.x += Math.sign(dx) * cornerAssist;
       }
     }
+  }
 
-    const mag = Math.hypot(ix, iy);
-    if (mag > 1) { ix /= mag; iy /= mag; }
+  /* =========================================================
+     8. MAIN 60FPS UPDATE & ANTI-LAG DEAD RECKONING LOOP
+  ========================================================= */
+  let lastFrameTime = performance.now();
 
-    let topSpeed = me.out ? GHOST_SPEED : (state.holderSlot === mySlot ? HOLDER_SPEED : BASE_SPEED);
-    if (now < localPhys.dashUntil) topSpeed *= DASH_MULTIPLIER;
+  function gameLoop(now) {
+    const dt = Math.min(0.05, (now - lastFrameTime) / 1000);
+    lastFrameTime = now;
 
-    localPhys.vx = ix * topSpeed + localPhys.kx;
-    localPhys.vy = iy * topSpeed + localPhys.ky;
-
-    // Decay knockback impulse smoothly
-    const knockDecay = Math.exp(-10 * dt);
-    localPhys.kx *= knockDecay;
-    localPhys.ky *= knockDecay;
-    if (Math.hypot(localPhys.kx, localPhys.ky) < 4) {
-      localPhys.kx = 0;
-      localPhys.ky = 0;
+    if (gameState === "PLAYING") {
+      updateGameplay(now, dt);
+      renderGameplay(now);
     }
 
-    const moving = Math.hypot(localPhys.vx, localPhys.vy) > 2;
-    if (moving) {
-      localPhys.x += localPhys.vx * dt;
-      localPhys.y += localPhys.vy * dt;
-      resolveArenaCollisions(localPhys);
+    requestAnimationFrame(gameLoop);
+  }
+  requestAnimationFrame(gameLoop);
 
-      // 20Hz (50ms) position sync while moving
-      if (now - lastNetSend >= 50) {
+  function updateGameplay(now, dt) {
+    const me = players[myId];
+    const maze = MAZES[activeMazeIdx] || MAZES[0];
+
+    // 1. Update Local Player Movement
+    if (me && me.alive) {
+      let ix = joyVec.x;
+      let iy = joyVec.y;
+      if (keys["KeyW"] || keys["ArrowUp"]) iy -= 1;
+      if (keys["KeyS"] || keys["ArrowDown"]) iy += 1;
+      if (keys["KeyA"] || keys["ArrowLeft"]) ix -= 1;
+      if (keys["KeyD"] || keys["ArrowRight"]) ix += 1;
+
+      const mag = Math.hypot(ix, iy);
+      if (mag > 1) { ix /= mag; iy /= mag; }
+
+      let speed = BASE_SPEED;
+      if (bombHolderId === myId) speed *= HOLDER_SPEED_MULT;
+      if (now < dashActiveUntil) speed *= DASH_SPEED_MULT;
+      if (now < speedPadUntil) speed *= 1.45;
+
+      me.vx = ix * speed;
+      me.vy = iy * speed;
+      me.dash = now < dashActiveUntil ? 1 : 0;
+
+      moveWithMazeCollision(me, me.vx, me.vy, dt);
+
+      // Check Speed Pads
+      for (const pad of maze.pads) {
+        if (Math.hypot(me.x - pad.x, me.y - pad.y) < PLAYER_RADIUS + 14) {
+          if (now > speedPadUntil) {
+            speedPadUntil = now + 1600;
+            spawnBurst(me.x, me.y, "#22c55e", 12);
+            playSfx("dash");
+          }
+        }
+      }
+
+      // Check Teleporter Vents
+      if (now > teleportCooldownUntil) {
+        for (const tp of maze.teleporters) {
+          if (Math.hypot(me.x - tp.x, me.y - tp.y) < PLAYER_RADIUS + 12) {
+            me.x = tp.toX;
+            me.y = tp.toY;
+            teleportCooldownUntil = now + 1800;
+            spawnBurst(me.x, me.y, "#a855f7", 16);
+            playSfx("pass");
+            break;
+          }
+        }
+      }
+
+      // Throttled 13Hz Network Position Broadcast
+      const movedDist = Math.hypot(me.x - lastSentX, me.y - lastSentY);
+      if (now - lastNetSend >= NET_TICK_MS && (movedDist > 1.5 || me.vx !== 0 || me.vy !== 0)) {
         lastNetSend = now;
-        publishRaw({
-          t: "P",
-          i: mySlot,
-          x: Math.round(localPhys.x),
-          y: Math.round(localPhys.y),
-          vx: Math.round(localPhys.vx),
-          vy: Math.round(localPhys.vy)
+        lastSentX = me.x;
+        lastSentY = me.y;
+        publish({
+          t: "p",
+          d: [
+            myId,
+            Math.round(me.x),
+            Math.round(me.y),
+            Math.round(me.vx),
+            Math.round(me.vy),
+            me.dash
+          ]
         });
       }
-      wasMovingLastFrame = true;
-    } else if (wasMovingLastFrame) {
-      wasMovingLastFrame = false;
-      lastNetSend = now;
-      publishRaw({
-        t: "P",
-        i: mySlot,
-        x: Math.round(localPhys.x),
-        y: Math.round(localPhys.y),
-        vx: 0,
-        vy: 0
-      });
     }
 
-    // Check bomb tag collision (only if holding bomb and immunity expired)
-    if (state.phase === "play" && !me.out && state.holderSlot === mySlot && now >= immuneUntil) {
-      for (const p of state.players) {
-        if (p.slot === mySlot || p.out) continue;
-        const r = remotePhys.get(p.slot);
-        if (!r) continue;
-        if (Math.hypot(r.x - localPhys.x, r.y - localPhys.y) < PLAYER_R * 2.15) {
-          if (isHost) {
-            hostProcessTag(mySlot, p.slot);
-          } else {
-            // Set local immunity immediately so client never spams duplicate TAG_REQs
-            immuneUntil = now + 400;
-            publishRaw({ t: "TAG_REQ", f: mySlot, to: p.slot });
-          }
+    // 2. Dead Reckoning + Smooth Interpolation for Remote Players
+    Object.values(players).forEach(p => {
+      if (p.id === myId || !p.alive) return;
+      // Advance predicted position along velocity with maze collision
+      moveWithMazeCollision(p, p.vx, p.vy, dt);
+      // Blend smoothly toward latest network target
+      p.x += (p.tx - p.x) * Math.min(1, dt * 11);
+      p.y += (p.ty - p.y) * Math.min(1, dt * 11);
+    });
+
+    // 3. Authoritative Tag Detection (Bomb Holder checks collision for zero-lag feel)
+    if (bombHolderId === myId && me && me.alive && now > immunityUntil) {
+      for (const other of Object.values(players)) {
+        if (other.id === myId || !other.alive) continue;
+        const dist = Math.hypot(me.x - other.x, me.y - other.y);
+        if (dist <= PLAYER_RADIUS * 2 + 6) {
+          passSeq += 1;
+          bombHolderId = other.id;
+          bombTimerMs = BOMB_RESET_MS; // Local instant reset
+          immunityUntil = now + TAG_IMMUNITY_MS;
+          publish({
+            t: "pass",
+            from: myId,
+            to: other.id,
+            seq: passSeq
+          });
+          handleNetworkMessage({ t: "pass", from: myId, to: other.id, seq: passSeq });
           break;
         }
       }
     }
+
+    // 4. Bomb Countdown & Explosion
+    if (bombHolderId) {
+      bombTimerMs = Math.max(0, bombTimerMs - dt * 1000);
+      const secLeft = Math.ceil(bombTimerMs / 1000);
+      if (secLeft !== lastTickSecond && secLeft <= 4 && secLeft > 0) {
+        lastTickSecond = secLeft;
+        playSfx("tick");
+      }
+
+      // Sweat & Smoke Particles on Bomb Holder
+      const holder = players[bombHolderId];
+      if (holder && holder.alive && Math.random() < 0.45) {
+        particles.push({
+          x: holder.x + (Math.random() - 0.5) * 20,
+          y: holder.y - 14,
+          vx: (Math.random() - 0.5) * 90,
+          vy: -40 - Math.random() * 60,
+          color: bombTimerMs < 3500 ? "#ef4444" : "#38bdf8",
+          size: 4,
+          life: 0.45
+        });
+      }
+
+      // Trigger Explosion (Bomb Holder or Host triggers it)
+      if (bombTimerMs <= 0 && (bombHolderId === myId || isHost())) {
+        const explodedId = bombHolderId;
+        bombHolderId = null;
+        const survivors = Object.values(players).filter(p => p.alive && p.id !== explodedId);
+        let winnerId = null;
+        let nextHolderId = null;
+
+        if (survivors.length <= 1) {
+          winnerId = survivors[0]?.id || myId;
+        } else {
+          nextHolderId = survivors[Math.floor(Math.random() * survivors.length)].id;
+        }
+
+        const boomPacket = {
+          t: "boom",
+          who: explodedId,
+          winner: winnerId,
+          nextHolder: nextHolderId
+        };
+        publish(boomPacket);
+        handleNetworkMessage(boomPacket);
+      }
+    }
+
+    // 5. Update HUD & Cooldown Button
+    const timerPill = document.getElementById("timerPill");
+    timerPill.textContent = bombHolderId
+      ? `💣 ${(bombTimerMs / 1000).toFixed(1)}s`
+      : `🏆 Round Over`;
+    timerPill.classList.toggle("critical", bombTimerMs < 3500 && !!bombHolderId);
+
+    const dashBtn = document.getElementById("dashBtn");
+    const dashLabel = document.getElementById("dashLabel");
+    if (now < dashCooldownUntil) {
+      dashBtn.classList.add("cooldown");
+      dashLabel.textContent = `${((dashCooldownUntil - now) / 1000).toFixed(1)}s`;
+    } else {
+      dashBtn.classList.remove("cooldown");
+      dashLabel.textContent = "DASH";
+    }
+
+    // Periodic Ping Check
+    if (now - lastPingSent > 4000) {
+      lastPingSent = now;
+      publish({ t: "ping", id: myId, ts: now });
+    }
+
+    // Update Particles
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const pt = particles[i];
+      pt.x += pt.vx * dt;
+      pt.y += pt.vy * dt;
+      pt.life -= dt;
+      if (pt.life <= 0) particles.splice(i, 1);
+    }
+
+    if (screenShake > 0) screenShake = Math.max(0, screenShake - dt * 35);
   }
 
-  // Non-destructive Hermite / Exponential Snapshot Interpolation for Remote Players
-  const interpAlpha = 1 - Math.exp(-20 * dt);
-  for (const [slot, r] of remotePhys) {
-    if (slot === mySlot) continue;
-    // Project target ahead by at most 100ms using velocity decay
-    const ageSec = Math.min(0.10, Math.max(0, (now - r.pktTime) / 1000));
-    const projected = {
-      x: r.netX + r.netVx * ageSec * 0.85,
-      y: r.netY + r.netVy * ageSec * 0.85
-    };
-    resolveArenaCollisions(projected);
-
-    r.x += (projected.x - r.x) * interpAlpha;
-    r.y += (projected.y - r.y) * interpAlpha;
+  function spawnBurst(x, y, color, count) {
+    for (let i = 0; i < count; i++) {
+      const ang = Math.random() * Math.PI * 2;
+      const spd = 40 + Math.random() * 160;
+      particles.push({
+        x, y,
+        vx: Math.cos(ang) * spd,
+        vy: Math.sin(ang) * spd,
+        color,
+        size: 4 + Math.random() * 4,
+        life: 0.35 + Math.random() * 0.35
+      });
+    }
   }
 
-  // Update visual FX
-  for (const sw of shockwaves) {
-    sw.r += (sw.maxR - sw.r) * 10 * dt;
-    sw.alpha -= 2.2 * dt;
-  }
-  shockwaves = shockwaves.filter(s => s.alpha > 0);
-
-  for (const pl of passLines) {
-    pl.alpha -= 3.0 * dt;
-  }
-  passLines = passLines.filter(l => l.alpha > 0);
-}
-
-function renderArena(now) {
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.fillStyle = "#0b1120";
-  ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
-
-  if (state.phase === "lobby" || state.phase === "over") return;
-
-  ctx.setTransform(dpr * scale, 0, 0, dpr * scale, dpr * offX, dpr * offY);
-
-  // Arena Floor
-  ctx.fillStyle = "#162238";
-  ctx.fillRect(0, 0, ARENA_W, ARENA_H);
-
-  // Subtle Tactical Grid
-  ctx.strokeStyle = "rgba(255, 255, 255, 0.04)";
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  for (let x = 0; x <= ARENA_W; x += 60) {
-    ctx.moveTo(x, 0);
-    ctx.lineTo(x, ARENA_H);
-  }
-  for (let y = 0; y <= ARENA_H; y += 60) {
-    ctx.moveTo(0, y);
-    ctx.lineTo(ARENA_W, y);
-  }
-  ctx.stroke();
-
-  // Arena Border (pulses red if local player holds the bomb)
-  const iHaveBomb = (state.phase === "play" && state.holderSlot === mySlot);
-  ctx.strokeStyle = iHaveBomb ? "#ef4444" : "#334155";
-  ctx.lineWidth = iHaveBomb ? 6 : 4;
-  ctx.strokeRect(0, 0, ARENA_W, ARENA_H);
-
-  // Draw Pillars
-  for (const pil of PILLARS) {
-    ctx.beginPath();
-    ctx.arc(pil.x, pil.y + 5, pil.r, 0, Math.PI * 2);
-    ctx.fillStyle = "rgba(0, 0, 0, 0.35)";
-    ctx.fill();
-
-    ctx.beginPath();
-    ctx.arc(pil.x, pil.y, pil.r, 0, Math.PI * 2);
-    ctx.fillStyle = "#334155";
-    ctx.fill();
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = "#475569";
-    ctx.stroke();
-  }
-
-  // Draw Pass Lines & Shockwaves
-  for (const pl of passLines) {
+  /* =========================================================
+     9. CANVAS RENDERING (MAZE, TELEPORTERS, PLAYERS & FX)
+  ========================================================= */
+  function renderGameplay(now) {
     ctx.save();
-    ctx.globalAlpha = Math.max(0, pl.alpha);
-    ctx.strokeStyle = "#facc15";
-    ctx.lineWidth = 5;
-    ctx.beginPath();
-    ctx.moveTo(pl.x1, pl.y1);
-    ctx.lineTo(pl.x2, pl.y2);
-    ctx.stroke();
-    ctx.restore();
-  }
+    if (screenShake > 0) {
+      ctx.translate(
+        (Math.random() - 0.5) * screenShake,
+        (Math.random() - 0.5) * screenShake
+      );
+    }
 
-  for (const sw of shockwaves) {
-    ctx.save();
-    ctx.globalAlpha = Math.max(0, sw.alpha);
-    ctx.strokeStyle = sw.color;
-    ctx.lineWidth = 4;
-    ctx.beginPath();
-    ctx.arc(sw.x, sw.y, sw.r, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.restore();
-  }
+    // Background Grid
+    ctx.fillStyle = "#0f172a";
+    ctx.fillRect(0, 0, W, H);
+    ctx.strokeStyle = "rgba(51, 65, 85, 0.35)";
+    ctx.lineWidth = 1;
+    for (let x = 0; x < W; x += 40) {
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+    }
+    for (let y = 0; y < H; y += 40) {
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+    }
 
-  const secLeft = Math.max(0, (bombEndTime - now) / 1000);
-  const isImmune = now < immuneUntil;
+    const maze = MAZES[activeMazeIdx] || MAZES[0];
 
-  // Draw Players ( ghosts first, alive players on top )
-  const renderOrder = [...state.players].sort((a, b) => (b.out ? -1 : 1));
-
-  for (const p of renderOrder) {
-    const pos = getSlotPosition(p.slot);
-    const isHolder = (state.phase === "play" && state.holderSlot === p.slot && !p.out);
-
-    ctx.save();
-    ctx.translate(pos.x, pos.y);
-    ctx.globalAlpha = p.out ? 0.35 : 1;
-
-    // Shadow
-    ctx.beginPath();
-    ctx.ellipse(0, PLAYER_R - 2, 16, 6, 0, 0, Math.PI * 2);
-    ctx.fillStyle = "rgba(0,0,0,0.35)";
-    ctx.fill();
-
-    // Holder Danger Ring or Immunity Shield
-    if (isHolder) {
+    // Draw Teleporter Vents
+    maze.teleporters.forEach(tp => {
+      ctx.save();
       ctx.beginPath();
-      ctx.arc(0, 0, PLAYER_R + 8 + Math.sin(now / 80) * 2, 0, Math.PI * 2);
-      ctx.strokeStyle = isImmune ? "#38bdf8" : "#ef4444";
-      ctx.lineWidth = 4;
+      ctx.arc(tp.x, tp.y, 18, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(168, 85, 247, 0.25)";
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = "#a855f7";
       ctx.stroke();
-    }
+      ctx.font = "18px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("🌀", tp.x, tp.y);
+      ctx.restore();
+    });
 
-    // Player Body Circle
-    ctx.beginPath();
-    ctx.arc(0, 0, PLAYER_R, 0, Math.PI * 2);
-    ctx.fillStyle = p.out ? "#475569" : p.color;
-    ctx.fill();
-    ctx.lineWidth = p.slot === mySlot ? 4 : 3;
-    ctx.strokeStyle = p.slot === mySlot ? "#ffffff" : "#0f172a";
-    ctx.stroke();
+    // Draw Chili Speed Pads
+    maze.pads.forEach(pad => {
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(pad.x, pad.y, 16, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(34, 197, 94, 0.2)";
+      ctx.fill();
+      ctx.strokeStyle = "#22c55e";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.font = "16px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("🌶️", pad.x, pad.y);
+      ctx.restore();
+    });
 
-    // Avatar Emoji
-    ctx.font = "20px system-ui, sans-serif";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText(p.out ? "💀" : p.emoji, 0, 1);
+    // Draw Maze Walls
+    maze.walls.forEach(w => {
+      ctx.fillStyle = "#334155";
+      ctx.fillRect(w.x, w.y, w.w, w.h);
+      ctx.strokeStyle = "#64748b";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(w.x, w.y, w.w, w.h);
+    });
 
-    // Name Tag
-    ctx.font = "bold 12px system-ui, sans-serif";
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = "#0b1120";
-    ctx.strokeText(p.name, 0, -PLAYER_R - 10);
-    ctx.fillStyle = "#f8fafc";
-    ctx.fillText(p.name, 0, -PLAYER_R - 10);
+    // Draw French Fry Graves (Eliminated Players)
+    fryGraves.forEach(g => {
+      ctx.font = "24px sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("🍟", g.x, g.y);
+      ctx.font = "bold 10px sans-serif";
+      ctx.fillStyle = "#94a3b8";
+      ctx.fillText(`RIP ${g.name}`, g.x, g.y + 18);
+    });
 
-    // Bomb Countdown Above Holder
-    if (isHolder) {
-      const timerText = isImmune ? `🛡️ ${secLeft.toFixed(1)}s` : `💣 ${secLeft.toFixed(1)}s`;
-      ctx.font = "900 16px system-ui, sans-serif";
-      ctx.lineWidth = 4;
-      ctx.strokeStyle = "#0b1120";
-      ctx.strokeText(timerText, 0, -PLAYER_R - 27);
-      ctx.fillStyle = secLeft < 3 ? "#ef4444" : "#facc15";
-      ctx.fillText(timerText, 0, -PLAYER_R - 27);
-    }
+    // Draw Particles
+    particles.forEach(pt => {
+      ctx.fillStyle = pt.color;
+      ctx.beginPath();
+      ctx.arc(pt.x, pt.y, pt.size, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    // Draw Living Players
+    Object.values(players).forEach(p => {
+      if (!p.alive) return;
+      const av = AVATARS[p.avatar] || AVATARS[0];
+      const isHolder = p.id === bombHolderId;
+
+      let drawX = p.x;
+      let drawY = p.y;
+      if (isHolder && bombTimerMs < 4000) {
+        drawX += (Math.random() - 0.5) * 5;
+        drawY += (Math.random() - 0.5) * 5;
+      }
+
+      // Bomb Danger Ring
+      if (isHolder) {
+        ctx.beginPath();
+        ctx.arc(drawX, drawY, PLAYER_RADIUS + 9 + Math.sin(now / 70) * 3, 0, Math.PI * 2);
+        ctx.strokeStyle = bombTimerMs < 3500 ? "#ef4444" : "#f59e0b";
+        ctx.lineWidth = 3.5;
+        ctx.stroke();
+      }
+
+      // Dash Aura
+      if (p.dash) {
+        ctx.beginPath();
+        ctx.arc(drawX, drawY, PLAYER_RADIUS + 5, 0, Math.PI * 2);
+        ctx.strokeStyle = "#38bdf8";
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+      }
+
+      // Player Circle Body
+      ctx.beginPath();
+      ctx.arc(drawX, drawY, PLAYER_RADIUS, 0, Math.PI * 2);
+      ctx.fillStyle = av.color;
+      ctx.fill();
+      ctx.lineWidth = p.id === myId ? 3 : 2;
+      ctx.strokeStyle = p.id === myId ? "#ffffff" : "#0f172a";
+      ctx.stroke();
+
+      // Emoji Avatar
+      ctx.font = "22px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(av.emoji, drawX, drawY + 1);
+
+      // Overhead Bomb + Live Countdown
+      if (isHolder) {
+        ctx.font = "bold 14px sans-serif";
+        ctx.fillStyle = bombTimerMs < 3500 ? "#ef4444" : "#facc15";
+        ctx.fillText(`💣 ${(bombTimerMs / 1000).toFixed(1)}s`, drawX, drawY - 30);
+      }
+
+      // Funny Speech Bubble
+      if (p.bubble && now < p.bubbleUntil) {
+        ctx.font = "bold 11px sans-serif";
+        const tw = ctx.measureText(p.bubble).width + 12;
+        ctx.fillStyle = "rgba(255,255,255,0.94)";
+        ctx.fillRect(drawX - tw / 2, drawY - 52, tw, 18);
+        ctx.fillStyle = "#0f172a";
+        ctx.fillText(p.bubble, drawX, drawY - 43);
+      }
+
+      // Player Name Tag
+      ctx.font = "bold 11px sans-serif";
+      ctx.fillStyle = "#e2e8f0";
+      ctx.fillText(p.name, drawX, drawY + 29);
+    });
 
     ctx.restore();
   }
-
-  // Draw Touch Joystick Overlay
-  if (joy.active) {
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.beginPath();
-    ctx.arc(joy.ox, joy.oy, 48, 0, Math.PI * 2);
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.25)";
-    ctx.lineWidth = 3;
-    ctx.stroke();
-
-    let dx = joy.x - joy.ox;
-    let dy = joy.y - joy.oy;
-    const dist = Math.hypot(dx, dy);
-    if (dist > 48) {
-      dx = (dx / dist) * 48;
-      dy = (dy / dist) * 48;
-    }
-    ctx.beginPath();
-    ctx.arc(joy.ox + dx, joy.oy + dy, 20, 0, Math.PI * 2);
-    ctx.fillStyle = "rgba(250, 204, 21, 0.45)";
-    ctx.fill();
-  }
-}
-
-let prevFrameTime = performance.now();
-function mainLoop(now) {
-  const dt = Math.min(0.05, (now - prevFrameTime) / 1000);
-  prevFrameTime = now;
-  updatePhysics(dt, now);
-  renderArena(now);
-  requestAnimationFrame(mainLoop);
-}
-requestAnimationFrame(mainLoop);
+})();
 </script>
 </body>
 </html>
