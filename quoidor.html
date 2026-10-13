@@ -1,914 +1,1435 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>🧱 Quoridor Multiplayer</title>
-<script src="https://telegram.org/js/telegram-web-app.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/mqtt@5.10.3/dist/mqtt.min.js"></script>
-<style>
-  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; user-select: none; }
-  body {
-    background: #0f172a; color: #f8fafc;
-    font-family: system-ui, -apple-system, sans-serif;
-    min-height: 100vh; display: flex; flex-direction: column;
-    align-items: center; justify-content: center; padding: 10px;
-    overflow-x: hidden;
-  }
-  .hidden { display: none !important; }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Quoridor 3D: Syria Mesh Edition</title>
+  <!-- Primary + Fallback CDN for MQTT.js (Resilient without VPN) -->
+  <script src="https://cdn.jsdelivr.net/npm/mqtt@5.10.3/dist/mqtt.min.js"
+          onerror="var s=document.createElement('script');s.src='https://unpkg.com/mqtt/dist/mqtt.min.js';document.head.appendChild(s);"></script>
+  <style>
+    :root {
+      --bg: #0b0f19;
+      --panel: #151d2e;
+      --border: #2e3d59;
+      --accent: #f59e0b;
+      --blue: #38bdf8;
+      --red: #f43f5e;
+      --green: #22c55e;
+      --text: #f8fafc;
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+    }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: radial-gradient(circle at 50% 20%, #17223b 0%, #090d16 100%);
+      color: var(--text);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      touch-action: manipulation;
+    }
 
-  .card {
-    background: #1e293b; border: 1px solid #334155; border-radius: 18px;
-    padding: 20px; width: min(94vw, 390px); display: flex;
-    flex-direction: column; gap: 13px; text-align: center;
-    box-shadow: 0 12px 32px rgba(0,0,0,0.55);
-  }
-  h1 { font-size: 26px; font-weight: 900; color: #facc15; letter-spacing: 0.5px; }
-  .sub { font-size: 13px; color: #94a3b8; line-height: 1.35; }
-  .divider { height: 1px; background: #334155; margin: 2px 0; }
+    .screen {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 14px;
+      z-index: 20;
+    }
+    .hidden { display: none !important; }
 
-  input {
-    width: 100%; padding: 12px; border-radius: 10px;
-    border: 1px solid #475569; background: #0f172a; color: #f8fafc;
-    font-size: 16px; font-weight: 700; text-align: center; outline: none;
-  }
-  input:focus { border-color: #facc15; }
+    .card {
+      background: rgba(21, 29, 46, 0.96);
+      border: 2px solid var(--border);
+      border-radius: 18px;
+      padding: 18px;
+      width: 100%;
+      max-width: 420px;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.65);
+      text-align: center;
+    }
+    h1 {
+      font-size: 1.65rem;
+      font-weight: 900;
+      letter-spacing: 0.5px;
+      color: var(--accent);
+      text-shadow: 0 2px 12px rgba(245, 158, 11, 0.35);
+      margin-bottom: 4px;
+    }
+    .sub {
+      font-size: 0.8rem;
+      color: #94a3b8;
+      margin-bottom: 14px;
+    }
 
-  button {
-    width: 100%; padding: 11px 12px; border-radius: 12px; border: none;
-    font-size: 14px; font-weight: 800; cursor: pointer;
-    transition: transform 0.08s, opacity 0.15s, background 0.15s;
-  }
-  button:active { transform: translateY(2px); }
-  button:disabled { opacity: 0.4; cursor: not-allowed; }
+    input {
+      width: 100%;
+      padding: 11px 14px;
+      border-radius: 10px;
+      border: 2px solid #334155;
+      background: #090d16;
+      color: #fff;
+      font-size: 0.98rem;
+      font-weight: 700;
+      text-align: center;
+      margin-bottom: 10px;
+      outline: none;
+    }
+    input:focus { border-color: var(--accent); }
 
-  .btn-primary { background: #facc15; color: #0f172a; box-shadow: 0 4px 0 #a16207; }
-  .btn-accent { background: #38bdf8; color: #0f172a; box-shadow: 0 4px 0 #0284c7; }
-  .btn-success { background: #10b981; color: #0f172a; box-shadow: 0 4px 0 #047857; }
-  .btn-secondary { background: #334155; color: #f8fafc; box-shadow: 0 4px 0 #0f172a; }
+    .skin-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 7px;
+      margin: 8px 0 14px;
+    }
+    .skin-btn {
+      background: #090d16;
+      border: 2px solid #2e3d59;
+      border-radius: 10px;
+      padding: 7px 6px;
+      color: #cbd5e1;
+      font-size: 0.76rem;
+      font-weight: 800;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+    }
+    .skin-btn.active {
+      border-color: var(--accent);
+      background: rgba(245, 158, 11, 0.16);
+      color: #fff;
+    }
+    .swatch {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      display: inline-block;
+      box-shadow: inset -2px -2px 4px rgba(0,0,0,0.6), inset 2px 2px 3px rgba(255,255,255,0.6);
+    }
 
-  .join-row { display: flex; gap: 8px; }
-  .join-row input { flex: 1; text-transform: uppercase; letter-spacing: 3px; }
-  .join-row button { width: auto; padding: 0 22px; }
+    .btn-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 6px;
+    }
+    .btn {
+      flex: 1;
+      padding: 12px;
+      border-radius: 11px;
+      border: none;
+      font-weight: 800;
+      font-size: 0.9rem;
+      cursor: pointer;
+      background: var(--accent);
+      color: #090d16;
+      transition: transform 0.1s, opacity 0.15s;
+    }
+    .btn:active { transform: scale(0.96); }
+    .btn-sec { background: #334155; color: #f8fafc; }
+    .btn-green { background: var(--green); color: #052e16; }
+    .btn-red { background: var(--red); color: #fff; }
 
-  .code-box {
-    background: #0f172a; border: 2px dashed #facc15; border-radius: 12px;
-    padding: 10px; display: flex; flex-direction: column; gap: 4px;
-  }
-  .code-box span { font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; }
-  .code-box strong { font-size: 28px; color: #facc15; letter-spacing: 5px; }
-  .status-pill { font-size: 12px; font-weight: 700; color: #facc15; }
+    /* GAME LAYOUT */
+    #gameScreen {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 10px 12px;
+    }
 
-  .seat-list { display: flex; flex-direction: column; gap: 8px; }
-  .seat-item {
-    background: #0f172a; border: 1px solid #334155; border-radius: 10px;
-    padding: 10px 14px; display: flex; justify-content: space-between;
-    align-items: center; font-weight: 700; font-size: 14px;
-  }
+    .top-bar {
+      width: 100%;
+      max-width: 500px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .status-strip {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.75rem;
+      color: #94a3b8;
+      padding: 0 4px;
+    }
+    .mesh-badge {
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid #334155;
+      padding: 3px 9px;
+      border-radius: 99px;
+      font-weight: 700;
+      color: #cbd5e1;
+    }
 
-  /* GAME SCREEN */
-  #gameScreen {
-    width: min(96vw, 430px); display: flex; flex-direction: column;
-    gap: 8px; align-items: center;
-  }
-  .scoreboard {
-    width: 100%; display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px;
-    background: #1e293b; border: 1px solid #334155; border-radius: 14px; padding: 8px;
-  }
-  .p-card {
-    padding: 7px; border-radius: 10px; background: #0f172a;
-    border: 2px solid transparent; text-align: center; transition: 0.2s;
-  }
-  .p-card.active-0 { border-color: #38bdf8; box-shadow: 0 0 12px rgba(56,189,248,0.35); }
-  .p-card.active-1 { border-color: #fb923c; box-shadow: 0 0 12px rgba(251,146,60,0.35); }
-  .p-name { font-size: 13px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .p-meta { display: flex; justify-content: space-around; margin-top: 4px; font-size: 13px; font-weight: 800; }
-  .vs-box { display: flex; flex-direction: column; justify-content: center; align-items: center; font-size: 11px; color: #94a3b8; font-weight: 800; padding: 0 4px; }
+    .players-hud {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap: 6px;
+      align-items: center;
+      background: rgba(21, 29, 46, 0.92);
+      border: 1.5px solid var(--border);
+      border-radius: 14px;
+      padding: 8px 10px;
+    }
+    .p-box {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      padding: 4px 8px;
+      border-radius: 10px;
+      border: 2px solid transparent;
+    }
+    .p-box.active-turn {
+      border-color: var(--accent);
+      background: rgba(245, 158, 11, 0.12);
+    }
+    .p-name {
+      font-weight: 900;
+      font-size: 0.88rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .p-stats {
+      font-size: 0.75rem;
+      color: #cbd5e1;
+      font-weight: 700;
+    }
+    .vs-pill {
+      font-weight: 900;
+      font-size: 0.78rem;
+      color: var(--accent);
+      text-align: center;
+      padding: 0 4px;
+    }
 
-  #turnBanner {
-    width: 100%; text-align: center; font-size: 13px; font-weight: 800;
-    padding: 8px 10px; border-radius: 10px; background: #1e293b;
-    border: 1px solid #334155;
-  }
+    #canvasWrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex: 1;
+      width: 100%;
+      max-width: 500px;
+      min-height: 0;
+    }
+    canvas {
+      max-width: 100%;
+      max-height: 100%;
+      border-radius: 16px;
+      box-shadow: 0 18px 40px rgba(0,0,0,0.75);
+      touch-action: none;
+    }
 
-  /* MODE SWITCHER TABS */
-  .mode-tabs {
-    width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
-  }
-  .tab-btn {
-    background: #1e293b; color: #94a3b8; border: 2px solid #334155;
-    box-shadow: none; padding: 10px; font-size: 14px;
-  }
-  .tab-btn.active-move {
-    background: rgba(16, 185, 129, 0.2); color: #34d399; border-color: #10b981;
-  }
-  .tab-btn.active-wall {
-    background: rgba(250, 204, 21, 0.2); color: #facc15; border-color: #facc15;
-  }
+    #toastBanner {
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(15, 23, 42, 0.95);
+      border: 2px solid var(--accent);
+      color: #fff;
+      padding: 7px 14px;
+      border-radius: 99px;
+      font-size: 0.82rem;
+      font-weight: 800;
+      white-space: nowrap;
+      pointer-events: none;
+      z-index: 15;
+    }
 
-  .canvas-wrap {
-    width: 100%; aspect-ratio: 1 / 1; background: #1e293b;
-    border: 2px solid #334155; border-radius: 16px; padding: 6px;
-    display: flex; align-items: center; justify-content: center;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.45);
-  }
-  canvas { width: 100%; height: 100%; display: block; border-radius: 10px; touch-action: none; }
-
-  .action-bar { width: 100%; display: flex; gap: 8px; }
-</style>
+    .bottom-controls {
+      width: 100%;
+      max-width: 500px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .mode-bar {
+      display: flex;
+      gap: 7px;
+    }
+    .mode-btn {
+      flex: 1;
+      padding: 11px 8px;
+      border-radius: 11px;
+      border: 2px solid #334155;
+      background: #151d2e;
+      color: #cbd5e1;
+      font-weight: 800;
+      font-size: 0.85rem;
+      cursor: pointer;
+    }
+    .mode-btn.selected {
+      border-color: var(--accent);
+      background: var(--accent);
+      color: #090d16;
+    }
+    .wall-confirm-bar {
+      display: flex;
+      gap: 7px;
+    }
+  </style>
 </head>
 <body>
 
-<!-- 1. MENU SCREEN -->
-<div id="menuScreen" class="card">
-  <h1>🧱 Quoridor</h1>
-  <p class="sub">Reach the opposite side of the board first! Step 1 tile or place walls to trap your opponent in a maze.</p>
-  <input id="nameInput" placeholder="Your Name" maxlength="12">
-  <div class="divider"></div>
-  <button id="createBtn" class="btn-primary">➕ Create New Room</button>
-  <div class="sub" style="font-weight:700">OR JOIN WITH CODE</div>
-  <div class="join-row">
-    <input id="codeInput" placeholder="CODE" maxlength="4">
-    <button id="joinBtn" class="btn-accent">Join</button>
-  </div>
-</div>
+  <!-- SETUP / LOBBY SCREEN -->
+  <div id="setupScreen" class="screen">
+    <div class="card">
+      <h1>🏛️ QUORIDOR 3D</h1>
+      <div class="sub">Textured 3D Spheres & Extruded Walls • Syria Zero-VPN Mesh</div>
 
-<!-- 2. LOBBY SCREEN -->
-<div id="lobbyScreen" class="card hidden">
-  <h1>🧱 Room Lobby</h1>
-  <div class="code-box">
-    <span>Room Code</span>
-    <strong id="lobbyCode">----</strong>
-  </div>
-  <button id="copyBtn" class="btn-secondary" style="padding:8px;font-size:13px">📋 Copy Room Code</button>
-  <div id="connStatus" class="status-pill">🟡 Connecting to broker...</div>
+      <input id="nameInput" type="text" maxlength="12" placeholder="Your Name" value="" />
 
-  <div class="seat-list">
-    <div class="seat-item">
-      <span>🔵 Player 1 (Top ⬇)</span>
-      <span id="seat0Name" style="color:#38bdf8">Waiting...</span>
-    </div>
-    <div class="seat-item">
-      <span>🟠 Player 2 (Bottom ⬆)</span>
-      <span id="seat1Name" style="color:#fb923c">Waiting...</span>
-    </div>
-  </div>
+      <div style="font-size:0.78rem; color:#cbd5e1; font-weight:700;">Select Your 3D Ball Texture</div>
+      <div class="skin-grid" id="skinGrid"></div>
 
-  <button id="startBtn" class="btn-success" disabled>Waiting for Player 2...</button>
-  <button class="btn-secondary" onclick="location.reload()">🚪 Leave Room</button>
-</div>
+      <input id="roomInput" type="text" maxlength="6" placeholder="Room Code (e.g. SY26)" style="text-transform:uppercase;" />
 
-<!-- 3. GAME SCREEN -->
-<div id="gameScreen" class="hidden">
-  <div class="scoreboard">
-    <div id="card0" class="p-card">
-      <div class="p-name" style="color:#38bdf8">🔵 <span id="gName0">P1</span></div>
-      <div class="p-meta">
-        <span id="gWalls0">🧱 10</span>
-        <span id="gWins0">🏆 0</span>
+      <div class="btn-row">
+        <button class="btn" id="onlineBtn">🌐 ONLINE ROOM (NO VPN)</button>
       </div>
-    </div>
-    <div class="vs-box">
-      <span>9×9</span>
-      <span style="margin-top:2px;color:#facc15">MAZE</span>
-    </div>
-    <div id="card1" class="p-card">
-      <div class="p-name" style="color:#fb923c">🟠 <span id="gName1">P2</span></div>
-      <div class="p-meta">
-        <span id="gWalls1">🧱 10</span>
-        <span id="gWins1">🏆 0</span>
+      <div class="btn-row">
+        <button class="btn btn-sec" id="localBtn">📱 PASS & PLAY (1 DEVICE OFFLINE)</button>
+      </div>
+
+      <div id="meshStatus" style="margin-top:10px; font-size:0.75rem; color:#94a3b8;">
+        Multi-Broker Port 443 + EU Mesh Ready
       </div>
     </div>
   </div>
 
-  <div id="turnBanner">Waiting...</div>
+  <!-- GAME SCREEN -->
+  <div id="gameScreen" class="hidden">
+    <div class="top-bar">
+      <div class="status-strip">
+        <span class="mesh-badge" id="roomBadge">ROOM: ----</span>
+        <span class="mesh-badge" id="netBadge">🟢 Mesh Connected</span>
+        <button id="exitBtn" style="background:#334155;color:#fff;border:none;border-radius:8px;padding:3px 10px;font-weight:800;font-size:0.73rem;cursor:pointer;">EXIT</button>
+      </div>
 
-  <!-- MODE SELECTOR TABS -->
-  <div id="modeTabs" class="mode-tabs">
-    <button id="moveModeBtn" class="tab-btn active-move">🚶 Move Pawn</button>
-    <button id="wallModeBtn" class="tab-btn">🧱 Wall Mode</button>
-  </div>
+      <div class="players-hud">
+        <div class="p-box" id="p1Box">
+          <div class="p-name" id="p1Name">🔵 Player 1</div>
+          <div class="p-stats" id="p1Stats">🧱 10  •  📏 8</div>
+        </div>
+        <div class="vs-pill" id="turnIndicator">YOUR TURN</div>
+        <div class="p-box" id="p2Box" style="text-align:right;">
+          <div class="p-name" id="p2Name">🔴 Player 2</div>
+          <div class="p-stats" id="p2Stats">🧱 10  •  📏 8</div>
+        </div>
+      </div>
+    </div>
 
-  <div class="canvas-wrap">
-    <canvas id="boardCanvas" width="540" height="540"></canvas>
-  </div>
+    <div id="canvasWrap">
+      <div id="toastBanner" class="hidden"></div>
+      <canvas id="boardCanvas" width="540" height="580"></canvas>
+    </div>
 
-  <!-- WALL CONFIRMATION BAR (Shown automatically in Wall Mode) -->
-  <div id="wallControls" class="action-bar hidden">
-    <button id="rotateBtn" class="btn-secondary">🔄 Rotate (H/V)</button>
-    <button id="placeWallBtn" class="btn-primary">✅ Confirm Wall</button>
+    <div class="bottom-controls">
+      <div class="mode-bar">
+        <button class="mode-btn selected" id="moveModeBtn">🟢 MOVE BALL</button>
+        <button class="mode-btn" id="wallHBtn">➖ WALL (HORIZ)</button>
+        <button class="mode-btn" id="wallVBtn">➕ WALL (VERT)</button>
+      </div>
+      <div class="wall-confirm-bar hidden" id="confirmBar">
+        <button class="btn btn-sec" id="rotateWallBtn">🔄 ROTATE H/V</button>
+        <button class="btn btn-green" id="confirmWallBtn">✅ PLACE 3D WALL HERE</button>
+        <button class="btn btn-red" id="cancelWallBtn" style="flex:0.45;">✖</button>
+      </div>
+    </div>
   </div>
-
-  <div class="action-bar">
-    <button id="rematchBtn" class="btn-success hidden">🔁 Play Again</button>
-    <button class="btn-secondary" onclick="location.reload()" style="padding:9px">🚪 Exit Room</button>
-  </div>
-</div>
 
 <script>
-const tg = window.Telegram?.WebApp;
-if (tg) { try { tg.ready(); tg.expand(); } catch (e) {} }
-
-const cleanStr = (s) => String(s || "").replace(/[&<>"']/g, "").trim().slice(0, 12);
-const myId = "q_" + Math.random().toString(36).slice(2, 9);
-let myName = cleanStr(tg?.initDataUnsafe?.user?.first_name) || "Player";
-
-const BROKER = "wss://broker.emqx.io:8084/mqtt";
-const $ = (id) => document.getElementById(id);
-$('nameInput').value = myName;
-
-// Board Geometry Constants (Logical 540x540 Canvas)
-const LOGICAL_SIZE = 540;
-const MARGIN = 18;
-const CELL_SIZE = 48;
-const GAP_SIZE = 9;
-const STEP = CELL_SIZE + GAP_SIZE; // 57px per cell+groove
-
-let client = null;
-let roomCode = "";
-let topic = "";
-let isHost = false;
-let mySeat = -1;
-let joinRetryTimer = null;
-
-// Authoritative Game State
-let state = {
-  phase: "lobby",
-  players: [
-    { id: null, name: "Waiting..." },
-    { id: null, name: "Waiting..." }
-  ],
-  wins: [0, 0],
-  starter: 0,
-  turn: 0,
-  pawns: [
-    { r: 0, c: 4 },
-    { r: 8, c: 4 }
-  ],
-  wallsLeft: [10, 10],
-  walls: [],
-  winner: null
-};
-
-// Local UI Mode: 'move' | 'wall'
-let inputMode = "move";
-let previewWall = { r: 3, c: 4, o: "H", valid: true, reason: "" };
-let isDraggingWall = false;
-
-function genCode() {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  let res = "";
-  for (let i = 0; i < 4; i++) res += chars[Math.floor(Math.random() * chars.length)];
-  return res;
-}
-
-$('createBtn').onclick = () => {
-  myName = cleanStr($('nameInput').value) || "Player";
-  isHost = true;
-  mySeat = 0;
-  roomCode = genCode();
-  state.players[0] = { id: myId, name: myName };
-  openLobby();
-};
-
-$('joinBtn').onclick = () => {
-  myName = cleanStr($('nameInput').value) || "Player";
-  const code = $('codeInput').value.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
-  if (code.length < 3) { alert("Please enter a valid 4-character room code."); return; }
-  isHost = false;
-  roomCode = code;
-  openLobby();
-};
-
-$('copyBtn').onclick = () => {
-  navigator.clipboard?.writeText(roomCode);
-  $('copyBtn').textContent = "✅ Copied: " + roomCode;
-  setTimeout(() => { $('copyBtn').textContent = "📋 Copy Room Code"; }, 1500);
-};
-
-$('startBtn').onclick = () => {
-  if (!isHost || !state.players[1].id) return;
-  startNewRound(0);
-};
-
-$('rematchBtn').onclick = () => {
-  const nextStarter = 1 - state.starter;
-  if (isHost) {
-    startNewRound(nextStarter);
-  } else {
-    publishMsg({ type: "REMATCH_REQ" });
-  }
-};
-
-function openLobby() {
-  $('menuScreen').classList.add('hidden');
-  $('lobbyScreen').classList.remove('hidden');
-  $('lobbyCode').textContent = roomCode;
-  updateLobbyUI();
-  connectMQTT();
-}
-
-function connectMQTT() {
-  topic = `quoridor_2b_${roomCode}`;
-  client = mqtt.connect(BROKER, {
-    clientId: `qr_${myId}_${Math.random().toString(16).slice(2, 6)}`,
-    clean: true,
-    keepalive: 45,
-    reconnectPeriod: 2000
-  });
-
-  client.on('connect', () => {
-    $('connStatus').textContent = "🟢 Connected";
-    $('connStatus').style.color = "#4ade80";
-    client.subscribe(topic, { qos: 0 }, () => {
-      if (isHost) {
-        broadcastState();
-      } else {
-        sendJoinReq();
-        if (!joinRetryTimer) joinRetryTimer = setInterval(sendJoinReq, 2000);
-      }
-    });
-  });
-
-  client.on('reconnect', () => {
-    $('connStatus').textContent = "🟡 Reconnecting...";
-    $('connStatus').style.color = "#facc15";
-  });
-
-  client.on('message', (t, payload) => {
-    if (t !== topic) return;
-    let msg;
-    try { msg = JSON.parse(payload.toString()); } catch (e) { return; }
-    if (!msg || msg.sender === myId) return;
-
-    if (msg.type === "JOIN_REQ" && isHost) {
-      if (!state.players[1].id || state.players[1].id === msg.id) {
-        state.players[1] = { id: msg.id, name: cleanName(msg.name) || "Player 2" };
-      }
-      broadcastState();
-    } else if (msg.type === "STATE_SYNC") {
-      state = msg.state;
-      if (state.players[0].id === myId) mySeat = 0;
-      else if (state.players[1].id === myId) mySeat = 1;
-      if (mySeat !== -1) clearInterval(joinRetryTimer);
-      setMode("move");
-      syncUI();
-    } else if (msg.type === "ACTION_REQ" && isHost) {
-      processAction(msg.seat, msg.action);
-    } else if (msg.type === "REMATCH_REQ" && isHost) {
-      if (state.phase === "over") startNewRound(1 - state.starter);
-    }
-  });
-}
-
-function cleanName(s) {
-  return cleanStr(s) || "Player";
-}
-
-function sendJoinReq() {
-  if (mySeat !== -1) { clearInterval(joinRetryTimer); return; }
-  publishMsg({ type: "JOIN_REQ", id: myId, name: myName });
-}
-
-function publishMsg(obj) {
-  if (!client || !client.connected) return;
-  obj.sender = myId;
-  client.publish(topic, JSON.stringify(obj));
-}
-
-function broadcastState() {
-  setMode("move");
-  syncUI();
-  publishMsg({ type: "STATE_SYNC", state });
-}
-
-function updateLobbyUI() {
-  $('seat0Name').textContent = state.players[0].id ? state.players[0].name + (mySeat === 0 ? " (You)" : "") : "Waiting...";
-  $('seat1Name').textContent = state.players[1].id ? state.players[1].id ? state.players[1].name + (mySeat === 1 ? " (You)" : "") : "Waiting..." : "Waiting...";
-
-  if (isHost) {
-    const ready = Boolean(state.players[0].id && state.players[1].id);
-    $('startBtn').disabled = !ready;
-    $('startBtn').textContent = ready ? "🔥 Start Match" : "Waiting for Player 2...";
-  } else {
-    $('startBtn').disabled = true;
-    $('startBtn').textContent = state.players[1].id ? "Waiting for Host to start..." : "Joining room...";
-  }
-}
-
-function startNewRound(starterSeat) {
-  state.phase = "play";
-  state.starter = starterSeat;
-  state.turn = starterSeat;
-  state.pawns = [
-    { r: 0, c: 4 },
-    { r: 8, c: 4 }
+(() => {
+  /* =========================================================
+     1. SYRIA ZERO-VPN MULTI-BROKER MESH CONFIGURATION
+     Connects simultaneously to Port 443 + EU brokers.
+     Even if an ISP blocks one port, surviving brokers deliver moves.
+  ========================================================= */
+  const SYRIA_BROKER_MESH = [
+    { name: "Eclipse-443", url: "wss://mqtt.eclipseprojects.io:443/mqtt" },
+    { name: "HiveMQ-EU",   url: "wss://broker.hivemq.com:8884/mqtt" },
+    { name: "Mosquitto-EU",url: "wss://test.mosquitto.org:8081/mqtt" },
+    { name: "EMQX-Global", url: "wss://broker.emqx.io:8084/mqtt" }
   ];
-  state.wallsLeft = [10, 10];
-  state.walls = [];
-  state.winner = null;
-  broadcastState();
-}
 
-/* ============================================================================
- * QUORIDOR RULES ENGINE
- * ============================================================================ */
-function isEdgeBlocked(r1, c1, r2, c2, wallsList) {
-  if (r1 === r2) {
-    const minC = Math.min(c1, c2);
-    for (const w of wallsList) {
-      if (w.o === "V" && w.c === minC && (w.r === r1 || w.r === r1 - 1)) return true;
-    }
-  } else if (c1 === c2) {
-    const minR = Math.min(r1, r2);
-    for (const w of wallsList) {
-      if (w.o === "H" && w.r === minR && (w.c === c1 || w.c === c1 - 1)) return true;
-    }
-  }
-  return false;
-}
+  /* =========================================================
+     2. PROCEDURAL 3D TEXTURE GENERATOR (BALLS, WOOD & STONE)
+  ========================================================= */
+  const BALL_SKINS = [
+    { name: "Sapphire Marble", base: "#0284c7", hi: "#bae6fd", dark: "#0c4a6e", vein: "#ffffff", style: "marble" },
+    { name: "Crimson Magma",   base: "#e11d48", hi: "#fecdd3", dark: "#4c0519", vein: "#facc15", style: "magma" },
+    { name: "Emerald Jade",    base: "#10b981", hi: "#a7f3d0", dark: "#064e3b", vein: "#34d399", style: "marble" },
+    { name: "Royal Gold",      base: "#d97706", hi: "#fef08a", dark: "#451a03", vein: "#fde047", style: "metal" },
+    { name: "Damascus Steel",  base: "#64748b", hi: "#f1f5f9", dark: "#0f172a", vein: "#94a3b8", style: "damascus" },
+    { name: "Amethyst Plasma", base: "#9333ea", hi: "#f3e8ff", dark: "#3b0764", vein: "#e879f9", style: "magma" }
+  ];
 
-function hasPathToGoal(startR, startC, goalRow, wallsList) {
-  const visited = new Uint8Array(81);
-  const queue = [startR * 9 + startC];
-  visited[startR * 9 + startC] = 1;
-  const dirs = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+  const skinPatterns = [];
+  let woodPatternH = null;
+  let woodPatternV = null;
+  let tileTexture = null;
 
-  let head = 0;
-  while (head < queue.length) {
-    const curr = queue[head++];
-    const r = Math.floor(curr / 9);
-    const c = curr % 9;
-    if (r === goalRow) return true;
+  function build3DTextures() {
+    // 1. Generate Procedural 3D Ball Textures
+    BALL_SKINS.forEach((s, idx) => {
+      const c = document.createElement("canvas");
+      c.width = 128;
+      c.height = 128;
+      const g = c.getContext("2d");
 
-    for (const [dr, dc] of dirs) {
-      const nr = r + dr;
-      const nc = c + dc;
-      if (nr < 0 || nr > 8 || nc < 0 || nc > 8) continue;
-      const nIdx = nr * 9 + nc;
-      if (visited[nIdx]) continue;
-      if (!isEdgeBlocked(r, c, nr, nc, wallsList)) {
-        visited[nIdx] = 1;
-        queue.push(nIdx);
+      g.fillStyle = s.base;
+      g.fillRect(0, 0, 128, 128);
+
+      // Procedural veins / Damascus ripples / Magma cracks
+      for (let i = 0; i < 28; i++) {
+        g.beginPath();
+        g.strokeStyle = i % 2 === 0 ? s.vein : s.dark;
+        g.globalAlpha = s.style === "damascus" ? 0.35 : 0.25;
+        g.lineWidth = s.style === "metal" ? 1.5 : 2.8;
+        let x = (i * 19) % 128;
+        let y = 0;
+        g.moveTo(x, y);
+        for (let yStep = 16; yStep <= 128; yStep += 16) {
+          const wave = Math.sin((yStep + i * 20) * 0.08) * 18;
+          g.lineTo(x + wave, yStep);
+        }
+        g.stroke();
       }
+
+      // Specular micro-grain
+      g.globalAlpha = 0.12;
+      for (let i = 0; i < 180; i++) {
+        g.fillStyle = i % 2 ? "#ffffff" : "#000000";
+        g.fillRect((i * 73) % 128, (i * 41) % 128, 2, 2);
+      }
+      skinPatterns[idx] = c;
+    });
+
+    // 2. Generate 3D Mahogany / Cedar Wood Wall Grain Texture
+    const wc = document.createElement("canvas");
+    wc.width = 128;
+    wc.height = 64;
+    const wg = wc.getContext("2d");
+    const wGrad = wg.createLinearGradient(0, 0, 0, 64);
+    wGrad.addColorStop(0, "#b45309");
+    wGrad.addColorStop(0.5, "#92400e");
+    wGrad.addColorStop(1, "#78350f");
+    wg.fillStyle = wGrad;
+    wg.fillRect(0, 0, 128, 64);
+
+    wg.strokeStyle = "rgba(41, 16, 3, 0.35)";
+    wg.lineWidth = 1.5;
+    for (let i = 0; i < 18; i++) {
+      wg.beginPath();
+      const y = (i * 4) % 64;
+      wg.moveTo(0, y);
+      wg.bezierCurveTo(42, y + 3, 84, y - 3, 128, y);
+      wg.stroke();
     }
-  }
-  return false;
-}
+    woodPatternH = wc;
 
-function validateWallPlacement(seat, r, c, o) {
-  if (state.wallsLeft[seat] <= 0) {
-    return { valid: false, reason: "You have 0 walls left!" };
-  }
-  if (r < 0 || r > 7 || c < 0 || c > 7) {
-    return { valid: false, reason: "Out of bounds" };
-  }
-
-  for (const w of state.walls) {
-    if (w.r === r && w.c === c) {
-      return { valid: false, reason: "Crosses an existing wall!" };
+    // 3. Generate Carved Dark Basalt Tile Texture
+    const tc = document.createElement("canvas");
+    tc.width = 64;
+    tc.height = 64;
+    const tg = tc.getContext("2d");
+    const tGrad = tg.createLinearGradient(0, 0, 64, 64);
+    tGrad.addColorStop(0, "#26334d");
+    tGrad.addColorStop(1, "#1b2538");
+    tg.fillStyle = tGrad;
+    tg.fillRect(0, 0, 64, 64);
+    tg.fillStyle = "rgba(255,255,255,0.03)";
+    for (let i = 0; i < 60; i++) {
+      tg.fillRect((i * 29) % 64, (i * 53) % 64, 2, 2);
     }
-    if (o === "H" && w.o === "H" && w.r === r && Math.abs(w.c - c) === 1) {
-      return { valid: false, reason: "Overlaps a horizontal wall!" };
-    }
-    if (o === "V" && w.o === "V" && w.c === c && Math.abs(w.r - r) === 1) {
-      return { valid: false, reason: "Overlaps a vertical wall!" };
-    }
+    tileTexture = tc;
+  }
+  build3DTextures();
+
+  /* =========================================================
+     3. SOUND SYNTHESIS (TACTILE 3D CLACK & ROLL SFX)
+  ========================================================= */
+  let audioCtx = null;
+  function playSfx(type) {
+    try {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === "suspended") audioCtx.resume();
+      const now = audioCtx.currentTime;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+
+      if (type === "move") {
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(240, now);
+        osc.frequency.exponentialRampToValueAtTime(520, now + 0.11);
+        gain.gain.setValueAtTime(0.22, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.12);
+        osc.start(now);
+        osc.stop(now + 0.12);
+      } else if (type === "wall") {
+        osc.type = "triangle";
+        osc.frequency.setValueAtTime(150, now);
+        osc.frequency.exponentialRampToValueAtTime(65, now + 0.16);
+        gain.gain.setValueAtTime(0.32, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.17);
+        osc.start(now);
+        osc.stop(now + 0.17);
+      } else if (type === "win") {
+        osc.type = "triangle";
+        osc.frequency.setValueAtTime(330, now);
+        osc.frequency.setValueAtTime(440, now + 0.12);
+        osc.frequency.setValueAtTime(660, now + 0.25);
+        gain.gain.setValueAtTime(0.28, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.5);
+        osc.start(now);
+        osc.stop(now + 0.5);
+      } else if (type === "err") {
+        osc.type = "sawtooth";
+        osc.frequency.setValueAtTime(130, now);
+        gain.gain.setValueAtTime(0.18, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.15);
+        osc.start(now);
+        osc.stop(now + 0.15);
+      }
+    } catch (_) {}
   }
 
-  const testWalls = [...state.walls, { r, c, o }];
-  const p0Ok = hasPathToGoal(state.pawns[0].r, state.pawns[0].c, 8, testWalls);
-  const p1Ok = hasPathToGoal(state.pawns[1].r, state.pawns[1].c, 0, testWalls);
+  /* =========================================================
+     4. GAME STATE & GEOMETRY CONSTANTS
+  ========================================================= */
+  const canvas = document.getElementById("boardCanvas");
+  const ctx = canvas.getContext("2d");
 
-  if (!p0Ok || !p1Ok) {
-    return { valid: false, reason: "Illegal: Completely blocks all paths!" };
+  const GRID = 9;
+  const BOARD_PAD_X = 34;
+  const BOARD_PAD_TOP = 54;
+  const CELL = 44;
+  const GAP = 10;
+  const STEP = CELL + GAP; // 54px per cell+groove
+  const WALL_EXTRUSION_H = 15; // 3D vertical height of walls
+
+  const myClientId = "q_" + Math.random().toString(36).substring(2, 8);
+  let myName = "Shade";
+  let mySkin = 0;
+  let roomCode = "SY26";
+  let isLocalMode = false;
+  let myRole = 1; // 1 = Player 1 (Bottom -> Top), 2 = Player 2 (Top -> Bottom)
+
+  // Mesh connections
+  let activeClients = [];
+  let connectedBrokerNames = [];
+  let seenPacketIds = new Set();
+
+  // Official Quoridor State
+  let state = {
+    seq: 0,
+    turn: 1, // 1 or 2
+    winner: 0,
+    p1: { x: 4, y: 8, walls: 10, name: "Player 1", skin: 0, id: null, score: 0 },
+    p2: { x: 4, y: 0, walls: 10, name: "Waiting...", skin: 1, id: null, score: 0 },
+    walls: [] // Array of { gx: 0..7, gy: 0..7, dir: 'H' | 'V' }
+  };
+
+  // Visual Animation State for 3D Rolling Balls
+  let anim = {
+    p1: { rx: 4, ry: 8, hop: 0, rollPhase: 0 },
+    p2: { rx: 4, ry: 0, hop: 0, rollPhase: 0 }
+  };
+
+  // Controls Mode
+  let actionMode = "MOVE"; // "MOVE" | "WALL_H" | "WALL_V"
+  let ghostWall = null;    // { gx, gy, dir }
+
+  /* =========================================================
+     5. UI SETUP & SKIN PICKER
+  ========================================================= */
+  const skinGrid = document.getElementById("skinGrid");
+  const nameInput = document.getElementById("nameInput");
+  const roomInput = document.getElementById("roomInput");
+
+  if (window.Telegram?.WebApp?.initDataUnsafe?.user?.first_name) {
+    nameInput.value = window.Telegram.WebApp.initDataUnsafe.user.first_name.slice(0, 12);
+    window.Telegram.WebApp.expand();
   }
 
-  return { valid: true, reason: "Drag on board to move wall, then tap Confirm!" };
-}
+  BALL_SKINS.forEach((sk, idx) => {
+    const btn = document.createElement("button");
+    btn.className = "skin-btn" + (idx === 0 ? " active" : "");
+    btn.innerHTML = `<span class="swatch" style="background:${sk.base}"></span><span>${sk.name.split(" ")[0]}</span>`;
+    btn.onclick = () => {
+      mySkin = idx;
+      document.querySelectorAll(".skin-btn").forEach((b, i) => b.classList.toggle("active", i === idx));
+    };
+    skinGrid.appendChild(btn);
+  });
 
-function getValidPawnMoves(seat) {
-  const me = state.pawns[seat];
-  const opp = state.pawns[1 - seat];
-  const moves = [];
-  const dirs = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+  document.getElementById("onlineBtn").onclick = () => {
+    isLocalMode = false;
+    myName = (nameInput.value.trim() || "Player").slice(0, 12);
+    roomCode = (roomInput.value.trim() || "SY26").toUpperCase();
+    startOnlineSession();
+  };
 
-  for (const [dr, dc] of dirs) {
-    const nr = me.r + dr;
-    const nc = me.c + dc;
-    if (nr < 0 || nr > 8 || nc < 0 || nc > 8) continue;
-    if (isEdgeBlocked(me.r, me.c, nr, nc, state.walls)) continue;
+  document.getElementById("localBtn").onclick = () => {
+    isLocalMode = true;
+    myName = (nameInput.value.trim() || "Player 1").slice(0, 12);
+    startLocalSession();
+  };
 
-    if (nr === opp.r && nc === opp.c) {
-      const jr = nr + dr;
-      const jc = nc + dc;
-      if (jr >= 0 && jr <= 8 && jc >= 0 && jc <= 8 && !isEdgeBlocked(nr, nc, jr, jc, state.walls)) {
-        moves.push({ r: jr, c: jc });
-      } else {
-        const perpDirs = [[-dc, -dr], [dc, dr]];
-        for (const [pdr, pdc] of perpDirs) {
-          const dR = nr + pdr;
-          const dC = nc + pdc;
-          if (dR >= 0 && dR <= 8 && dC >= 0 && dC <= 8 && !isEdgeBlocked(nr, nc, dR, dC, state.walls)) {
-            moves.push({ r: dR, c: dC });
+  document.getElementById("exitBtn").onclick = () => {
+    disconnectMesh();
+    document.getElementById("gameScreen").classList.add("hidden");
+    document.getElementById("setupScreen").classList.remove("hidden");
+  };
+
+  /* =========================================================
+     6. QUORIDOR GRAPH & BREADTH-FIRST SEARCH (BFS) ENGINE
+  ========================================================= */
+  function isEdgeBlocked(x1, y1, x2, y2, wallList) {
+    if (x2 < 0 || x2 >= GRID || y2 < 0 || y2 >= GRID) return true;
+
+    // Moving Vertically
+    if (x1 === x2 && Math.abs(y1 - y2) === 1) {
+      const minY = Math.min(y1, y2);
+      for (const w of wallList) {
+        if (w.dir === "H" && w.gy === minY && (w.gx === x1 || w.gx === x1 - 1)) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    // Moving Horizontally
+    if (y1 === y2 && Math.abs(x1 - x2) === 1) {
+      const minX = Math.min(x1, x2);
+      for (const w of wallList) {
+        if (w.dir === "V" && w.gx === minX && (w.gy === y1 || w.gy === y1 - 1)) {
+          return true;
+        }
+      }
+      return false;
+    }
+    return true;
+  }
+
+  // Returns shortest steps to goalRow, or -1 if trapped
+  function shortestPathSteps(startX, startY, goalRow, wallList) {
+    const visited = new Uint8Array(81);
+    const queue = [{ x: startX, y: startY, d: 0 }];
+    visited[startY * 9 + startX] = 1;
+
+    let head = 0;
+    const dirs = [[0, -1], [0, 1], [-1, 0], [1, 0]];
+
+    while (head < queue.length) {
+      const cur = queue[head++];
+      if (cur.y === goalRow) return cur.d;
+
+      for (const [dx, dy] of dirs) {
+        const nx = cur.x + dx;
+        const ny = cur.y + dy;
+        if (nx >= 0 && nx < 9 && ny >= 0 && ny < 9) {
+          const idx = ny * 9 + nx;
+          if (!visited[idx] && !isEdgeBlocked(cur.x, cur.y, nx, ny, wallList)) {
+            visited[idx] = 1;
+            queue.push({ x: nx, y: ny, d: cur.d + 1 });
           }
         }
       }
+    }
+    return -1;
+  }
+
+  // Official Quoridor Valid Pawn Moves (Includes Straight & Diagonal Jumps)
+  function getValidPawnMoves(playerNum) {
+    const me = playerNum === 1 ? state.p1 : state.p2;
+    const opp = playerNum === 1 ? state.p2 : state.p1;
+    const moves = [];
+    const dirs = [[0, -1], [0, 1], [-1, 0], [1, 0]];
+
+    for (const [dx, dy] of dirs) {
+      const nx = me.x + dx;
+      const ny = me.y + dy;
+      if (isEdgeBlocked(me.x, me.y, nx, ny, state.walls)) continue;
+
+      if (nx === opp.x && ny === opp.y) {
+        // Opponent is adjacent -> Check straight jump
+        const jx = opp.x + dx;
+        const jy = opp.y + dy;
+        if (!isEdgeBlocked(opp.x, opp.y, jx, jy, state.walls)) {
+          moves.push({ x: jx, y: jy });
+        } else {
+          // Straight jump blocked -> Official Diagonal Jumps
+          const sideDirs = dx === 0 ? [[-1, 0], [1, 0]] : [[0, -1], [0, 1]];
+          for (const [sdx, sdy] of sideDirs) {
+            const sx = opp.x + sdx;
+            const sy = opp.y + sdy;
+            if (!isEdgeBlocked(opp.x, opp.y, sx, sy, state.walls)) {
+              moves.push({ x: sx, y: sy });
+            }
+          }
+        }
+      } else {
+        moves.push({ x: nx, y: ny });
+      }
+    }
+    return moves;
+  }
+
+  // Validates whether a new wall at (gx, gy, dir) is legal
+  function canPlaceWall(gx, gy, dir) {
+    if (gx < 0 || gx > 7 || gy < 0 || gy > 7) return { ok: false, reason: "Out of bounds" };
+    const activePlayer = state.turn === 1 ? state.p1 : state.p2;
+    if (activePlayer.walls <= 0) return { ok: false, reason: "No walls remaining!" };
+
+    for (const w of state.walls) {
+      if (w.gx === gx && w.gy === gy) {
+        return { ok: false, reason: "Intersects an existing wall!" };
+      }
+      if (dir === "H" && w.dir === "H" && w.gy === gy && Math.abs(w.gx - gx) <= 1) {
+        return { ok: false, reason: "Overlaps a horizontal wall!" };
+      }
+      if (dir === "V" && w.dir === "V" && w.gx === gx && Math.abs(w.gy - gy) <= 1) {
+        return { ok: false, reason: "Overlaps a vertical wall!" };
+      }
+    }
+
+    const testWalls = [...state.walls, { gx, gy, dir }];
+    const d1 = shortestPathSteps(state.p1.x, state.p1.y, 0, testWalls);
+    const d2 = shortestPathSteps(state.p2.x, state.p2.y, 8, testWalls);
+
+    if (d1 === -1 || d2 === -1) {
+      return { ok: false, reason: "Illegal: Cannot completely trap a player!" };
+    }
+    return { ok: true };
+  }
+
+  /* =========================================================
+     7. MULTI-BROKER MESH NETWORKING (NO VPN REQUIRED)
+  ========================================================= */
+  function disconnectMesh() {
+    activeClients.forEach(c => {
+      try { c.end(true); } catch (_) {}
+    });
+    activeClients = [];
+    connectedBrokerNames = [];
+  }
+
+  function resetMatchBoard(keepScores = false) {
+    const s1 = keepScores ? state.p1.score : 0;
+    const s2 = keepScores ? state.p2.score : 0;
+    state.seq = (state.seq || 0) + 1;
+    state.turn = 1;
+    state.winner = 0;
+    state.p1.x = 4; state.p1.y = 8; state.p1.walls = 10; state.p1.score = s1;
+    state.p2.x = 4; state.p2.y = 0; state.p2.walls = 10; state.p2.score = s2;
+    state.walls = [];
+
+    anim.p1.rx = 4; anim.p1.ry = 8;
+    anim.p2.rx = 4; anim.p2.ry = 0;
+    ghostWall = null;
+    setActionMode("MOVE");
+    updateHud();
+  }
+
+  function startLocalSession() {
+    disconnectMesh();
+    myRole = 1;
+    state.p1 = { x: 4, y: 8, walls: 10, name: myName, skin: mySkin, id: "local1", score: 0 };
+    state.p2 = { x: 4, y: 0, walls: 10, name: "Player 2", skin: (mySkin + 1) % BALL_SKINS.length, id: "local2", score: 0 };
+    resetMatchBoard(false);
+
+    document.getElementById("setupScreen").classList.add("hidden");
+    document.getElementById("gameScreen").classList.remove("hidden");
+    document.getElementById("roomBadge").textContent = "MODE: PASS & PLAY";
+    document.getElementById("netBadge").textContent = "📱 Offline 1-Device";
+    showToast("📱 Pass & Play Started! Blue moves first.");
+  }
+
+  function startOnlineSession() {
+    disconnectMesh();
+    seenPacketIds.clear();
+
+    state.p1 = { x: 4, y: 8, walls: 10, name: myName, skin: mySkin, id: myClientId, score: 0 };
+    state.p2 = { x: 4, y: 0, walls: 10, name: "Waiting...", skin: (mySkin + 1) % BALL_SKINS.length, id: null, score: 0 };
+    myRole = 1;
+    resetMatchBoard(false);
+
+    document.getElementById("setupScreen").classList.add("hidden");
+    document.getElementById("gameScreen").classList.remove("hidden");
+    document.getElementById("roomBadge").textContent = `ROOM: ${roomCode}`;
+    document.getElementById("netBadge").textContent = "⏳ Connecting Mesh...";
+
+    const topic = `quoridor_2b_${roomCode}`;
+
+    SYRIA_BROKER_MESH.forEach(broker => {
+      try {
+        const client = mqtt.connect(broker.url, {
+          clientId: `${myClientId}_${broker.name}_${Math.floor(Math.random() * 999)}`,
+          keepalive: 25,
+          clean: true,
+          connectTimeout: 6000,
+          reconnectPeriod: 2500
+        });
+
+        client.on("connect", () => {
+          if (!connectedBrokerNames.includes(broker.name)) {
+            connectedBrokerNames.push(broker.name);
+            updateMeshBadge();
+          }
+          client.subscribe(topic, { qos: 0 }, () => {
+            broadcastMesh({
+              t: "hello",
+              cid: myClientId,
+              name: myName,
+              skin: mySkin
+            });
+          });
+        });
+
+        client.on("close", () => {
+          connectedBrokerNames = connectedBrokerNames.filter(n => n !== broker.name);
+          updateMeshBadge();
+        });
+
+        client.on("message", (_, payload) => {
+          try {
+            const msg = JSON.parse(payload.toString());
+            onMeshPacket(msg);
+          } catch (_) {}
+        });
+
+        activeClients.push(client);
+      } catch (_) {}
+    });
+  }
+
+  function updateMeshBadge() {
+    const el = document.getElementById("netBadge");
+    if (connectedBrokerNames.length === 0) {
+      el.textContent = "🔴 Reconnecting Mesh...";
     } else {
-      moves.push({ r: nr, c: nc });
+      el.textContent = `🟢 ${connectedBrokerNames.length}x Mesh (${connectedBrokerNames[0]})`;
     }
   }
-  return moves;
-}
 
-function sendOrProcessAction(action) {
-  if (isHost) {
-    processAction(mySeat, action);
-  } else {
-    publishMsg({ type: "ACTION_REQ", seat: mySeat, action });
+  function broadcastMesh(packet) {
+    if (isLocalMode) return;
+    packet.uid = myClientId + "_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6);
+    seenPacketIds.add(packet.uid);
+    const raw = JSON.stringify(packet);
+    const topic = `quoridor_2b_${roomCode}`;
+
+    activeClients.forEach(c => {
+      if (c && c.connected) {
+        try { c.publish(topic, raw, { qos: 0 }); } catch (_) {}
+      }
+    });
   }
-}
 
-function processAction(seat, action) {
-  if (state.phase !== "play" || state.turn !== seat) return;
+  function onMeshPacket(msg) {
+    if (!msg || !msg.uid || seenPacketIds.has(msg.uid)) return;
+    seenPacketIds.add(msg.uid);
 
-  if (action.kind === "move") {
-    const validMoves = getValidPawnMoves(seat);
-    const ok = validMoves.some(m => m.r === action.r && m.c === action.c);
-    if (!ok) return;
+    if (msg.t === "hello") {
+      if (msg.cid === myClientId) return;
 
-    state.pawns[seat] = { r: action.r, c: action.c };
+      // Determine deterministic roles by clientId if joining simultaneously
+      if (!state.p2.id || state.p2.id === msg.cid) {
+        if (myClientId < msg.cid) {
+          myRole = 1;
+          state.p1.id = myClientId;
+          state.p1.name = myName;
+          state.p1.skin = mySkin;
+          state.p2.id = msg.cid;
+          state.p2.name = msg.name;
+          state.p2.skin = msg.skin === mySkin ? (msg.skin + 1) % BALL_SKINS.length : msg.skin;
+        } else {
+          myRole = 2;
+          state.p2.id = myClientId;
+          state.p2.name = myName;
+          state.p2.skin = mySkin;
+          state.p1.id = msg.cid;
+          state.p1.name = msg.name;
+          state.p1.skin = msg.skin === mySkin ? (msg.skin + 1) % BALL_SKINS.length : msg.skin;
+        }
+        updateHud();
+        showToast(`⚔️ ${msg.name} connected! Match live.`);
 
-    const goalRow = seat === 0 ? 8 : 0;
-    if (action.r === goalRow) {
-      state.phase = "over";
-      state.winner = seat;
-      state.wins[seat] += 1;
-    } else {
-      state.turn = 1 - seat;
-    }
-    broadcastState();
-  } else if (action.kind === "wall") {
-    const check = validateWallPlacement(seat, action.r, action.c, action.o);
-    if (!check.valid) return;
-
-    state.walls.push({ r: action.r, c: action.c, o: action.o, seat });
-    state.wallsLeft[seat] -= 1;
-    state.turn = 1 - seat;
-    broadcastState();
-  }
-}
-
-/* ============================================================================
- * MODE SWITCHING & INTERACTIVE BOARD CONTROLS
- * ============================================================================ */
-const cv = $('boardCanvas');
-const ctx = cv.getContext('2d');
-
-function setMode(mode) {
-  if (state.phase !== "play" || state.turn !== mySeat) {
-    inputMode = "move";
-  } else {
-    if (mode === "wall" && state.wallsLeft[mySeat] <= 0) {
-      $('turnBanner').textContent = "⚠️ You have 0 walls left! Move your pawn.";
-      $('turnBanner').style.color = "#f87171";
+        // Send full state snapshot back
+        broadcastMesh({
+          t: "sync",
+          state: state
+        });
+      }
       return;
     }
-    inputMode = mode;
-  }
 
-  $('moveModeBtn').classList.toggle('active-move', inputMode === "move");
-  $('wallModeBtn').classList.toggle('active-wall', inputMode === "wall");
-  $('wallControls').classList.toggle('hidden', inputMode !== "wall");
+    if (msg.t === "sync" || msg.t === "state") {
+      const incoming = msg.state;
+      if (!incoming) return;
+      if (msg.t === "state" && incoming.seq <= state.seq) return;
 
-  if (inputMode === "wall") {
-    // Re-validate current previewWall or find a valid spot near center
-    const check = validateWallPlacement(mySeat, previewWall.r, previewWall.c, previewWall.o);
-    previewWall.valid = check.valid;
-    previewWall.reason = check.reason;
-    updateWallControlsUI();
-  } else {
-    updateTurnBanner();
-  }
-  drawBoard();
-}
+      const movedPawn =
+        incoming.p1.x !== state.p1.x || incoming.p1.y !== state.p1.y ||
+        incoming.p2.x !== state.p2.x || incoming.p2.y !== state.p2.y;
+      const addedWall = incoming.walls.length > state.walls.length;
 
-$('moveModeBtn').onclick = () => setMode("move");
-$('wallModeBtn').onclick = () => setMode("wall");
+      state = incoming;
+      if (state.p1.id === myClientId) myRole = 1;
+      if (state.p2.id === myClientId) myRole = 2;
 
-$('rotateBtn').onclick = () => {
-  if (inputMode !== "wall") return;
-  const nextO = previewWall.o === "H" ? "V" : "H";
-  const res = validateWallPlacement(mySeat, previewWall.r, previewWall.c, nextO);
-  previewWall.o = nextO;
-  previewWall.valid = res.valid;
-  previewWall.reason = res.reason;
-  updateWallControlsUI();
-  drawBoard();
-};
-
-$('placeWallBtn').onclick = () => {
-  if (inputMode !== "wall" || !previewWall.valid) return;
-  sendOrProcessAction({
-    kind: "wall",
-    r: previewWall.r,
-    c: previewWall.c,
-    o: previewWall.o
-  });
-};
-
-function snapWallToPointer(clientX, clientY, allowToggleOnSameSpot) {
-  const rect = cv.getBoundingClientRect();
-  const lx = (clientX - rect.left) * (LOGICAL_SIZE / rect.width);
-  const ly = (clientY - rect.top) * (LOGICAL_SIZE / rect.height);
-
-  let bestR = 0, bestC = 0, bestDist = 9999;
-  for (let r = 0; r < 8; r++) {
-    for (let c = 0; c < 8; c++) {
-      const ix = MARGIN + (c + 1) * CELL_SIZE + c * GAP_SIZE + GAP_SIZE / 2;
-      const iy = MARGIN + (r + 1) * CELL_SIZE + r * GAP_SIZE + GAP_SIZE / 2;
-      const d = Math.hypot(lx - ix, ly - iy);
-      if (d < bestDist) {
-        bestDist = d;
-        bestR = r;
-        bestC = c;
+      if (movedPawn) {
+        anim.p1.hop = 1;
+        anim.p2.hop = 1;
+        playSfx("move");
+      } else if (addedWall) {
+        playSfx("wall");
       }
-    }
-  }
 
-  let nextO = previewWall.o;
-  if (allowToggleOnSameSpot && previewWall.r === bestR && previewWall.c === bestC) {
-    nextO = nextO === "H" ? "V" : "H";
-  }
-
-  let check = validateWallPlacement(mySeat, bestR, bestC, nextO);
-  if (!check.valid && (previewWall.r !== bestR || previewWall.c !== bestC)) {
-    const altO = nextO === "H" ? "V" : "H";
-    const altCheck = validateWallPlacement(mySeat, bestR, bestC, altO);
-    if (altCheck.valid) {
-      nextO = altO;
-      check = altCheck;
-    }
-  }
-
-  previewWall = { r: bestR, c: bestC, o: nextO, valid: check.valid, reason: check.reason };
-  updateWallControlsUI();
-  drawBoard();
-}
-
-cv.addEventListener('pointerdown', (e) => {
-  if (state.phase !== "play" || state.turn !== mySeat) return;
-
-  const rect = cv.getBoundingClientRect();
-  const lx = (e.clientX - rect.left) * (LOGICAL_SIZE / rect.width);
-  const ly = (e.clientY - rect.top) * (LOGICAL_SIZE / rect.height);
-
-  if (inputMode === "move") {
-    // Check if player tapped a valid green move tile
-    const validMoves = getValidPawnMoves(mySeat);
-    for (const m of validMoves) {
-      const tx = MARGIN + m.c * STEP;
-      const ty = MARGIN + m.r * STEP;
-      if (lx >= tx && lx <= tx + CELL_SIZE && ly >= ty && ly <= ty + CELL_SIZE) {
-        sendOrProcessAction({ kind: "move", r: m.r, c: m.c });
-        return;
+      if (state.winner) {
+        playSfx("win");
+        const wName = state.winner === 1 ? state.p1.name : state.p2.name;
+        showToast(`🏆 ${wName} WINS THE ROUND!`);
       }
+
+      updateHud();
     }
-    // If they tapped a groove while in move mode and have walls left, switch to Wall Mode automatically
-    if (state.wallsLeft[mySeat] > 0) {
-      setMode("wall");
-      isDraggingWall = true;
-      snapWallToPointer(e.clientX, e.clientY, false);
-    }
-  } else {
-    // In Wall Mode: dragging or tapping anywhere moves the preview wall
-    isDraggingWall = true;
-    snapWallToPointer(e.clientX, e.clientY, true);
   }
-});
 
-cv.addEventListener('pointermove', (e) => {
-  if (!isDraggingWall || inputMode !== "wall" || state.phase !== "play" || state.turn !== mySeat) return;
-  snapWallToPointer(e.clientX, e.clientY, false);
-});
-
-window.addEventListener('pointerup', () => { isDraggingWall = false; });
-window.addEventListener('pointercancel', () => { isDraggingWall = false; });
-
-function updateWallControlsUI() {
-  const isMyTurn = state.phase === "play" && state.turn === mySeat;
-  $('rotateBtn').disabled = !isMyTurn;
-  $('placeWallBtn').disabled = !isMyTurn || !previewWall.valid;
-
-  if (isMyTurn && inputMode === "wall") {
-    $('turnBanner').textContent = previewWall.valid
-      ? `🧱 ${previewWall.reason}`
-      : `⚠️ ${previewWall.reason}`;
-    $('turnBanner').style.color = previewWall.valid ? "#facc15" : "#f87171";
+  /* =========================================================
+     8. TURN EXECUTION & USER CONTROLS
+  ========================================================= */
+  function isMyTurn() {
+    if (state.winner) return false;
+    if (isLocalMode) return true;
+    if (!state.p2.id) return false;
+    return state.turn === myRole;
   }
-}
 
-function updateTurnBanner() {
-  if (state.phase === "play") {
-    if (state.turn === mySeat) {
-      $('turnBanner').textContent = "🟢 Your Turn! Tap a green tile to move, or tap '🧱 Wall Mode'.";
-      $('turnBanner').style.color = "#4ade80";
+  function setActionMode(mode) {
+    actionMode = mode;
+    document.getElementById("moveModeBtn").classList.toggle("selected", mode === "MOVE");
+    document.getElementById("wallHBtn").classList.toggle("selected", mode === "WALL_H");
+    document.getElementById("wallVBtn").classList.toggle("selected", mode === "WALL_V");
+
+    if (mode === "MOVE") {
+      ghostWall = null;
+      document.getElementById("confirmBar").classList.add("hidden");
     } else {
-      $('turnBanner').textContent = `⏳ Waiting for ${state.players[state.turn].name}...`;
-      $('turnBanner').style.color = "#cbd5e1";
-    }
-  } else if (state.phase === "over") {
-    const wName = state.players[state.winner].name;
-    $('turnBanner').textContent = `🏆 ${wName} Reached the Goal & Wins!`;
-    $('turnBanner').style.color = "#facc15";
-  }
-}
-
-function syncUI() {
-  if (state.phase === "lobby") {
-    updateLobbyUI();
-    return;
-  }
-
-  $('lobbyScreen').classList.add('hidden');
-  $('menuScreen').classList.add('hidden');$('gameScreen').classList.remove('hidden');
-
-  $('gName0').textContent = state.players[0].name;
-  $('gName1').textContent = state.players[1].name;
-  $('gWalls0').textContent = `🧱 ${state.wallsLeft[0]}`;
-  $('gWalls1').textContent = `🧱 ${state.wallsLeft[1]}`;
-  $('gWins0').textContent = `🏆 ${state.wins[0]}`;
-  $('gWins1').textContent = `🏆 ${state.wins[1]}`;
-
-  $('card0').classList.toggle('active-0', state.phase === "play" && state.turn === 0);
-  $('card1').classList.toggle('active-1', state.phase === "play" && state.turn === 1);
-
-  const isMyTurn = state.phase === "play" && state.turn === mySeat;
-  $('moveModeBtn').disabled = !isMyTurn;
-  $('wallModeBtn').disabled = !isMyTurn || state.wallsLeft[mySeat] <= 0;
-  $('wallModeBtn').textContent = mySeat !== -1 ? `🧱 Wall Mode (${state.wallsLeft[mySeat]})` : "🧱 Wall Mode";
-
-  if (state.phase === "play") {
-    $('rematchBtn').classList.add('hidden');$('modeTabs').classList.remove('hidden');
-  } else if (state.phase === "over") {
-    $('rematchBtn').classList.remove('hidden');
-    $('modeTabs').classList.add('hidden');$('wallControls').classList.add('hidden');
-  }
-
-  updateTurnBanner();
-  setupHiDPI();
-}
-
-function setupHiDPI() {
-  const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  cv.width = LOGICAL_SIZE * dpr;
-  cv.height = LOGICAL_SIZE * dpr;
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  drawBoard();
-}
-window.addEventListener('resize', setupHiDPI);
-
-function drawBoard() {
-  ctx.clearRect(0, 0, LOGICAL_SIZE, LOGICAL_SIZE);
-  ctx.fillStyle = "#0f172a";
-  ctx.fillRect(0, 0, LOGICAL_SIZE, LOGICAL_SIZE);
-
-  // Goal Row Accent Bars
-  ctx.fillStyle = "rgba(251, 146, 60, 0.25)";
-  ctx.fillRect(MARGIN, 4, LOGICAL_SIZE - MARGIN * 2, 10);
-  ctx.fillStyle = "rgba(56, 189, 248, 0.25)";
-  ctx.fillRect(MARGIN, LOGICAL_SIZE - 14, LOGICAL_SIZE - MARGIN * 2, 10);
-
-  const showMoves = (state.phase === "play" && state.turn === mySeat && inputMode === "move");
-  const validMoves = showMoves ? getValidPawnMoves(mySeat) : [];
-
-  // 1. Draw 9x9 Tiles
-  for (let r = 0; r < 9; r++) {
-    for (let c = 0; c < 9; c++) {
-      const x = MARGIN + c * STEP;
-      const y = MARGIN + r * STEP;
-      const isMoveTarget = validMoves.some(m => m.r === r && m.c === c);
-
-      ctx.beginPath();
-      ctx.roundRect(x, y, CELL_SIZE, CELL_SIZE, 8);
-      if (isMoveTarget) {
-        ctx.fillStyle = "rgba(16, 185, 129, 0.28)";
-        ctx.fill();
-        ctx.lineWidth = 2;
-        ctx.strokeStyle = "#10b981";
-        ctx.stroke();
+      const dir = mode === "WALL_H" ? "H" : "V";
+      if (!ghostWall) {
+        ghostWall = { gx: 3, gy: 3, dir };
       } else {
-        ctx.fillStyle = r === 0
-          ? "rgba(251, 146, 60, 0.1)"
-          : (r === 8 ? "rgba(56, 189, 248, 0.1)" : "#1e293b");
-        ctx.fill();
-        ctx.lineWidth = 1;
-        ctx.strokeStyle = "#334155";
+        ghostWall.dir = dir;
+      }
+      document.getElementById("confirmBar").classList.remove("hidden");
+    }
+  }
+
+  document.getElementById("moveModeBtn").onclick = () => setActionMode("MOVE");
+  document.getElementById("wallHBtn").onclick = () => setActionMode("WALL_H");
+  document.getElementById("wallVBtn").onclick = () => setActionMode("WALL_V");
+
+  document.getElementById("rotateWallBtn").onclick = () => {
+    if (!ghostWall) return;
+    const nextMode = ghostWall.dir === "H" ? "WALL_V" : "WALL_H";
+    setActionMode(nextMode);
+  };
+
+  document.getElementById("cancelWallBtn").onclick = () => setActionMode("MOVE");
+
+  document.getElementById("confirmWallBtn").onclick = () => {
+    if (!ghostWall) return;
+    if (!isMyTurn()) {
+      playSfx("err");
+      showToast("⏳ Wait for your opponent's turn!");
+      return;
+    }
+
+    const check = canPlaceWall(ghostWall.gx, ghostWall.gy, ghostWall.dir);
+    if (!check.ok) {
+      playSfx("err");
+      showToast(`⚠️ ${check.reason}`);
+      return;
+    }
+
+    const activeP = state.turn === 1 ? state.p1 : state.p2;
+    activeP.walls -= 1;
+    state.walls.push({ gx: ghostWall.gx, gy: ghostWall.gy, dir: ghostWall.dir });
+    state.turn = state.turn === 1 ? 2 : 1;
+    state.seq += 1;
+
+    playSfx("wall");
+    setActionMode("MOVE");
+    updateHud();
+    broadcastMesh({ t: "state", state });
+  };
+
+  function executePawnMove(targetX, targetY) {
+    if (!isMyTurn()) {
+      playSfx("err");
+      showToast(state.p2.id || isLocalMode ? "⏳ Opponent's Turn!" : "⏳ Waiting for friend to join room...");
+      return;
+    }
+
+    const validMoves = getValidPawnMoves(state.turn);
+    const ok = validMoves.some(m => m.x === targetX && m.y === targetY);
+    if (!ok) {
+      playSfx("err");
+      return;
+    }
+
+    const activeP = state.turn === 1 ? state.p1 : state.p2;
+    activeP.x = targetX;
+    activeP.y = targetY;
+
+    if (state.turn === 1) anim.p1.hop = 1;
+    else anim.p2.hop = 1;
+
+    // Check Goal Row Win
+    if (state.turn === 1 && activeP.y === 0) {
+      state.winner = 1;
+      state.p1.score += 1;
+      playSfx("win");
+      showToast(`🏆 ${state.p1.name} REACHED THE GOAL!`);
+      setTimeout(() => {
+        resetMatchBoard(true);
+        broadcastMesh({ t: "state", state });
+      }, 3200);
+    } else if (state.turn === 2 && activeP.y === 8) {
+      state.winner = 2;
+      state.p2.score += 1;
+      playSfx("win");
+      showToast(`🏆 ${state.p2.name} REACHED THE GOAL!`);
+      setTimeout(() => {
+        resetMatchBoard(true);
+        broadcastMesh({ t: "state", state });
+      }, 3200);
+    } else {
+      state.turn = state.turn === 1 ? 2 : 1;
+      playSfx("move");
+    }
+
+    state.seq += 1;
+    updateHud();
+    broadcastMesh({ t: "state", state });
+  }
+
+  /* =========================================================
+     9. TOUCH / POINTER INPUT MAPPING (WITH BOARD FLIP SUPPORT)
+  ========================================================= */
+  function toBoardCoords(clientX, clientY) {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const cx = (clientX - rect.left) * scaleX;
+    const cy = (clientY - rect.top) * scaleY;
+    return { cx, cy };
+  }
+
+  canvas.addEventListener("pointerdown", e => {
+    e.preventDefault();
+    const { cx, cy } = toBoardCoords(e.clientX, e.clientY);
+
+    if (actionMode === "MOVE") {
+      // Find clicked tile (0..8, 0..8)
+      const col = Math.floor((cx - BOARD_PAD_X) / STEP);
+      const row = Math.floor((cy - BOARD_PAD_TOP) / STEP);
+      if (col >= 0 && col < 9 && row >= 0 && row < 9) {
+        executePawnMove(col, row);
+      }
+    } else {
+      // Find nearest interior intersection (0..7, 0..7)
+      let gx = Math.round((cx - BOARD_PAD_X - CELL - GAP / 2) / STEP);
+      let gy = Math.round((cy - BOARD_PAD_TOP - CELL - GAP / 2) / STEP);
+      gx = Math.max(0, Math.min(7, gx));
+      gy = Math.max(0, Math.min(7, gy));
+      ghostWall = {
+        gx,
+        gy,
+        dir: actionMode === "WALL_H" ? "H" : "V"
+      };
+    }
+  });
+
+  function updateHud() {
+    const d1 = Math.max(0, shortestPathSteps(state.p1.x, state.p1.y, 0, state.walls));
+    const d2 = Math.max(0, shortestPathSteps(state.p2.x, state.p2.y, 8, state.walls));
+
+    document.getElementById("p1Name").textContent =
+      `▲ ${state.p1.name} ${!isLocalMode && myRole === 1 ? "(You)" : ""}`;
+    document.getElementById("p2Name").textContent =
+      `▼ ${state.p2.name} ${!isLocalMode && myRole === 2 ? "(You)" : ""}`;
+
+    document.getElementById("p1Stats").textContent =
+      `🧱 ${state.p1.walls}  •  📏 ${d1}  •  🏆 ${state.p1.score}`;
+    document.getElementById("p2Stats").textContent =
+      `🧱 ${state.p2.walls}  •  📏 ${d2}  •  🏆 ${state.p2.score}`;
+
+    document.getElementById("p1Box").classList.toggle("active-turn", state.turn === 1);
+    document.getElementById("p2Box").classList.toggle("active-turn", state.turn === 2);
+
+    const ind = document.getElementById("turnIndicator");
+    if (state.winner) {
+      ind.textContent = "🏆 FINISHED";
+    } else if (isLocalMode) {
+      ind.textContent = state.turn === 1 ? "P1 TURN ▲" : "P2 TURN ▼";
+    } else if (!state.p2.id) {
+      ind.textContent = "WAITING...";
+    } else {
+      ind.textContent = state.turn === myRole ? "⚡ YOUR TURN" : "⏳ OPPONENT";
+    }
+  }
+
+  let toastTimer = null;
+  function showToast(txt) {
+    const t = document.getElementById("toastBanner");
+    t.textContent = txt;
+    t.classList.remove("hidden");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.add("hidden"), 2800);
+  }
+
+  /* =========================================================
+     10. 3D TABLETOP RENDERING ENGINE (PAINTER'S DEPTH SORT)
+  ========================================================= */
+  function renderLoop() {
+    // Smooth interpolation for rolling 3D balls
+    anim.p1.rx += (state.p1.x - anim.p1.rx) * 0.24;
+    anim.p1.ry += (state.p1.y - anim.p1.ry) * 0.24;
+    anim.p1.hop *= 0.84;
+    anim.p1.rollPhase += Math.hypot(state.p1.x - anim.p1.rx, state.p1.y - anim.p1.ry) * 14;
+
+    anim.p2.rx += (state.p2.x - anim.p2.rx) * 0.24;
+    anim.p2.ry += (state.p2.y - anim.p2.ry) * 0.24;
+    anim.p2.hop *= 0.84;
+    anim.p2.rollPhase += Math.hypot(state.p2.x - anim.p2.rx, state.p2.y - anim.p2.ry) * 14;
+
+    draw3DBoard();
+    requestAnimationFrame(renderLoop);
+  }
+  requestAnimationFrame(renderLoop);
+
+  function draw3DBoard() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // 1. 3D Outer Mahogany Board Frame + Base Depth Lip
+    ctx.fillStyle = "#060911";
+    ctx.beginPath();
+    ctx.roundRect(14, 24, canvas.width - 28, canvas.height - 34, 18);
+    ctx.fill();
+
+    // Extruded Bottom Rim of the Board
+    ctx.fillStyle = "#1e293b";
+    ctx.beginPath();
+    ctx.roundRect(14, 16, canvas.width - 28, canvas.height - 36, 18);
+    ctx.fill();
+    ctx.strokeStyle = "#475569";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // 2. Goal Row Indicators (Top = P1 Goal, Bottom = P2 Goal)
+    const p1Skin = BALL_SKINS[state.p1.skin] || BALL_SKINS[0];
+    const p2Skin = BALL_SKINS[state.p2.skin] || BALL_SKINS[1];
+
+    ctx.font = "bold 11px sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillStyle = p1Skin.hi;
+    ctx.fillText(`▲ ${state.p1.name.toUpperCase()} GOAL LINE ▲`, canvas.width / 2, 38);
+
+    ctx.fillStyle = p2Skin.hi;
+    ctx.fillText(`▼ ${state.p2.name.toUpperCase()} GOAL LINE ▼`, canvas.width / 2, canvas.height - 26);
+
+    // 3. Draw 9x9 Carved 3D Tiles
+    const validMoves = isMyTurn() && actionMode === "MOVE" ? getValidPawnMoves(state.turn) : [];
+
+    for (let r = 0; r < GRID; r++) {
+      for (let c = 0; c < GRID; c++) {
+        const tx = BOARD_PAD_X + c * STEP;
+        const ty = BOARD_PAD_TOP + r * STEP;
+
+        // Recessed Groove Trench Shadow
+        ctx.fillStyle = "#090d16";
+        ctx.fillRect(tx - 2, ty + 4, CELL + 4, CELL + 2);
+
+        // 3D Tile Side Extrusion (Bevel Depth)
+        ctx.fillStyle = "#111827";
+        ctx.fillRect(tx, ty + 4, CELL, CELL);
+
+        // 3D Tile Top Surface (Textured Basalt)
+        ctx.save();
+        ctx.beginPath();
+        ctx.roundRect(tx, ty, CELL, CELL, 6);
+        ctx.clip();
+        ctx.drawImage(tileTexture, tx, ty, CELL, CELL);
+
+        // Goal Row Tint
+        if (r === 0) {
+          ctx.fillStyle = p1Skin.base + "28";
+          ctx.fillRect(tx, ty, CELL, CELL);
+        } else if (r === 8) {
+          ctx.fillStyle = p2Skin.base + "28";
+          ctx.fillRect(tx, ty, CELL, CELL);
+        }
+        ctx.restore();
+
+        // Top Specular Bevel Edge
+        ctx.strokeStyle = r === 0 ? p1Skin.base : (r === 8 ? p2Skin.base : "rgba(148, 163, 184, 0.22)");
+        ctx.lineWidth = r === 0 || r === 8 ? 1.8 : 1;
+        ctx.beginPath();
+        ctx.roundRect(tx, ty, CELL, CELL, 6);
+        ctx.stroke();
+
+        // Highlight Valid Move Targets
+        if (validMoves.some(m => m.x === c && m.y === r)) {
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(tx + CELL / 2, ty + CELL / 2, 11, 0, Math.PI * 2);
+          ctx.fillStyle = "rgba(34, 197, 94, 0.35)";
+          ctx.fill();
+          ctx.lineWidth = 2.5;
+          ctx.strokeStyle = "#4ade80";
+          ctx.stroke();
+          ctx.restore();
+        }
+      }
+    }
+
+    // 4. Depth-Sorted 3D Render Queue (Balls + Extruded Walls sorted by Y)
+    const renderables = [];
+
+    // Add Placed Walls
+    state.walls.forEach(w => {
+      const sortY = w.dir === "H" ? (w.gy + 0.85) : (w.gy + 1.5);
+      renderables.push({ type: "wall", w, ghost: false, valid: true, sortY });
+    });
+
+    // Add Ghost Wall Preview
+    if (ghostWall) {
+      const check = canPlaceWall(ghostWall.gx, ghostWall.gy, ghostWall.dir);
+      const sortY = ghostWall.dir === "H" ? (ghostWall.gy + 0.85) : (ghostWall.gy + 1.5);
+      renderables.push({ type: "wall", w: ghostWall, ghost: true, valid: check.ok, sortY });
+    }
+
+    // Add Player 1 & Player 2 3D Balls
+    renderables.push({
+      type: "ball",
+      rx: anim.p1.rx,
+      ry: anim.p1.ry,
+      hop: anim.p1.hop,
+      phase: anim.p1.rollPhase,
+      skin: state.p1.skin,
+      isTurn: state.turn === 1 && !state.winner,
+      sortY: anim.p1.ry + 0.5
+    });
+
+    renderables.push({
+      type: "ball",
+      rx: anim.p2.rx,
+      ry: anim.p2.ry,
+      hop: anim.p2.hop,
+      phase: anim.p2.rollPhase,
+      skin: state.p2.skin,
+      isTurn: state.turn === 2 && !state.winner,
+      sortY: anim.p2.ry + 0.5
+    });
+
+    // Painter's Algorithm: Sort back-to-front by Y coordinate
+    renderables.sort((a, b) => a.sortY - b.sortY);
+
+    for (const item of renderables) {
+      if (item.type === "wall") {
+        draw3DExtrudedWall(item.w.gx, item.w.gy, item.w.dir, item.ghost, item.valid);
+      } else {
+        draw3DTexturedBall(item.rx, item.ry, item.hop, item.phase, item.skin, item.isTurn);
+      }
+    }
+  }
+
+  /* =========================================================
+     11. 3D EXTRUDED WALL RENDERER (WOOD GRAIN + BEVEL + SHADOW)
+  ========================================================= */
+  function draw3DExtrudedWall(gx, gy, dir, isGhost, isValid) {
+    ctx.save();
+
+    let x, y, w, h;
+    if (dir === "H") {
+      x = BOARD_PAD_X + gx * STEP;
+      y = BOARD_PAD_TOP + gy * STEP + CELL;
+      w = CELL * 2 + GAP;
+      h = GAP;
+    } else {
+      x = BOARD_PAD_X + gx * STEP + CELL;
+      y = BOARD_PAD_TOP + gy * STEP;
+      w = GAP;
+      h = CELL * 2 + GAP;
+    }
+
+    const ext = WALL_EXTRUSION_H; // 3D Height upward
+
+    if (isGhost) {
+      ctx.globalAlpha = 0.78;
+    }
+
+    // 1. 45-Degree Cast Shadow on Board Floor
+    ctx.fillStyle = "rgba(0, 0, 0, 0.48)";
+    ctx.beginPath();
+    ctx.moveTo(x, y + h);
+    ctx.lineTo(x + w, y + h);
+    ctx.lineTo(x + w + 9, y + h + 8);
+    ctx.lineTo(x + 9, y + h + 8);
+    ctx.closePath();
+    ctx.fill();
+
+    // 2. Front 3D Extruded Face (Vertical Wall Side Facing Viewer)
+    if (isGhost) {
+      ctx.fillStyle = isValid ? "#16a34a" : "#dc2626";
+      ctx.fillRect(x, y + h - ext, w, ext);
+    } else {
+      const frontGrad = ctx.createLinearGradient(x, y + h - ext, x, y + h);
+      frontGrad.addColorStop(0, "#92400e");
+      frontGrad.addColorStop(1, "#451a03");
+      ctx.fillStyle = frontGrad;
+      ctx.fillRect(x, y + h - ext, w, ext);
+
+      // Vertical carved wood ribs on front face
+      ctx.strokeStyle = "rgba(0,0,0,0.3)";
+      ctx.lineWidth = 1;
+      for (let rx = x + 12; rx < x + w; rx += 16) {
+        ctx.beginPath();
+        ctx.moveTo(rx, y + h - ext);
+        ctx.lineTo(rx, y + h);
         ctx.stroke();
       }
+    }
 
-      if (isMoveTarget) {
-        ctx.beginPath();
-        ctx.arc(x + CELL_SIZE / 2, y + CELL_SIZE / 2, 8, 0, Math.PI * 2);
-        ctx.fillStyle = "#10b981";
-        ctx.fill();
+    // 3. Top 3D Bevel Face (Raised by 'ext' pixels)
+    const topY = y - ext;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(x, topY, w, h);
+    ctx.clip();
+
+    if (isGhost) {
+      ctx.fillStyle = isValid ? "#4ade80" : "#f87171";
+      ctx.fillRect(x, topY, w, h);
+    } else {
+      ctx.drawImage(woodPatternH, x, topY, w, h);
+      // Golden Brass End-Caps on 3D Wall
+      ctx.fillStyle = "#f59e0b";
+      if (dir === "H") {
+        ctx.fillRect(x, topY, 6, h);
+        ctx.fillRect(x + w - 6, topY, 6, h);
+      } else {
+        ctx.fillRect(x, topY, w, 6);
+        ctx.fillRect(x, topY + h - 6, w, 6);
       }
     }
+    ctx.restore();
+
+    // 4. Crisp 3D Edge Outlines
+    ctx.strokeStyle = isGhost ? (isValid ? "#bbf7d0" : "#fecaca") : "#fbbf24";
+    ctx.lineWidth = 1.3;
+    ctx.strokeRect(x, topY, w, h);
+
+    ctx.strokeStyle = "#290f02";
+    ctx.strokeRect(x, y + h - ext, w, ext);
+
+    ctx.restore();
   }
 
-  // 2. Draw 8x8 Intersection Dots (Brighter when in Wall Mode)
-  for (let r = 0; r < 8; r++) {
-    for (let c = 0; c < 8; c++) {
-      const ix = MARGIN + (c + 1) * CELL_SIZE + c * GAP_SIZE + GAP_SIZE / 2;
-      const iy = MARGIN + (r + 1) * CELL_SIZE + r * GAP_SIZE + GAP_SIZE / 2;
+  /* =========================================================
+     12. 3D TEXTURED SPHERE RENDERER (ROTATING UV + SPECULAR)
+  ========================================================= */
+  function draw3DTexturedBall(gridX, gridY, hop, rollPhase, skinIdx, isTurn) {
+    const skin = BALL_SKINS[skinIdx] || BALL_SKINS[0];
+    const texCanvas = skinPatterns[skinIdx] || skinPatterns[0];
+
+    const cx = BOARD_PAD_X + gridX * STEP + CELL / 2;
+    const baseCy = BOARD_PAD_TOP + gridY * STEP + CELL / 2;
+    const jumpOffset = hop * 16;
+    const cy = baseCy - 6 - jumpOffset;
+    const radius = 17;
+
+    ctx.save();
+
+    // 1. Active Turn Pulsing Floor Halo
+    if (isTurn) {
       ctx.beginPath();
-      ctx.arc(ix, iy, inputMode === "wall" ? 4 : 2.5, 0, Math.PI * 2);
-      ctx.fillStyle = inputMode === "wall" ? "#94a3b8" : "#475569";
-      ctx.fill();
+      ctx.arc(cx, baseCy, radius + 5, 0, Math.PI * 2);
+      ctx.strokeStyle = "#facc15";
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
     }
-  }
 
-  // 3. Draw Placed Walls
-  for (const w of state.walls) {
-    drawWallSegment(w.r, w.c, w.o, w.seat === 0 ? "#38bdf8" : "#fb923c", 1.0, false);
-  }
-
-  // 4. Draw Preview Wall (Whenever in Wall Mode on Player's Turn)
-  if (state.phase === "play" && state.turn === mySeat && inputMode === "wall") {
-    const pColor = previewWall.valid ? "#facc15" : "#ef4444";
-    drawWallSegment(previewWall.r, previewWall.c, previewWall.o, pColor, 0.9, true);
-  }
-
-  // 5. Draw Pawns
-  drawPawn(state.pawns[0].r, state.pawns[0].c, "#38bdf8", "P1", state.turn === 0 && state.phase === "play");
-  drawPawn(state.pawns[1].r, state.pawns[1].c, "#fb923c", "P2", state.turn === 1 && state.phase === "play");
-}
-
-function drawWallSegment(r, c, o, color, alpha, isPreview) {
-  ctx.save();
-  ctx.globalAlpha = alpha;
-  ctx.fillStyle = color;
-  ctx.strokeStyle = isPreview ? "#ffffff" : "#0f172a";
-  ctx.lineWidth = isPreview ? 2 : 1.5;
-
-  const span = CELL_SIZE * 2 + GAP_SIZE;
-  if (o === "H") {
-    const x = MARGIN + c * STEP;
-    const y = MARGIN + (r + 1) * CELL_SIZE + r * GAP_SIZE;
+    // 2. Soft Ambient Occlusion Drop Shadow on Tile
     ctx.beginPath();
-    ctx.roundRect(x, y, span, GAP_SIZE, 4);
+    ctx.ellipse(cx + 3, baseCy + 5, radius * (0.95 - hop * 0.2), radius * 0.55, 0, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(0, 0, 0, 0.58)";
     ctx.fill();
-    ctx.stroke();
-  } else {
-    const x = MARGIN + (c + 1) * CELL_SIZE + c * GAP_SIZE;
-    const y = MARGIN + r * STEP;
+
+    // 3. Clip to Sphere & Map Rolling Procedural Texture
     ctx.beginPath();
-    ctx.roundRect(x, y, GAP_SIZE, span, 4);
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    ctx.clip();
+
+    const offset = Math.floor(rollPhase) % 64;
+    ctx.drawImage(
+      texCanvas,
+      offset, offset, 64, 64,
+      cx - radius, cy - radius, radius * 2, radius * 2
+    );
+
+    // 4. 3D Spherical Shadow Gradient (Core + Terminator Darkening)
+    const sphereShade = ctx.createRadialGradient(
+      cx - radius * 0.35, cy - radius * 0.38, radius * 0.1,
+      cx, cy, radius
+    );
+    sphereShade.addColorStop(0, "rgba(255, 255, 255, 0.45)");
+    sphereShade.addColorStop(0.45, "rgba(0, 0, 0, 0.0)");
+    sphereShade.addColorStop(0.82, "rgba(0, 0, 0, 0.55)");
+    sphereShade.addColorStop(1, "rgba(0, 0, 0, 0.82)");
+
+    ctx.fillStyle = sphereShade;
+    ctx.fillRect(cx - radius, cy - radius, radius * 2, radius * 2);
+
+    // 5. Crisp 3D Specular Gloss Highlight (Top-Left Glint)
+    ctx.beginPath();
+    ctx.ellipse(cx - radius * 0.34, cy - radius * 0.36, radius * 0.28, radius * 0.16, -Math.PI / 4, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(255, 255, 255, 0.78)";
     ctx.fill();
-    ctx.stroke();
-  }
 
-  if (isPreview) {
-    const ix = MARGIN + (c + 1) * CELL_SIZE + c * GAP_SIZE + GAP_SIZE / 2;
-    const iy = MARGIN + (r + 1) * CELL_SIZE + r * GAP_SIZE + GAP_SIZE / 2;
+    // 6. Fresnel Rim Light
+    ctx.strokeStyle = skin.hi;
+    ctx.lineWidth = 1.5;
     ctx.beginPath();
-    ctx.arc(ix, iy, 6, 0, Math.PI * 2);
-    ctx.fillStyle = "#ffffff";
-    ctx.fill();
-  }
-  ctx.restore();
-}
-
-function drawPawn(r, c, color, label, isTurn) {
-  const cx = MARGIN + c * STEP + CELL_SIZE / 2;
-  const cy = MARGIN + r * STEP + CELL_SIZE / 2;
-
-  ctx.save();
-  if (isTurn) {
-    ctx.beginPath();
-    ctx.arc(cx, cy, 20, 0, Math.PI * 2);
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 2.5;
+    ctx.arc(cx, cy, radius - 0.8, 0, Math.PI * 2);
     ctx.stroke();
+
+    ctx.restore();
   }
-
-  ctx.beginPath();
-  ctx.arc(cx, cy, 15, 0, Math.PI * 2);
-  ctx.fillStyle = color;
-  ctx.fill();
-  ctx.lineWidth = 2.5;
-  ctx.strokeStyle = "#0f172a";
-  ctx.stroke();
-
-  ctx.font = "900 11px system-ui, sans-serif";
-  ctx.fillStyle = "#0f172a";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText(label, cx, cy + 0.5);
-  ctx.restore();
-}
-
-setupHiDPI();
+})();
 </script>
 </body>
 </html>
